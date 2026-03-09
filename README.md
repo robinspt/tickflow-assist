@@ -1,0 +1,291 @@
+# 📈 TickFlow 股票分析插件
+
+基于 [OpenClaw](https://openclaw.ai) 的 A 股实时分析插件，通过 [TickFlow](https://tickflow.org) API 获取行情数据，结合 LLM 进行技术分析，自动监控关键价位并推送告警。
+
+## ✨ 功能特性
+
+- 🔍 **对话式交互** — 通过 OpenClaw 对话输入股票代码和成本价
+- 📊 **日K线获取** — 自动从 TickFlow 批量接口获取前复权日K数据，交易时段内自动剔除当日未完成数据
+- 🧮 **技术指标计算** — MA / MACD / KDJ / RSI / CCI / BIAS / DMI / BOLL 等全套指标
+- 🤖 **LLM 智能分析** — 调用大模型分析K线形态和指标共振，输出 9 个关键价位 + 评分
+- ⏰ **实时监控** — 每 10 秒（可配置）获取实时行情，对比关键价位按规则推送告警
+- 📅 **交易日历** — 内置交易日历，统一的时间约束判断（交易时段 / 收盘后 / 日更新窗口）
+- 💾 **LanceDB 存储** — 轻量级向量数据库，无需额外部署
+- ✅ **A 股代码强校验** — 入口统一校验交易所后缀、代码前缀，仅允许股票（不含指数/可转债）
+- 🔄 **全量滚动更新** — 每次收盘后重新拉取最近 N 天 K 线并整股覆盖，自动处理除权除息
+- 🕐 **内建定时任务** — 一键注册 crontab，自动管理收盘更新和实时监控
+- 🔒 **监控单实例锁** — PID 锁文件机制，cron 重复触发时不会叠加多个监控进程
+
+## 📁 项目结构
+
+```
+tickflow_plugin/
+├── config.yaml                    # 配置文件
+├── requirements.txt               # Python 依赖
+├── day_future.txt                 # 交易日历（至2026年底）
+├── src/                           # 核心模块
+│   ├── config.py                  # 配置加载
+│   ├── validators.py              # A 股代码校验
+│   ├── calendar.py                # 交易日历 + 统一时间约束
+│   ├── tickflow_api.py            # TickFlow HTTP API 客户端（批量 K 线 + 适配层）
+│   ├── db.py                      # LanceDB 数据库操作
+│   ├── indicators.py              # 技术指标计算
+│   ├── analyzer.py                # LLM 分析引擎（fail-close + 输出分离）
+│   ├── alert.py                   # 告警发送
+│   ├── monitor.py                 # 实时监控引擎（含 PID 单实例锁）
+│   └── scheduler.py               # 定时任务管理（crontab）
+├── scripts/                       # CLI 入口脚本
+│   ├── add_stock.py               # 添加关注股票
+│   ├── remove_stock.py            # 删除关注股票 + 清除数据
+│   ├── fetch_klines.py            # 获取K线 + 计算指标（单股）
+│   ├── update_all.py              # 收盘后批量全量更新
+│   ├── analyze.py                 # LLM 技术分析
+│   ├── realtime_monitor.py        # 实时监控
+│   └── init_scheduler.py          # 注册/管理定时任务
+└── skills/stock-analysis/
+    └── SKILL.md                   # OpenClaw Skill 定义
+```
+
+## 🚀 快速开始
+
+### 1. 安装依赖
+
+```bash
+cd tickflow_plugin
+pip install -r requirements.txt
+```
+
+### 2. 配置
+
+编辑 `config.yaml`，填入以下必要信息：
+
+```yaml
+# LLM 配置（兼容 OpenAI API）
+llm:
+  base_url: "https://your-llm-api.com/v1"
+  api_key: "sk-xxx"
+  model: "gpt-4o"
+
+# TickFlow 配置（根地址，版本号由代码拼接）
+tickflow:
+  api_url: "https://api.tickflow.org"
+  api_key: "your-tickflow-api-key"
+
+# 告警配置
+alert:
+  openclaw_token: "your-gateway-token"
+  channel: "telegram"              # 支持 telegram / whatsapp / discord / slack 等
+  target: ""                       # 通道目标 ID
+```
+
+也可通过环境变量覆盖敏感配置：
+
+```bash
+export LLM_API_KEY="sk-xxx"
+export TICKFLOW_API_KEY="your-key"
+export OPENCLAW_GATEWAY_TOKEN="your-token"
+```
+
+### 3. 注册定时任务
+
+```bash
+# 一键注册 crontab 定时任务（收盘更新 + 实时监控）
+python scripts/init_scheduler.py
+
+# 查看已注册的任务
+python scripts/init_scheduler.py --list
+
+# 移除所有定时任务
+python scripts/init_scheduler.py --remove
+```
+
+注册后将自动创建两条 crontab 任务：
+
+| 任务 | 时间 | 说明 |
+|------|------|------|
+| `daily_update` | 周一至周五 15:35 | 收盘后全量更新 K 线和指标（单次执行后退出） |
+| `realtime_monitor` | 周一至周五 09:25 | 启动实时监控（常驻进程，内置 PID 锁防重复启动） |
+
+### 4. 加载 OpenClaw Skill
+
+```bash
+# 方式一：软链接到 OpenClaw skills 目录
+ln -s $(pwd)/skills/stock-analysis ~/.openclaw/skills/stock-analysis
+
+# 方式二：配置 extraDirs
+openclaw config set skills.load.extraDirs '["/path/to/tickflow_plugin/skills"]'
+```
+
+重启 Gateway 使 Skill 生效：
+
+```bash
+openclaw gateway restart
+```
+
+## 💬 使用方式
+
+### 通过 OpenClaw 对话
+
+在任意已绑定的通道（Telegram、WhatsApp 等）中与 OpenClaw 对话：
+
+| 指令示例 | 功能 |
+|---|---|
+| `添加 600000.SH 成本 10.5` | 添加股票到关注列表 |
+| `删除 600000.SH` | 从关注列表移除并清除数据 |
+| `更新 600000.SH 数据` | 获取最新日K线并计算指标 |
+| `分析 600000.SH` | 获取数据 + LLM 分析 + 输出关键价位 |
+| `开始监控` | 启动实时行情监控 |
+
+### 通过命令行
+
+```bash
+# 添加关注（含 A 股代码校验，非法代码会被拒绝）
+python scripts/add_stock.py --symbol 600000.SH --cost 10.5
+
+# 删除关注（同时清除关联数据）
+python scripts/remove_stock.py --symbol 600000.SH
+
+# 删除关注（保留 K 线和指标数据）
+python scripts/remove_stock.py --symbol 600000.SH --keep-data
+
+# 获取K线 + 计算指标（单股）
+python scripts/fetch_klines.py --symbol 600000.SH --days 90
+
+# 收盘后全量更新所有关注股票（需 15:30 后执行，自动处理除权除息）
+python scripts/update_all.py
+
+# 强制更新（跳过时间检查）
+python scripts/update_all.py --force
+
+# LLM 分析（输出简洁结论 + 关键价位表格）
+python scripts/analyze.py --symbol 600000.SH
+
+# 启动实时监控
+python scripts/realtime_monitor.py
+```
+
+## ⏰ 实时监控
+
+### 监控规则
+
+| 规则 | 说明 | 触发条件 |
+|---|---|---|
+| ⛔ 止损告警 | 触及或跌破止损位 | `价格 ≤ 止损位` |
+| ⚠️ 止损预警 | 接近止损位 | `价格 ≤ 止损位 × 1.005` |
+| 🚀 突破告警 | 突破关键压力位 | `价格 ≥ 突破位` |
+| 📉 支撑告警 | 触及支撑位 | `价格 ≤ 支撑位 × 1.005` |
+| 📈 压力告警 | 接近压力位 | `价格 ≥ 压力位 × 0.995` |
+| 💰 止盈告警 | 触及止盈位 | `价格 ≥ 止盈位` |
+| 📊 涨跌幅异动 | 当日涨跌幅超阈值 | `|涨跌幅| ≥ 5%` |
+| 📈 成交量异动 | 成交量异常放大 | `当前量 ≥ 5日均量 × 3` |
+
+> 每条规则在同一交易日内仅触发一次，避免重复告警。
+
+### 时间约束
+
+所有涉及行情拉取和入库的模块共用 `calendar.py` 中的统一时间判断函数：
+
+| 函数 | 说明 |
+|------|------|
+| `is_trading_day()` | 是否交易日 |
+| `is_trading_time()` | 是否在交易时段内（交易日 + 09:30-11:30 / 13:00-15:00） |
+| `is_after_market_close()` | 当天是否已收盘（交易日 + ≥ 15:00） |
+| `can_run_daily_update(force)` | 能否执行收盘更新（交易日 + ≥ 15:30，`--force` 跳过） |
+
+## 🤖 LLM 分析
+
+### 输出格式
+
+分析结果对用户展示为简洁结论 + 关键价位表格，不包含原始 JSON：
+
+```
+该股短期均线多头排列，MACD 金叉放量，RSI 处于中性偏强区域。
+建议关注 11.20 突破位，若放量站上可加仓。支撑位 10.00 为防守线，
+跌破 9.80 止损位应果断离场。
+
+📊 关键价位汇总:
+---------------------------------------------
+  当前价格: 10.50
+  止损位: 9.80
+  突破位: 11.20
+  支撑位: 10.00
+  成本位: 10.30
+  压力位: 11.00
+  止盈位: 12.50
+  缺口位: 暂无
+  目标位: 13.00
+  整数关: 11.00
+
+  技术面评分: 6/10
+---------------------------------------------
+```
+
+### Fail-Close 机制
+
+- 结构化解析成功且校验通过 → 关键价位写入 `key_levels` 表
+- 结构化解析失败或校验失败 → **不覆盖**已有有效价位，仅写入 `analysis_log` 表留痕
+- `current_price` 必须 > 0，`score` 必须 1-10，所有价位 ≥ 0
+
+## 📊 技术指标
+
+基于 [ta](https://github.com/bukosabino/ta) 库计算：
+
+| 类别 | 指标 |
+|---|---|
+| 均线系统 | MA5, MA10, MA20, MA60 |
+| 趋势指标 | MACD (DIF/DEA/柱状), DMI (+DI/-DI/ADX) |
+| 动量指标 | KDJ (K/D/J), RSI (6/12/24), CCI (14) |
+| 偏离指标 | BIAS (6/12/24) |
+| 波动指标 | 布林带 (上轨/中轨/下轨) |
+
+## 🗄️ 数据库
+
+使用 [LanceDB](https://lancedb.com/) 轻量级嵌入式数据库，数据存储在 `data/lancedb/` 目录下。
+
+| 表名 | 说明 |
+|---|---|
+| `watchlist` | 关注列表（股票代码、成本价） |
+| `klines_daily` | 日K线数据（按股票维度全量替换，滚动窗口） |
+| `indicators` | 技术指标数据（全量重算覆盖） |
+| `key_levels` | 关键价位（仅存储校验通过的有效数据） |
+| `analysis_log` | 分析日志（记录每次 LLM 分析结果，含成功/失败标记） |
+| `alert_log` | 告警日志（用于去重） |
+
+## ✅ A 股代码校验
+
+本插件仅支持 A 股**股票**，不支持指数和可转债。所有入口统一调用 `validate_a_share_symbol()` 校验：
+
+| 交易所 | 允许前缀 | 示例 |
+|--------|---------|------|
+| SH (上交所) | 60x (主板), 68x (科创板) | 600000.SH, 688001.SH |
+| SZ (深交所) | 00x (主板), 30x (创业板) | 000001.SZ, 300001.SZ |
+| BJ (北交所) | 8x, 4x | 830001.BJ, 430001.BJ |
+
+非法代码（如指数 `000001.SH`、可转债 `128001.SZ`、无效 `999999.XX`）在入口处直接拒绝。
+
+## ⚙️ 配置项说明
+
+| 配置项 | 说明 | 默认值 |
+|---|---|---|
+| `llm.base_url` | LLM API 地址 | `https://api.openai.com/v1` |
+| `llm.model` | 模型名称 | `gpt-4o` |
+| `llm.temperature` | 生成温度 | `0.3` |
+| `tickflow.api_url` | TickFlow API 根地址（不含版本号） | `https://api.tickflow.org` |
+| `tickflow.request_interval` | 实时行情请求间隔（秒） | `10` |
+| `kline.days` | 默认获取K线天数 | `90` |
+| `kline.adjust` | 复权类型 | `forward` |
+| `alert.channel` | 告警通道 | `telegram` |
+| `alert_rules.stop_loss_buffer` | 止损预警缓冲 | `0.005` (0.5%) |
+| `alert_rules.change_pct_threshold` | 涨跌幅异动阈值 | `0.05` (5%) |
+| `alert_rules.volume_ratio_threshold` | 成交量异动倍数 | `3.0` |
+
+## 📋 依赖
+
+- Python ≥ 3.10
+- [TickFlow API Key](https://tickflow.org)
+- OpenAI 兼容的 LLM API
+- [OpenClaw](https://openclaw.ai)（用于对话交互和告警推送）
+
+## 📄 License
+
+MIT

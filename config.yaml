@@ -1,0 +1,52 @@
+# ============================================================
+# TickFlow 股票分析插件配置
+# ============================================================
+
+# LLM 配置（兼容 OpenAI API）
+llm:
+  base_url: "https://api.openai.com/v1"
+  api_key: "sk-xxx"
+  model: "gpt-4o"
+  max_tokens: 4096
+  temperature: 0.3
+
+# TickFlow API 配置
+tickflow:
+  api_url: "https://api.tickflow.org"
+  api_key: "your-tickflow-api-key"
+  request_interval: 10       # 实时行情请求间隔（秒）
+
+# LanceDB 数据库配置
+database:
+  path: "./data/lancedb"
+
+# 告警配置
+alert:
+  # 通过 OpenClaw Webhook 发送告警
+  openclaw_gateway: "http://127.0.0.1:18789"
+  openclaw_token: ""          # Gateway auth token
+  channel: "telegram"         # 告警通道（telegram / whatsapp / discord / slack 等）
+  target: ""                  # 通道目标（如 Telegram chat ID、群组 ID）
+
+# 交易日历文件路径
+calendar:
+  file: "./day_future.txt"
+
+# A 股交易时段
+trading_hours:
+  morning_start: "09:30"
+  morning_end: "11:30"
+  afternoon_start: "13:00"
+  afternoon_end: "15:00"
+
+# K 线分析参数
+kline:
+  days: 90                    # 默认获取 K 线天数
+  adjust: "forward"           # 复权类型（forward / backward / none）
+
+# 告警规则阈值
+alert_rules:
+  stop_loss_buffer: 0.005     # 止损位缓冲（0.5%，接近止损时预警）
+  breakthrough_buffer: 0.005  # 突破位缓冲
+  change_pct_threshold: 0.05  # 涨跌幅异动阈值（5%）
+  volume_ratio_threshold: 3.0 # 成交量异动倍数（相对近5日均量）

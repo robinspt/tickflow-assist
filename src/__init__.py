@@ -1,0 +1,1 @@
+# TickFlow Stock Analysis Plugin
