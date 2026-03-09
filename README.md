@@ -51,9 +51,23 @@ tickflow_plugin/
 ### 1. 安装依赖
 
 ```bash
-cd tickflow_plugin
-pip install -r requirements.txt
+cd tickflow-assist
+uv sync
 ```
+
+如果目标机器还没安装 `uv`，可先执行：
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+如果你只想保留现有 `requirements.txt` 工作流，也可以：
+
+```bash
+uv pip install -r requirements.txt
+```
+
+不建议在 Debian / Ubuntu 系统 Python 上直接执行 `pip install -r requirements.txt`，因为较新的发行版默认启用了 PEP 668，会报 `externally-managed-environment`。
 
 ### 2. 配置
 
