@@ -131,7 +131,9 @@ def get_db() -> lancedb.DBConnection:
 def _get_or_create_table(name: str, schema: pa.Schema):
     """获取或创建表（内部方法，脚本层不应直接调用）"""
     db = get_db()
-    if name in db.list_tables():
+    tables = db.list_tables()
+    table_names = tables.tables if hasattr(tables, "tables") else tables
+    if name in table_names:
         return db.open_table(name)
     else:
         return db.create_table(name, schema=schema)

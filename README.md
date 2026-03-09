@@ -19,8 +19,9 @@
 ## 📁 项目结构
 
 ```
-tickflow_plugin/
+tickflow-assist/
 ├── config.yaml                    # 配置文件
+├── pyproject.toml                 # uv / 项目依赖配置
 ├── requirements.txt               # Python 依赖
 ├── day_future.txt                 # 交易日历（至2026年底）
 ├── src/                           # 核心模块
@@ -36,6 +37,7 @@ tickflow_plugin/
 │   └── scheduler.py               # 定时任务管理（crontab）
 ├── scripts/                       # CLI 入口脚本
 │   ├── add_stock.py               # 添加关注股票
+│   ├── list_watchlist.py          # 查看当前关注列表
 │   ├── remove_stock.py            # 删除关注股票 + 清除数据
 │   ├── fetch_klines.py            # 获取K线 + 计算指标（单股）
 │   ├── update_all.py              # 收盘后批量全量更新
@@ -123,12 +125,26 @@ python scripts/init_scheduler.py --remove
 ### 4. 加载 OpenClaw Skill
 
 ```bash
+cd /path/to/tickflow-assist
+export TICKFLOW_ASSIST_ROOT=$(pwd)
+
 # 方式一：软链接到 OpenClaw skills 目录
 ln -s $(pwd)/skills/stock-analysis ~/.openclaw/skills/stock-analysis
 
 # 方式二：配置 extraDirs
-openclaw config set skills.load.extraDirs '["/path/to/tickflow_plugin/skills"]'
+openclaw config set skills.load.extraDirs '["/path/to/tickflow-assist/skills"]'
 ```
+
+如果只是在当前 shell 里手动启动 Gateway，上面的 `export` 执行一次即可。
+
+如果希望重启机器或重新登录后仍然生效，需要把它写入启动环境，例如：
+
+```bash
+cd /path/to/tickflow-assist
+echo "export TICKFLOW_ASSIST_ROOT=$(pwd)" >> ~/.bashrc
+```
+
+如果 OpenClaw Gateway 是通过 systemd、supervisor 或容器启动的，则要把 `TICKFLOW_ASSIST_ROOT` 配到对应服务的环境变量里，而不是只配在交互式 shell 中。
 
 重启 Gateway 使 Skill 生效：
 
@@ -145,7 +161,9 @@ openclaw gateway restart
 | 指令示例 | 功能 |
 |---|---|
 | `添加 600000.SH 成本 10.5` | 添加股票到关注列表 |
+| `查看关注列表` | 查看当前已关注股票及成本价 |
 | `删除 600000.SH` | 从关注列表移除并清除数据 |
+| `删除 600000.SH 保留数据` | 从关注列表移除，但保留已抓取数据 |
 | `更新 600000.SH 数据` | 获取最新日K线并计算指标 |
 | `分析 600000.SH` | 获取数据 + LLM 分析 + 输出关键价位 |
 | `开始监控` | 启动实时行情监控 |
@@ -155,6 +173,9 @@ openclaw gateway restart
 ```bash
 # 添加关注（含 A 股代码校验，非法代码会被拒绝）
 python scripts/add_stock.py --symbol 600000.SH --cost 10.5
+
+# 查看当前关注列表
+python scripts/list_watchlist.py
 
 # 删除关注（同时清除关联数据）
 python scripts/remove_stock.py --symbol 600000.SH
