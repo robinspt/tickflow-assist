@@ -106,7 +106,7 @@ alert:
   target: ""                       # 通道目标 ID（QQBot 可不填）
 ```
 
-也可通过环境变量覆盖敏感配置：
+敏感配置默认推荐直接写在 `config.yaml`。如果你更希望把密钥放到环境变量里，也可以覆盖，此时 `config.yaml` 里的 `llm.api_key` / `tickflow.api_key` 可留空。
 
 ```bash
 export LLM_API_KEY="sk-xxx"

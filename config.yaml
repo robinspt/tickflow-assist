@@ -5,7 +5,8 @@
 # LLM 配置（兼容 OpenAI API）
 llm:
   base_url: "https://api.openai.com/v1"
-  api_key: "sk-xxx"
+  api_key: "sk-xxx"            # 推荐：直接填写 API Key
+  # api_key: ""                # 可选：若使用环境变量 LLM_API_KEY，这里留空
   model: "gpt-4o"
   max_tokens: 4096
   temperature: 0.3
@@ -13,12 +14,9 @@ llm:
 # TickFlow API 配置
 tickflow:
   api_url: "https://api.tickflow.org"
-  api_key: "your-tickflow-api-key"
+  api_key: "your-tickflow-api-key"  # 推荐：直接填写 API Key
+  # api_key: ""                     # 可选：若使用环境变量 TICKFLOW_API_KEY，这里留空
   request_interval: 30       # 实时行情请求间隔（秒）
-
-# 也可通过环境变量覆盖敏感配置：
-# export LLM_API_KEY="sk-xxx"
-# export TICKFLOW_API_KEY="your-key"
 
 # LanceDB 数据库配置
 database:
