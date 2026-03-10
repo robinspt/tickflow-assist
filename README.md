@@ -94,9 +94,7 @@ tickflow:
 
 # 告警配置
 alert:
-  mode: "openclaw_cli"             # 推荐：直接通过 OpenClaw CLI 发消息
-  openclaw_token: "your-gateway-token"
-  openclaw_webhook_path: "/hooks/agent"  # 若 OpenClaw 自定义了 hooks.path，这里也要同步修改
+  openclaw_cli_bin: "openclaw"     # 可选，默认直接调用系统里的 openclaw
   channel: "telegram"              # 支持 telegram / whatsapp / discord / slack / qqbot 等
   account: ""                      # 多账号时指定 accountId（如 QQBot 多机器人）
   target: ""                       # 通道目标 ID
@@ -107,7 +105,6 @@ alert:
 ```bash
 export LLM_API_KEY="sk-xxx"
 export TICKFLOW_API_KEY="your-key"
-export OPENCLAW_GATEWAY_TOKEN="your-token"
 ```
 
 ### 3. 注册定时任务

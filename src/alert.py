@@ -1,29 +1,18 @@
 #!/usr/bin/env python3
 """
 告警发送模块
-支持通过 OpenClaw CLI 或 Webhook 向指定通道发送告警消息
+通过 OpenClaw CLI 向指定通道发送告警消息
 """
 
 import subprocess
-import requests
 from .config import get_config
 
 
 def send_alert(message: str) -> bool:
     cfg = get_config()
     alert_cfg = cfg.get("alert", {})
-    mode = alert_cfg.get("mode", "webhook")
-
-    if mode == "openclaw_cli":
-        return _send_alert_via_openclaw_cli(message, alert_cfg)
-    return _send_alert_via_webhook(message, alert_cfg)
-
-
-def _send_alert_via_openclaw_cli(message: str, alert_cfg: dict) -> bool:
     """
     通过 OpenClaw CLI 直接发送消息到指定通道。
-
-    适合确定性通知场景，避免 webhook 触发 agent turn 后再 delivery 的不确定性。
     """
     binary = alert_cfg.get("openclaw_cli_bin", "openclaw")
     channel = alert_cfg.get("channel", "telegram")
@@ -53,58 +42,6 @@ def _send_alert_via_openclaw_cli(message: str, alert_cfg: dict) -> bool:
     detail = stderr or stdout or f"exit code {resp.returncode}"
     print(f"[告警] OpenClaw CLI 发送失败: {detail}")
     return False
-
-
-def _send_alert_via_webhook(message: str, alert_cfg: dict) -> bool:
-    """
-    通过 OpenClaw Webhook 发送告警消息。
-
-    使用 POST /hooks/agent 接口，让 OpenClaw Agent 将消息发送到目标通道。
-    """
-
-    gateway_url = alert_cfg.get("openclaw_gateway", "http://127.0.0.1:18789")
-    token = alert_cfg.get("openclaw_token", "")
-    webhook_path = alert_cfg.get("openclaw_webhook_path", "/hooks/agent")
-    channel = alert_cfg.get("channel", "telegram")
-    account = alert_cfg.get("account", "")
-    target = alert_cfg.get("target", "")
-
-    url = f"{gateway_url.rstrip('/')}/{webhook_path.lstrip('/')}"
-    headers = {
-        "Content-Type": "application/json",
-    }
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-
-    payload = {
-        "message": message,
-        "delivery": {
-            "channel": channel,
-        },
-    }
-    if target:
-        payload["delivery"]["to"] = target
-    if account:
-        payload["delivery"]["account"] = account
-
-    try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=10)
-        if resp.status_code == 200:
-            return True
-        elif resp.status_code == 404:
-            print(
-                "[告警] 发送失败: HTTP 404 - "
-                "OpenClaw webhook 入口不存在。请检查是否已启用 hooks/webhooks，"
-                "以及 alert.openclaw_webhook_path 是否与 OpenClaw 的 hooks.path 一致。"
-            )
-            print(f"[告警] 当前请求地址: {url}")
-            return False
-        else:
-            print(f"[告警] 发送失败: HTTP {resp.status_code} - {resp.text}")
-            return False
-    except requests.exceptions.RequestException as e:
-        print(f"[告警] 发送异常: {e}")
-        return False
 
 
 def format_system_notification(title: str, lines: list[str]) -> str:

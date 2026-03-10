@@ -54,7 +54,6 @@ def load_config(config_path: str | None = None) -> dict:
         "llm.model": "LLM_MODEL",
         "tickflow.api_key": "TICKFLOW_API_KEY",
         "tickflow.api_url": "TICKFLOW_API_URL",
-        "alert.openclaw_token": "OPENCLAW_GATEWAY_TOKEN",
         "alert.channel": "ALERT_CHANNEL",
         "alert.account": "ALERT_ACCOUNT",
         "alert.target": "ALERT_TARGET",

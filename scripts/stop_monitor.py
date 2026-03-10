@@ -14,6 +14,8 @@ import signal
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 LOCK_FILE = "/tmp/tickflow_monitor.pid"
 MONITOR_SCRIPT = "realtime_monitor.py"
 
@@ -54,6 +56,24 @@ def _cleanup_lock():
             os.remove(LOCK_FILE)
     except OSError:
         pass
+
+
+def _send_stop_notification(pid: int, force: bool) -> None:
+    """发送停止监控生命周期通知。"""
+    from src.config import load_config, china_now
+    from src.alert import send_alert, format_system_notification
+
+    load_config()
+    ok = send_alert(format_system_notification(
+        "🛑 TickFlow 监控已停止",
+        [
+            f"时间: {china_now().strftime('%Y-%m-%d %H:%M:%S')}",
+            f"进程 PID: {pid}",
+            f"停止方式: {'强制停止' if force else '优雅停止'}",
+        ],
+    ))
+    if not ok:
+        print("⚠️  停止通知发送失败")
 
 
 def stop_monitor(force: bool = False) -> bool:
@@ -115,20 +135,7 @@ def stop_monitor(force: bool = False) -> bool:
         if not _check_pid_alive(pid):
             print(f"✅ 监控进程已停止 (PID={pid})")
             _cleanup_lock()
-            try:
-                from src.config import load_config, china_now
-                from src.alert import send_alert, format_system_notification
-                load_config()
-                send_alert(format_system_notification(
-                    "🛑 TickFlow 监控已停止",
-                    [
-                        f"时间: {china_now().strftime('%Y-%m-%d %H:%M:%S')}",
-                        f"进程 PID: {pid}",
-                        f"停止方式: {'强制停止' if force else '优雅停止'}",
-                    ],
-                ))
-            except Exception:
-                pass
+            _send_stop_notification(pid, force)
             return True
         if not force:
             print(f"   等待进程退出... ({i + 1}/{max_wait}s)")
@@ -141,20 +148,7 @@ def stop_monitor(force: bool = False) -> bool:
             if not _check_pid_alive(pid):
                 print(f"✅ 监控进程已强制停止 (PID={pid})")
                 _cleanup_lock()
-                try:
-                    from src.config import load_config, china_now
-                    from src.alert import send_alert, format_system_notification
-                    load_config()
-                    send_alert(format_system_notification(
-                        "🛑 TickFlow 监控已停止",
-                        [
-                            f"时间: {china_now().strftime('%Y-%m-%d %H:%M:%S')}",
-                            f"进程 PID: {pid}",
-                            "停止方式: 强制停止",
-                        ],
-                    ))
-                except Exception:
-                    pass
+                _send_stop_notification(pid, force=True)
                 return True
         except (ProcessLookupError, PermissionError):
             pass
