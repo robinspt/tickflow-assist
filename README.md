@@ -16,6 +16,12 @@
 - 🕐 **内建定时任务** — 一键注册 crontab，自动管理收盘更新和实时监控
 - 🔒 **监控单实例锁** — PID 锁文件机制，cron 重复触发时不会叠加多个监控进程
 
+## 🧩 支持的 Claw
+
+- [OpenClaw](https://openclaw.ai)（已支持）
+- Nanobot（待定）
+- 其他 Claw（待增加）
+
 ## 📁 项目结构
 
 ```
@@ -87,7 +93,7 @@ llm:
   api_key: "sk-xxx"
   model: "gpt-4o"
 
-# TickFlow 配置（根地址，版本号由代码拼接）
+# TickFlow 配置（访问 tickflow.org 登录后，在控制台一键生成你的 API Key）
 tickflow:
   api_url: "https://api.tickflow.org"
   api_key: "your-tickflow-api-key"
@@ -97,7 +103,7 @@ alert:
   openclaw_cli_bin: "openclaw"     # 可选，默认直接调用系统里的 openclaw
   channel: "telegram"              # 支持 telegram / whatsapp / discord / slack / qqbot 等
   account: ""                      # 多账号时指定 accountId（如 QQBot 多机器人）
-  target: ""                       # 通道目标 ID
+  target: ""                       # 通道目标 ID（QQBot 可不填）
 ```
 
 也可通过环境变量覆盖敏感配置：
@@ -267,7 +273,7 @@ uv run python scripts/stop_monitor.py --force
 
 ## ⏰ 实时监控
 
-启动/停止监控时会主动向当前告警通道发送生命周期通知。这样即使当天没有触发价格类告警，也能确认 channel 投递链路仍然可用。
+启动/停止监控时会主动向当前告警通道发送生命周期通知。这样即使当天没有触发价格类告警，也能确认 channel 投递链路仍然可用。启动通知会包含当前交易时段状态、轮询间隔、监控标的和最新行情快照。
 
 ### 监控规则
 
@@ -377,8 +383,10 @@ uv run python scripts/stop_monitor.py --force
 | `tickflow.request_interval` | 实时行情请求间隔（秒） | `30` |
 | `kline.days` | 默认获取K线天数 | `90` |
 | `kline.adjust` | 复权类型 | `forward` |
+| `alert.openclaw_cli_bin` | OpenClaw CLI 可执行文件名或路径 | `openclaw` |
 | `alert.channel` | 告警通道 | `telegram` |
 | `alert.account` | 多账号时指定 accountId | `""` |
+| `alert.target` | 通道目标 ID（不同 channel 格式不同） | `""` |
 | `alert_rules.stop_loss_buffer` | 止损预警缓冲 | `0.005` (0.5%) |
 | `alert_rules.change_pct_threshold` | 涨跌幅异动阈值 | `0.05` (5%) |
 | `alert_rules.volume_ratio_threshold` | 成交量异动倍数 | `3.0` |
@@ -389,6 +397,11 @@ uv run python scripts/stop_monitor.py --force
 - [TickFlow API Key](https://tickflow.org)
 - OpenAI 兼容的 LLM API
 - [OpenClaw](https://openclaw.ai)（用于对话交互和告警推送）
+
+## 🙏 鸣谢
+
+- [TickFlow](https://tickflow.org) 提供行情数据服务与 API 支持
+- [tickflow-org/tickflow](https://github.com/tickflow-org/tickflow)
 
 ## 📄 License
 
