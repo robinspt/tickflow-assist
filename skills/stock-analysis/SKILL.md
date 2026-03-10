@@ -114,6 +114,36 @@ exec python $TICKFLOW_ASSIST_ROOT/scripts/realtime_monitor.py &
 - 告警通过 OpenClaw 发送到配置的通道（默认 Telegram）
 - 同一规则在同一交易日内不会重复告警
 
+### 8. 查看监控状态
+
+当用户请求查看监控运行状态时（如："监控状态"、"当前监控怎么样"、"看看监控"、"运行状态"），执行：
+
+```
+exec python $TICKFLOW_ASSIST_ROOT/scripts/monitor_status.py
+```
+
+返回内容包括：
+- 📊 监控进程是否在运行（PID、运行时长）
+- 📅 当前交易时段状态（交易日、盘前/交易中/午休/收盘）
+- 📋 关注列表和股票数量
+- 🎯 关键价位覆盖情况（哪些股票已分析/缺失）
+- 🔔 今日已发送的告警记录
+- ⚙️ 监控配置摘要（轮询间隔、告警通道、规则阈值）
+
+将查询结果完整发送给用户，方便用户了解实时监控是否正常工作。
+
+### 9. 停止实时监控
+
+当用户请求停止监控时（如："停止监控"、"关闭监控"、"停止实时行情"），执行：
+
+```
+exec python $TICKFLOW_ASSIST_ROOT/scripts/stop_monitor.py
+```
+
+- 默认发送 SIGTERM 信号，等待进程优雅退出
+- 如果用户要求强制停止，加 `--force` 参数（使用 SIGKILL 强制终止）
+- 停止后自动清理 PID 锁文件
+
 ## 注意事项
 
 - 部署时先设置环境变量 `TICKFLOW_ASSIST_ROOT`，其值为项目根目录，例如 `/home/ocuser/projects/tickflow-assist`

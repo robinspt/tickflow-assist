@@ -43,6 +43,8 @@ tickflow-assist/
 │   ├── update_all.py              # 收盘后批量全量更新
 │   ├── analyze.py                 # LLM 技术分析
 │   ├── realtime_monitor.py        # 实时监控
+│   ├── monitor_status.py          # 查看监控运行状态
+│   ├── stop_monitor.py            # 停止实时监控
 │   └── init_scheduler.py          # 注册/管理定时任务
 └── skills/stock-analysis/
     └── SKILL.md                   # OpenClaw Skill 定义
@@ -167,6 +169,8 @@ openclaw gateway restart
 | `更新 600000.SH 数据` | 获取最新日K线并计算指标 |
 | `分析 600000.SH` | 获取数据 + LLM 分析 + 输出关键价位 |
 | `开始监控` | 启动实时行情监控 |
+| `监控状态` / `看看监控` | 查看监控进程、交易时段、今日告警等运行状态 |
+| `停止监控` / `关闭监控` | 优雅停止实时监控进程 |
 
 ### 通过命令行
 
@@ -197,6 +201,15 @@ python scripts/analyze.py --symbol 600000.SH
 
 # 启动实时监控
 python scripts/realtime_monitor.py
+
+# 查看监控运行状态
+python scripts/monitor_status.py
+
+# 停止实时监控（优雅退出）
+python scripts/stop_monitor.py
+
+# 强制停止实时监控
+python scripts/stop_monitor.py --force
 ```
 
 ## ⏰ 实时监控
@@ -211,7 +224,7 @@ python scripts/realtime_monitor.py
 | 📉 支撑告警 | 触及支撑位 | `价格 ≤ 支撑位 × 1.005` |
 | 📈 压力告警 | 接近压力位 | `价格 ≥ 压力位 × 0.995` |
 | 💰 止盈告警 | 触及止盈位 | `价格 ≥ 止盈位` |
-| 📊 涨跌幅异动 | 当日涨跌幅超阈值 | `|涨跌幅| ≥ 5%` |
+| 📊 涨跌幅异动 | 当日涨跌幅超阈值 | `|涨跌幅| ≥ 5%`（涨跌均触发） |
 | 📈 成交量异动 | 成交量异常放大 | `当前量 ≥ 5日均量 × 3` |
 
 > 每条规则在同一交易日内仅触发一次，避免重复告警。
