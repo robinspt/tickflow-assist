@@ -360,12 +360,29 @@ def get_all_key_levels() -> pd.DataFrame:
 # 告警日志操作
 # ============================================================
 
+def _get_session_key() -> str:
+    """
+    获取当前交易时段标识，用于告警去重。
+
+    上午盘(09:30-11:30) -> "YYYY-MM-DD_AM"
+    下午盘(13:00-15:00) -> "YYYY-MM-DD_PM"
+    其他时段归入最近的时段。
+    """
+    now = datetime.now()
+    date_str = now.strftime("%Y-%m-%d")
+    # 13:00 之前算上午盘，13:00 及之后算下午盘
+    if now.hour < 13:
+        return f"{date_str}_AM"
+    else:
+        return f"{date_str}_PM"
+
+
 def log_alert(symbol: str, rule_name: str, message: str) -> None:
-    """记录告警日志（用于去重）"""
+    """记录告警日志（用于去重，按交易时段区分）"""
     table = _get_or_create_table("alert_log", ALERT_LOG_SCHEMA)
     data = pa.table({
         "symbol": [symbol],
-        "alert_date": [datetime.now().strftime("%Y-%m-%d")],
+        "alert_date": [_get_session_key()],
         "rule_name": [rule_name],
         "message": [message],
         "triggered_at": [datetime.now().isoformat()],
@@ -373,12 +390,12 @@ def log_alert(symbol: str, rule_name: str, message: str) -> None:
     table.add(data)
 
 
-def is_alert_sent_today(symbol: str, rule_name: str) -> bool:
-    """检查今天是否已发送过同类告警"""
+def is_alert_sent_this_session(symbol: str, rule_name: str) -> bool:
+    """检查当前交易时段是否已发送过同类告警（上午盘/下午盘各自独立）"""
     table = _get_or_create_table("alert_log", ALERT_LOG_SCHEMA)
-    today = datetime.now().strftime("%Y-%m-%d")
+    session_key = _get_session_key()
     df = table.search().where(
-        f"symbol = '{symbol}' AND rule_name = '{rule_name}' AND alert_date = '{today}'"
+        f"symbol = '{symbol}' AND rule_name = '{rule_name}' AND alert_date = '{session_key}'"
     ).to_pandas()
     return len(df) > 0
 

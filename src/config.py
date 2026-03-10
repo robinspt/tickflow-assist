@@ -38,6 +38,7 @@ def load_config(config_path: str | None = None) -> dict:
         "tickflow.api_url": "TICKFLOW_API_URL",
         "alert.openclaw_token": "OPENCLAW_GATEWAY_TOKEN",
         "alert.channel": "ALERT_CHANNEL",
+        "alert.account": "ALERT_ACCOUNT",
         "alert.target": "ALERT_TARGET",
     }
 

@@ -17,7 +17,7 @@ from .db import (
     get_watchlist,
     get_key_levels,
     get_klines,
-    is_alert_sent_today,
+    is_alert_sent_this_session,
     log_alert,
 )
 from .alert import send_alert, format_price_alert, format_volume_alert
@@ -193,7 +193,7 @@ def run_monitor_once() -> int:
                 symbol, name, current_price, levels, cost_price, cfg
             )
             for rule_name, message in price_alerts:
-                if not is_alert_sent_today(symbol, rule_name):
+                if not is_alert_sent_this_session(symbol, rule_name):
                     if send_alert(message):
                         log_alert(symbol, rule_name, message)
                         alert_count += 1
@@ -204,7 +204,7 @@ def run_monitor_once() -> int:
             symbol, name, current_price, prev_close, cost_price, cfg
         )
         for rule_name, message in change_alerts:
-            if not is_alert_sent_today(symbol, rule_name):
+            if not is_alert_sent_this_session(symbol, rule_name):
                 if send_alert(message):
                     log_alert(symbol, rule_name, message)
                     alert_count += 1
@@ -218,7 +218,7 @@ def run_monitor_once() -> int:
                 ratio = volume / avg_vol
                 if ratio >= vol_threshold:
                     rule_name = "volume_spike"
-                    if not is_alert_sent_today(symbol, rule_name):
+                    if not is_alert_sent_this_session(symbol, rule_name):
                         msg = format_volume_alert(
                             symbol, name, current_price,
                             volume, avg_vol, ratio,

@@ -20,6 +20,7 @@ def send_alert(message: str) -> bool:
     gateway_url = alert_cfg.get("openclaw_gateway", "http://127.0.0.1:18789")
     token = alert_cfg.get("openclaw_token", "")
     channel = alert_cfg.get("channel", "telegram")
+    account = alert_cfg.get("account", "")
     target = alert_cfg.get("target", "")
 
     url = f"{gateway_url.rstrip('/')}/hooks/agent"
@@ -37,6 +38,8 @@ def send_alert(message: str) -> bool:
     }
     if target:
         payload["delivery"]["to"] = target
+    if account:
+        payload["delivery"]["account"] = account
 
     try:
         resp = requests.post(url, headers=headers, json=payload, timeout=10)

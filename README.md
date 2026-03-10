@@ -92,7 +92,8 @@ tickflow:
 # 告警配置
 alert:
   openclaw_token: "your-gateway-token"
-  channel: "telegram"              # 支持 telegram / whatsapp / discord / slack 等
+  channel: "telegram"              # 支持 telegram / whatsapp / discord / slack / qqbot 等
+  account: ""                      # 多账号时指定 accountId（如 QQBot 多机器人）
   target: ""                       # 通道目标 ID
 ```
 
@@ -154,11 +155,73 @@ echo "export TICKFLOW_ASSIST_ROOT=$(pwd)" >> ~/.bashrc
 openclaw gateway restart
 ```
 
+### 5. 配置 QQBot 通道（可选）
+
+如果希望通过 QQ 接收告警，需要先在 OpenClaw 中安装 QQBot 插件。
+
+#### 5.1 创建 QQ 机器人
+
+1. 前往 [QQ 开放平台](https://q.qq.com/) 扫码登录（手机 QQ 扫码即可自动注册）
+2. 点击「创建机器人」，在机器人页面找到 **AppID** 和 **AppSecret** 并保存
+
+
+#### 5.2 安装 QQBot 插件
+
+```bash
+# 推荐：通过 OpenClaw CLI 安装
+openclaw plugins install @sliverp/qqbot@latest
+```
+
+#### 5.3 配置 OpenClaw
+
+**方式一：CLI 向导（推荐）**
+
+```bash
+openclaw channels add --channel qqbot --token "AppID:AppSecret"
+```
+
+**方式二：编辑配置文件**
+
+编辑 `~/.openclaw/openclaw.json`：
+
+```json5
+{
+  "channels": {
+    "qqbot": {
+      "enabled": true,
+      "appId": "Your AppID",
+      "clientSecret": "Your AppSecret"
+    }
+  }
+}
+```
+
+#### 5.4 配置告警通道
+
+在本项目的 `config.yaml` 中，将告警通道切换为 QQBot：
+
+```yaml
+alert:
+  channel: "qqbot"
+  # target 可选，留空则投递到主私聊会话（最近一次与 bot 私聊的用户）
+  # 如需指定用户: target: "qqbot:c2c:OPENID"
+```
+
+> ℹ️ 如需指定 target，OpenID 可通过先在 QQ 上向机器人发送消息，然后 `openclaw logs --follow` 查看日志获取。**不同机器人的 OpenID 不通用**。
+
+#### 5.5 重启 Gateway
+
+```bash
+openclaw gateway restart
+```
+
+在 QQ 中找到你的机器人，发送一条消息测试即可！
+
 ## 💬 使用方式
 
 ### 通过 OpenClaw 对话
 
-在任意已绑定的通道（Telegram、WhatsApp 等）中与 OpenClaw 对话：
+在任意已绑定的通道（Telegram、WhatsApp、QQ 等）中与 OpenClaw 对话：
 
 | 指令示例 | 功能 |
 |---|---|
@@ -224,10 +287,10 @@ python scripts/stop_monitor.py --force
 | 📉 支撑告警 | 触及支撑位 | `价格 ≤ 支撑位 × 1.005` |
 | 📈 压力告警 | 接近压力位 | `价格 ≥ 压力位 × 0.995` |
 | 💰 止盈告警 | 触及止盈位 | `价格 ≥ 止盈位` |
-| 📊 涨跌幅异动 | 当日涨跌幅超阈值 | `|涨跌幅| ≥ 5%`（涨跌均触发） |
+| 📊 涨跌幅异动 | 当日涨跌幅超阈值 | `涨跌幅 ≥ 5%`（涨跌均触发） |
 | 📈 成交量异动 | 成交量异常放大 | `当前量 ≥ 5日均量 × 3` |
 
-> 每条规则在同一交易日内仅触发一次，避免重复告警。
+> 每条规则在同一交易时段内仅触发一次（上午盘/下午盘各自独立），避免重复告警。
 
 ### 时间约束
 
@@ -323,6 +386,7 @@ python scripts/stop_monitor.py --force
 | `kline.days` | 默认获取K线天数 | `90` |
 | `kline.adjust` | 复权类型 | `forward` |
 | `alert.channel` | 告警通道 | `telegram` |
+| `alert.account` | 多账号时指定 accountId | `""` |
 | `alert_rules.stop_loss_buffer` | 止损预警缓冲 | `0.005` (0.5%) |
 | `alert_rules.change_pct_threshold` | 涨跌幅异动阈值 | `0.05` (5%) |
 | `alert_rules.volume_ratio_threshold` | 成交量异动倍数 | `3.0` |

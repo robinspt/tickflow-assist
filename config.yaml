@@ -25,8 +25,11 @@ alert:
   # 通过 OpenClaw Webhook 发送告警
   openclaw_gateway: "http://127.0.0.1:18789"
   openclaw_token: ""          # Gateway auth token
-  channel: "telegram"         # 告警通道（telegram / whatsapp / discord / slack 等）
-  target: ""                  # 通道目标（如 Telegram chat ID、群组 ID）
+  channel: "telegram"         # 告警通道（telegram / whatsapp / discord / slack / qqbot 等）
+  account: ""                 # 多账号时指定 accountId（如 QQBot 多机器人场景）
+  target: ""                  # 通道目标（可选）：
+                              #   Telegram: chat ID（如 "-1001234567890"）
+                              #   QQBot: "qqbot:c2c:OPENID"（留空则投递到主私聊会话）
 
 # 交易日历文件路径
 calendar:
