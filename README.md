@@ -101,7 +101,7 @@ tickflow:
 # 告警配置
 alert:
   openclaw_cli_bin: "openclaw"     # 可选，默认直接调用系统里的 openclaw
-  channel: "telegram"              # 支持 telegram / whatsapp / discord / slack / qqbot 等
+  channel: "telegram"              # 支持 telegram / discord / slack / qqbot 等
   account: ""                      # 多账号时指定 accountId（如 QQBot 多机器人）
   target: ""                       # 通道目标 ID（QQBot 可不填）
 ```
@@ -137,19 +137,13 @@ uv run python scripts/init_scheduler.py --remove
 
 ```bash
 cd /path/to/tickflow-assist
+echo "export TICKFLOW_ASSIST_ROOT=$(pwd)" >> ~/.bashrc
 export TICKFLOW_ASSIST_ROOT=$(pwd)
 mkdir -p ~/.openclaw/workspace/skills
 cp -r $(pwd)/skills/stock-analysis ~/.openclaw/workspace/skills/stock-analysis
 ```
 
-如果只是在当前 shell 里手动启动 Gateway，上面的 `export` 执行一次即可。
-
-如果希望重启机器或重新登录后仍然生效，需要把它写入启动环境，例如：
-
-```bash
-cd /path/to/tickflow-assist
-echo "export TICKFLOW_ASSIST_ROOT=$(pwd)" >> ~/.bashrc
-```
+默认推荐上面的持久化写法，这样重启机器或重新登录后仍然生效。
 
 如果 OpenClaw Gateway 是通过 systemd、supervisor 或容器启动的，则要把 `TICKFLOW_ASSIST_ROOT` 配到对应服务的环境变量里，而不是只配在交互式 shell 中。
 
@@ -209,9 +203,9 @@ openclaw gateway restart
 
 ### 通过 OpenClaw 对话
 
-在任意已绑定的通道（Telegram、WhatsApp、QQ 等）中与 OpenClaw 对话：
+在任意已绑定的通道（Telegram、QQ 等）中与 OpenClaw 对话：
 
-> 对 OpenClaw 的要求：调用本插件脚本后，应尽量完整保留脚本原始输出，不要擅自删减关键字段、合并多行、改写数值、补充主观总结或只返回简化版结果。除非脚本本身报错，否则优先直接转发脚本输出。
+> 对 OpenClaw 的要求（对话发送一次让它记住）：调用 `stock-analysis` 技能后，应尽量完整保留脚本原始输出，不要擅自删减关键字段、合并多行、改写数值、补充主观总结或只返回简化版结果。除非脚本本身报错，否则优先直接转发脚本输出。
 
 | 指令示例 | 功能 |
 |---|---|

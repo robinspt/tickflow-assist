@@ -16,7 +16,7 @@ from src.validators import validate_a_share_symbol, InvalidSymbolError
 from src.tickflow_api import fetch_klines_as_dataframe, TickFlowAPIError
 from src.indicators import calculate_all_indicators
 from src.calendar import is_trading_time
-from src.db import save_klines, save_indicators
+from src.db import save_klines, save_indicators, get_watchlist
 
 import pandas as pd
 
@@ -38,10 +38,18 @@ def main():
         print(f"❌ {e}")
         sys.exit(1)
 
+    watchlist = get_watchlist()
+    watchlist_match = watchlist[watchlist["symbol"] == symbol]
+    stock_name = (
+        watchlist_match.iloc[0].get("name") or symbol
+        if len(watchlist_match) > 0 else symbol
+    )
+    stock_label = f"{stock_name}（{symbol}）" if stock_name != symbol else symbol
+
     days = args.days or cfg.get("kline", {}).get("days", 90)
     adjust = cfg.get("kline", {}).get("adjust", "forward")
 
-    print(f"📊 获取 {symbol} 日K线数据 (最近 {days} 天, 复权: {adjust})...")
+    print(f"📊 获取 {stock_label} 日K线数据 (最近 {days} 天, 复权: {adjust})...")
 
     # 获取 K 线数据（通过适配层直接得到 DataFrame）
     try:

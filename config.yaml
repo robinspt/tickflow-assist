@@ -16,6 +16,10 @@ tickflow:
   api_key: "your-tickflow-api-key"
   request_interval: 30       # 实时行情请求间隔（秒）
 
+# 也可通过环境变量覆盖敏感配置：
+# export LLM_API_KEY="sk-xxx"
+# export TICKFLOW_API_KEY="your-key"
+
 # LanceDB 数据库配置
 database:
   path: "./data/lancedb"
@@ -24,7 +28,7 @@ database:
 alert:
   # 通过 OpenClaw CLI 直接发送告警
   openclaw_cli_bin: "openclaw"
-  channel: "telegram"         # 告警通道（telegram / whatsapp / discord / slack / qqbot 等）
+  channel: "telegram"         # 告警通道（telegram / discord / slack / qqbot 等）
   account: ""                 # 多账号时指定 accountId（如 QQBot 多机器人场景）
   target: ""                  # 通道目标（可选）：
                               #   Telegram: chat ID（如 "-1001234567890"）

@@ -13,7 +13,7 @@ from typing import Optional
 import requests
 import pandas as pd
 
-from .config import get_config
+from .config import get_config, CHINA_TZ
 
 
 # ============================================================
@@ -109,7 +109,13 @@ def kline_data_to_dataframe(data: dict, symbol: Optional[str] = None) -> pd.Data
         "prev_close": data.get("prev_close", [0.0] * len(data["timestamp"])),
     })
 
-    df["trade_date"] = pd.to_datetime(df["timestamp"], unit="ms").dt.strftime("%Y-%m-%d")
+    # TickFlow 返回的是 Unix 时间戳。这里必须先按 UTC 解析，再转换到东八区，
+    # 否则日线会因为时区偏移被错误记到前一天。
+    df["trade_date"] = (
+        pd.to_datetime(df["timestamp"], unit="ms", utc=True)
+        .dt.tz_convert(CHINA_TZ)
+        .dt.strftime("%Y-%m-%d")
+    )
 
     if symbol:
         df["symbol"] = symbol

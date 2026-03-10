@@ -28,13 +28,15 @@ from src.config import load_config, get_config, china_now
 from src.tickflow_api import fetch_klines_batch_as_dataframes, TickFlowAPIError
 from src.indicators import calculate_all_indicators
 from src.calendar import can_run_daily_update, is_trading_time
-from src.db import (
-    get_watchlist,
-    save_klines, save_indicators,
-)
+from src.db import get_watchlist, save_klines, save_indicators
 
 
-def update_symbols_batch(symbols: list[str], days: int, adjust: str) -> tuple[int, int]:
+def update_symbols_batch(
+    symbols: list[str],
+    days: int,
+    adjust: str,
+    name_map: dict[str, str],
+) -> tuple[int, int]:
     """
     批量更新多只股票。
 
@@ -57,10 +59,12 @@ def update_symbols_batch(symbols: list[str], days: int, adjust: str) -> tuple[in
         return 0, len(symbols)
 
     for symbol in symbols:
+        stock_name = name_map.get(symbol) or symbol
+        stock_label = f"{stock_name}（{symbol}）" if stock_name != symbol else symbol
         try:
             df = dataframes.get(symbol)
             if df is None or len(df) == 0:
-                print(f"  ❌ {symbol}: 返回数据为空")
+                print(f"  ❌ {stock_label}: 返回数据为空")
                 failed += 1
                 continue
 
@@ -70,10 +74,10 @@ def update_symbols_batch(symbols: list[str], days: int, adjust: str) -> tuple[in
                 before_count = len(df)
                 df = df[df["trade_date"] != today]
                 if len(df) < before_count:
-                    print(f"  ⏰ {symbol}: 交易时段内，已剔除当日未完成数据")
+                    print(f"  ⏰ {stock_label}: 交易时段内，已剔除当日未完成数据")
 
             if len(df) == 0:
-                print(f"  ❌ {symbol}: 过滤后有效数据为空")
+                print(f"  ❌ {stock_label}: 过滤后有效数据为空")
                 failed += 1
                 continue
 
@@ -82,7 +86,7 @@ def update_symbols_batch(symbols: list[str], days: int, adjust: str) -> tuple[in
 
             # 计算并保存指标（全量重算）
             if len(df) < 5:
-                print(f"  ⚠️ {symbol}: K 线不足 5 根，跳过指标计算")
+                print(f"  ⚠️ {stock_label}: K 线不足 5 根，跳过指标计算")
                 success += 1
                 continue
 
@@ -99,12 +103,12 @@ def update_symbols_batch(symbols: list[str], days: int, adjust: str) -> tuple[in
             save_indicators(symbol, ind_df[indicator_cols].copy())
 
             latest = df.iloc[-1]
-            print(f"  ✅ {symbol}: {len(df)} 根K线, "
+            print(f"  ✅ {stock_label}: {len(df)} 根K线, "
                   f"最新 {latest['trade_date']} 收盘 {latest['close']:.2f}")
             success += 1
 
         except Exception as e:
-            print(f"  ❌ {symbol}: {e}")
+            print(f"  ❌ {stock_label}: {e}")
             traceback.print_exc()
             failed += 1
 
@@ -137,11 +141,15 @@ def main():
     days = cfg.get("kline", {}).get("days", 90)
     adjust = cfg.get("kline", {}).get("adjust", "forward")
     symbols = wl["symbol"].tolist()
+    name_map = {
+        row["symbol"]: (row.get("name") or row["symbol"])
+        for _, row in wl.iterrows()
+    }
 
     print(f"📊 收盘更新: {len(symbols)} 只股票, 获取 {days} 天 K 线 (复权: {adjust})")
     print("=" * 50)
 
-    total_success, total_failed = update_symbols_batch(symbols, days, adjust)
+    total_success, total_failed = update_symbols_batch(symbols, days, adjust, name_map)
 
     print("=" * 50)
     print(f"🏁 完成: {total_success} 成功, {total_failed} 失败 (共 {len(symbols)} 只)")
