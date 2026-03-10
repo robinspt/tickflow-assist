@@ -101,83 +101,75 @@ def main():
     cfg = get_config()
 
     now = china_now()
-    print("=" * 52)
-    print("  📊 TickFlow 实时监控状态报告")
-    print("=" * 52)
-    print(f"\n⏰ 查询时间: {now.strftime('%Y-%m-%d %H:%M:%S')}")
+    watchlist = get_watchlist()
+    name_map = {
+        row["symbol"]: (row.get("name") or row["symbol"])
+        for _, row in watchlist.iterrows()
+    }
+
+    print("📊 监控状态")
+    print(f"查询时间: {now.strftime('%Y-%m-%d %H:%M:%S')}")
 
     # ---- 1. 监控进程状态 ----
-    print("\n--- 🔍 监控进程 ---")
+    process_line = "监控进程: ⭕ 未启动"
     if os.path.exists(LOCK_FILE):
         try:
             with open(LOCK_FILE, "r") as f:
                 pid = int(f.read().strip())
             if not _check_pid_alive(pid):
-                print(f"  ❌ 监控进程已停止（PID={pid} 不存在）")
-                print(f"  ⚠️  锁文件残留: {LOCK_FILE}")
+                process_line = f"监控进程: ⛔ 已停止 (PID={pid}, 锁文件残留)"
             elif not _is_monitor_process(pid):
-                print(f"  ❌ PID={pid} 存活但不是监控进程（可能已被系统复用）")
-                print(f"  ⚠️  锁文件残留: {LOCK_FILE}")
+                process_line = f"监控进程: ⛔ 异常 (PID={pid}, 非监控进程)"
             else:
                 uptime = _get_process_uptime(pid)
-                print(f"  ✅ 监控进程运行中  PID={pid}")
-                print(f"  ⏱️  已运行: {uptime}")
+                process_line = f"监控进程: ✅ 运行中 (PID={pid}, 已运行 {uptime})"
         except (ValueError, IOError) as e:
-            print(f"  ❌ 锁文件损坏: {e}")
-    else:
-        print("  ⭕ 监控进程未启动（无锁文件）")
+            process_line = f"监控进程: ⛔ 异常 (锁文件损坏: {e})"
+    print(process_line)
 
     # ---- 2. 交易时段状态 ----
-    print("\n--- 📅 交易时段 ---")
     trading_day = is_trading_day()
     trading_time = is_trading_time()
-
-    print(f"  今日 ({now.strftime('%Y-%m-%d')}): {'✅ 交易日' if trading_day else '❌ 非交易日'}")
+    trading_status = "❌ 非交易日"
     if trading_day:
         hours = cfg.get("trading_hours", {})
-        morning = f"{hours.get('morning_start', '09:30')}-{hours.get('morning_end', '11:30')}"
-        afternoon = f"{hours.get('afternoon_start', '13:00')}-{hours.get('afternoon_end', '15:00')}"
-        print(f"  交易时段: {morning}, {afternoon}")
         if trading_time:
-            print(f"  当前状态: 🟢 交易中")
+            trading_status = "🟢 交易中"
         else:
             current_time = now.strftime("%H:%M")
             if current_time < hours.get("morning_start", "09:30"):
-                print(f"  当前状态: 🟡 盘前等待")
+                trading_status = "🟡 盘前等待"
             elif current_time > hours.get("afternoon_end", "15:00"):
-                print(f"  当前状态: 🔴 已收盘")
+                trading_status = "🔴 已收盘"
             else:
-                print(f"  当前状态: 🟡 午间休市")
+                trading_status = "🟡 午间休市"
+    print(f"交易时段: {trading_status} ({now.strftime('%Y-%m-%d')})")
 
     # ---- 3. 关注列表 ----
-    print("\n--- 📋 关注列表 ---")
-    watchlist = get_watchlist()
     if len(watchlist) > 0:
-        print(f"  关注股票数: {len(watchlist)}")
+        print(f"关注列表: {len(watchlist)}只")
         for _, row in watchlist.iterrows():
             symbol = row["symbol"]
             name = row.get("name") or symbol
             cost = row["cost_price"]
-            print(f"    • {name}（{symbol}）  成本: {cost:.2f}")
+            print(f"• {name}（{symbol}） 成本: {cost:.2f}")
     else:
-        print("  ⚠️  关注列表为空（监控无目标）")
+        print("关注列表: 0只")
 
     # ---- 4. 最新行情快照 ----
-    print("\n--- 💹 最新行情 ---")
+    print("💹 最新行情:")
     if len(watchlist) > 0:
         symbols = watchlist["symbol"].tolist()
-        name_map = {
-            row["symbol"]: (row.get("name") or row["symbol"])
-            for _, row in watchlist.iterrows()
-        }
         try:
             quotes = fetch_quotes(symbols).get("data", [])
             quote_map = {quote.get("symbol"): quote for quote in quotes if quote.get("symbol")}
             for symbol in symbols:
                 quote = quote_map.get(symbol)
                 name = name_map.get(symbol, symbol)
+                wl_match = watchlist[watchlist["symbol"] == symbol]
+                cost_price = wl_match.iloc[0]["cost_price"] if len(wl_match) > 0 else 0
                 if not quote:
-                    print(f"    • {name}（{symbol}）  ⚠️ 未获取到最新行情")
+                    print(f"• {name}（{symbol}）: ⚠️ 未获取到最新行情")
                     continue
 
                 last_price = quote.get("last_price", 0)
@@ -192,46 +184,46 @@ def main():
                 else:
                     change_text = "未知"
                 quote_time = _format_quote_time(quote, now)
+                profit_text = ""
+                if cost_price > 0 and last_price:
+                    profit_pct = (last_price - cost_price) / cost_price * 100
+                    profit_text = f" | 浮盈: {profit_pct:+.2f}%"
                 print(
-                    f"    • {name}（{symbol}）  最新价: {last_price:.2f}  "
-                    f"涨跌幅: {change_text}  时间: {quote_time}"
+                    f"• {name}（{symbol}）: {last_price:.2f} "
+                    f"(涨跌幅 {change_text}) | 行情时间: {quote_time}{profit_text}"
                 )
         except TickFlowAPIError as e:
-            print(f"  ⚠️  获取最新行情失败: {e}")
+            print(f"• 获取最新行情失败: {e}")
     else:
-        print("  ⚠️  无关注股票，未查询实时行情")
+        print("• 无关注股票，未查询实时行情")
 
     # ---- 5. 关键价位覆盖 ----
-    print("\n--- 🎯 关键价位 ---")
     try:
         all_levels = get_all_key_levels()
         if len(all_levels) > 0:
-            name_map = {
-                row["symbol"]: (row.get("name") or row["symbol"])
-                for _, row in watchlist.iterrows()
-            }
             symbols_with_levels = all_levels["symbol"].unique()
             watchlist_symbols = set(watchlist["symbol"].tolist()) if len(watchlist) > 0 else set()
             covered = watchlist_symbols & set(symbols_with_levels)
             missing = watchlist_symbols - set(symbols_with_levels)
-            print(f"  已有价位: {len(covered)}/{len(watchlist_symbols)} 只股票")
+            key_levels_line = f"关键价位: {len(covered)}/{len(watchlist_symbols)} 已分析"
             if missing:
                 missing_labels = [f"{name_map.get(sym, sym)}（{sym}）" for sym in sorted(missing)]
-                print(f"  ⚠️  缺少价位: {', '.join(missing_labels)}")
-                print(f"     请运行分析以生成关键价位")
+                key_levels_line += f" | 缺失: {', '.join(missing_labels)}"
+            scores = []
             for _, row in all_levels.iterrows():
                 sym = row["symbol"]
-                name = name_map.get(sym, sym)
-                date = row.get("analysis_date", "未知")
-                score = row.get("score", 0)
-                print(f"    • {name}（{sym}）  分析日期: {date}  评分: {score}/10")
+                if sym in watchlist_symbols:
+                    score = row.get("score", 0)
+                    scores.append(f"{name_map.get(sym, sym)} {score}/10")
+            if scores:
+                key_levels_line += f" | 评分: {', '.join(scores)}"
+            print(key_levels_line)
         else:
-            print("  ⚠️  暂无关键价位数据")
+            print("关键价位: 暂无")
     except Exception:
-        print("  ⚠️  暂无关键价位数据")
+        print("关键价位: 暂无")
 
     # ---- 6. 今日告警记录 ----
-    print("\n--- 🔔 今日告警 ---")
     try:
         from src.db import _get_or_create_table, ALERT_LOG_SCHEMA
         table = _get_or_create_table("alert_log", ALERT_LOG_SCHEMA)
@@ -242,11 +234,7 @@ def main():
             f"alert_date IN ('{today_am}', '{today_pm}')"
         ).to_pandas()
         if len(df) > 0:
-            name_map = {
-                row["symbol"]: (row.get("name") or row["symbol"])
-                for _, row in watchlist.iterrows()
-            }
-            print(f"  今日已发送 {len(df)} 条告警:")
+            print(f"今日告警: {len(df)}条")
             for _, row in df.iterrows():
                 sym = row["symbol"]
                 name = name_map.get(sym, sym)
@@ -258,25 +246,24 @@ def main():
                         time_str = t.strftime("%H:%M:%S")
                     except Exception:
                         pass
-                print(f"    • [{time_str}] {name}（{sym}） - {rule}")
+                print(f"• [{time_str}] {name}（{sym}） - {rule}")
         else:
-            print("  📭 今日暂无告警")
+            print("今日告警: 无")
     except Exception:
-        print("  📭 今日暂无告警")
+        print("今日告警: 无")
 
     # ---- 7. 配置摘要 ----
-    print("\n--- ⚙️  监控配置 ---")
     interval = cfg.get("tickflow", {}).get("request_interval", 30)
     alert_cfg = cfg.get("alert", {})
     channel = alert_cfg.get("channel", "未配置")
     rules = cfg.get("alert_rules", {})
-    print(f"  轮询间隔: {interval} 秒")
-    print(f"  告警通道: {channel}")
-    print(f"  止损缓冲: {rules.get('stop_loss_buffer', 0.005) * 100:.1f}%")
-    print(f"  涨跌幅阈值: {rules.get('change_pct_threshold', 0.05) * 100:.0f}%")
-    print(f"  量比阈值: {rules.get('volume_ratio_threshold', 3.0):.1f} 倍")
-
-    print("\n" + "=" * 52)
+    print(
+        "配置: "
+        f"轮询{interval}秒 | 通道{channel} | "
+        f"止损缓冲{rules.get('stop_loss_buffer', 0.005) * 100:.1f}% | "
+        f"涨跌幅阈值{rules.get('change_pct_threshold', 0.05) * 100:.0f}% | "
+        f"量比阈值{rules.get('volume_ratio_threshold', 3.0):.1f}倍"
+    )
 
 
 if __name__ == "__main__":

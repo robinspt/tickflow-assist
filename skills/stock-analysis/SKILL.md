@@ -139,11 +139,12 @@ exec uv run python $TICKFLOW_ASSIST_ROOT/scripts/monitor_status.py
 - 📊 监控进程是否在运行（PID、运行时长）
 - 📅 当前交易时段状态（交易日、盘前/交易中/午休/收盘）
 - 📋 关注列表和股票数量
+- 💹 每只股票的最新价、涨跌幅、对应行情时间
 - 🎯 关键价位覆盖情况（哪些股票已分析/缺失）
 - 🔔 今日已发送的告警记录
 - ⚙️ 监控配置摘要（轮询间隔、告警通道、规则阈值）
 
-将查询结果完整发送给用户，方便用户了解实时监控是否正常工作。
+将脚本输出原样完整发送给用户，不要自行总结、改写、缩短，也不要额外追问“需要重启监控吗”之类的问题。
 
 ### 10. 停止实时监控
 
@@ -159,7 +160,7 @@ exec uv run python $TICKFLOW_ASSIST_ROOT/scripts/stop_monitor.py
 
 ## 注意事项
 
-- 部署时先设置环境变量 `TICKFLOW_ASSIST_ROOT`，其值为项目根目录，例如 `/home/ocuser/projects/tickflow-assist`
+- 部署时先设置环境变量 `TICKFLOW_ASSIST_ROOT`，其值为项目根目录，例如 `/home/user/projects/tickflow-assist`
 - 部署环境需安装 [uv](https://docs.astral.sh/uv/)，首次部署后在项目目录执行 `uv sync` 安装依赖
 - 所有脚本通过 `exec uv run python $TICKFLOW_ASSIST_ROOT/scripts/` 调用，确保使用 uv 管理的虚拟环境
 - 配置文件位于 `$TICKFLOW_ASSIST_ROOT/config.yaml`
