@@ -5,8 +5,26 @@
 """
 
 import os
+from datetime import datetime, date, timezone, timedelta
 import yaml
 from pathlib import Path
+
+# ============================================================
+# 时区定义 — 所有模块统一使用东八区
+# ============================================================
+
+CHINA_TZ = timezone(timedelta(hours=8))
+
+
+def china_now() -> datetime:
+    """返回东八区当前时间（aware datetime）"""
+    return datetime.now(CHINA_TZ)
+
+
+def china_today() -> date:
+    """返回东八区当前日期"""
+    return china_now().date()
+
 
 _config = None
 _CONFIG_DIR = Path(__file__).resolve().parent.parent

@@ -11,7 +11,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.config import load_config, get_config
+from src.config import load_config, get_config, china_now
 from src.validators import validate_a_share_symbol, InvalidSymbolError
 from src.tickflow_api import fetch_klines_as_dataframe, TickFlowAPIError
 from src.indicators import calculate_all_indicators
@@ -52,7 +52,7 @@ def main():
 
     # 如果在交易时间段内，剔除当日数据（当日数据不完整）
     if is_trading_time():
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = china_now().strftime("%Y-%m-%d")
         before_count = len(df)
         df = df[df["trade_date"] != today]
         if len(df) < before_count:

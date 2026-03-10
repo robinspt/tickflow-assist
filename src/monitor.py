@@ -6,11 +6,10 @@
 
 import time
 import traceback
-from datetime import datetime
 
 import pandas as pd
 
-from .config import get_config
+from .config import get_config, china_now
 from .calendar import is_trading_day, is_trading_time
 from .tickflow_api import fetch_quotes
 from .db import (
@@ -299,7 +298,7 @@ def run_monitor_loop():
     try:
         while True:
             try:
-                now = datetime.now()
+                now = china_now()
 
                 if not is_trading_day():
                     # 非交易日，每分钟检查一次

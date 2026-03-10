@@ -14,7 +14,7 @@ import lancedb
 import pyarrow as pa
 import pandas as pd
 
-from .config import get_config
+from .config import get_config, china_now
 
 _db = None
 
@@ -155,7 +155,7 @@ def add_to_watchlist(symbol: str, cost_price: float) -> None:
     data = pa.table({
         "symbol": [symbol],
         "cost_price": [cost_price],
-        "added_at": [datetime.now().isoformat()],
+        "added_at": [china_now().isoformat()],
     })
     table.add(data)
 
@@ -307,7 +307,7 @@ def save_key_levels(symbol: str, levels: dict) -> None:
 
     data = pa.table({
         "symbol": [symbol],
-        "analysis_date": [levels.get("analysis_date", datetime.now().strftime("%Y-%m-%d"))],
+        "analysis_date": [levels.get("analysis_date", china_now().strftime("%Y-%m-%d"))],
         "current_price": [float(levels.get("current_price", 0.0))],
         "stop_loss": [float(levels.get("stop_loss", 0.0))],
         "breakthrough": [float(levels.get("breakthrough", 0.0))],
@@ -333,7 +333,7 @@ def log_analysis(symbol: str, analysis_text: str, structured_ok: bool) -> None:
     table = _get_or_create_table("analysis_log", ANALYSIS_LOG_SCHEMA)
     data = pa.table({
         "symbol": [symbol],
-        "analysis_date": [datetime.now().strftime("%Y-%m-%d")],
+        "analysis_date": [china_now().strftime("%Y-%m-%d")],
         "analysis_text": [analysis_text],
         "structured_ok": [structured_ok],
     })
@@ -368,7 +368,7 @@ def _get_session_key() -> str:
     下午盘(13:00-15:00) -> "YYYY-MM-DD_PM"
     其他时段归入最近的时段。
     """
-    now = datetime.now()
+    now = china_now()
     date_str = now.strftime("%Y-%m-%d")
     # 13:00 之前算上午盘，13:00 及之后算下午盘
     if now.hour < 13:
@@ -385,7 +385,7 @@ def log_alert(symbol: str, rule_name: str, message: str) -> None:
         "alert_date": [_get_session_key()],
         "rule_name": [rule_name],
         "message": [message],
-        "triggered_at": [datetime.now().isoformat()],
+        "triggered_at": [china_now().isoformat()],
     })
     table.add(data)
 

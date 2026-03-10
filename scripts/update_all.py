@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 
-from src.config import load_config, get_config
+from src.config import load_config, get_config, china_now
 from src.tickflow_api import fetch_klines_batch_as_dataframes, TickFlowAPIError
 from src.indicators import calculate_all_indicators
 from src.calendar import can_run_daily_update, is_trading_time
@@ -66,7 +66,7 @@ def update_symbols_batch(symbols: list[str], days: int, adjust: str) -> tuple[in
 
             # 盘中保护：剔除当日未完成日线
             if is_trading_time():
-                today = datetime.now().strftime("%Y-%m-%d")
+                today = china_now().strftime("%Y-%m-%d")
                 before_count = len(df)
                 df = df[df["trade_date"] != today]
                 if len(df) < before_count:

@@ -10,6 +10,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from datetime import datetime
+from src.config import china_now
 
 LOCK_FILE = "/tmp/tickflow_monitor.pid"
 MONITOR_SCRIPT = "realtime_monitor.py"
@@ -76,7 +77,7 @@ def main():
     from src.config import get_config
     cfg = get_config()
 
-    now = datetime.now()
+    now = china_now()
     print("=" * 52)
     print("  📊 TickFlow 实时监控状态报告")
     print("=" * 52)
@@ -166,7 +167,11 @@ def main():
         from src.db import _get_or_create_table, ALERT_LOG_SCHEMA
         table = _get_or_create_table("alert_log", ALERT_LOG_SCHEMA)
         today = now.strftime("%Y-%m-%d")
-        df = table.search().where(f"alert_date = '{today}'").to_pandas()
+        today_am = f"{today}_AM"
+        today_pm = f"{today}_PM"
+        df = table.search().where(
+            f"alert_date IN ('{today_am}', '{today_pm}')"
+        ).to_pandas()
         if len(df) > 0:
             print(f"  今日已发送 {len(df)} 条告警:")
             for _, row in df.iterrows():

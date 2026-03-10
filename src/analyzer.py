@@ -17,7 +17,7 @@ from typing import Optional
 from openai import OpenAI
 import pandas as pd
 
-from .config import get_config
+from .config import get_config, china_now
 from .db import (
     get_klines, get_indicators, save_key_levels, log_analysis,
     KeyLevelsValidationError,
@@ -296,7 +296,7 @@ def analyze_stock(symbol: str, cost_price: float = 0.0) -> tuple[str, Optional[d
 
     # 补充元信息
     levels["analysis_text"] = analysis_text
-    levels["analysis_date"] = datetime.now().strftime("%Y-%m-%d")
+    levels["analysis_date"] = china_now().strftime("%Y-%m-%d")
 
     # 校验并写库
     try:

@@ -11,7 +11,7 @@ from datetime import datetime, time, date
 from pathlib import Path
 from typing import Optional
 
-from .config import get_config
+from .config import get_config, china_now, china_today
 
 _trading_days: set[str] | None = None
 
@@ -58,7 +58,7 @@ def _get_trading_hours() -> dict:
 def is_trading_day(d: Optional[date] = None) -> bool:
     """判断是否为交易日"""
     if d is None:
-        d = date.today()
+        d = china_today()
     days = _load_trading_days()
     return d.strftime("%Y-%m-%d") in days
 
@@ -70,7 +70,7 @@ def is_trading_day(d: Optional[date] = None) -> bool:
 def is_trading_time(dt: Optional[datetime] = None) -> bool:
     """判断是否在交易时段内（同时满足交易日 + 交易时间）"""
     if dt is None:
-        dt = datetime.now()
+        dt = china_now()
 
     if not is_trading_day(dt.date()):
         return False
@@ -91,7 +91,7 @@ def is_after_market_close(dt: Optional[datetime] = None) -> bool:
     注意：非交易日返回 False（收盘概念仅对交易日有效）。
     """
     if dt is None:
-        dt = datetime.now()
+        dt = china_now()
 
     if not is_trading_day(dt.date()):
         return False
@@ -103,7 +103,7 @@ def is_after_market_close(dt: Optional[datetime] = None) -> bool:
 def is_before_market_open(dt: Optional[datetime] = None) -> bool:
     """判断当天交易日是否还未开盘"""
     if dt is None:
-        dt = datetime.now()
+        dt = china_now()
 
     if not is_trading_day(dt.date()):
         return False
@@ -129,7 +129,7 @@ def can_run_daily_update(force: bool = False, dt: Optional[datetime] = None) -> 
         return True, "强制执行模式"
 
     if dt is None:
-        dt = datetime.now()
+        dt = china_now()
 
     if not is_trading_day(dt.date()):
         return False, f"{dt.strftime('%Y-%m-%d')} 非交易日"
@@ -152,12 +152,12 @@ def get_latest_trading_day(before: Optional[date] = None) -> str:
     sorted_days = sorted(days, reverse=True)
 
     if before is None:
-        before = date.today()
+        before = china_today()
 
     before_str = before.strftime("%Y-%m-%d")
     hours = _get_trading_hours()
 
-    now = datetime.now()
+    now = china_now()
     for d in sorted_days:
         if d < before_str:
             return d
@@ -173,10 +173,10 @@ def get_recent_trading_days(n: int, before: Optional[date] = None) -> list[str]:
     sorted_days = sorted(days, reverse=True)
 
     if before is None:
-        before = date.today()
+        before = china_today()
 
     before_str = before.strftime("%Y-%m-%d")
-    now = datetime.now()
+    now = china_now()
     hours = _get_trading_hours()
 
     result = []
