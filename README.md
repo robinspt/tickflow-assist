@@ -95,6 +95,7 @@ tickflow:
 # 告警配置
 alert:
   openclaw_token: "your-gateway-token"
+  openclaw_webhook_path: "/hooks/agent"  # 若 OpenClaw 自定义了 hooks.path，这里也要同步修改
   channel: "telegram"              # 支持 telegram / whatsapp / discord / slack / qqbot 等
   account: ""                      # 多账号时指定 accountId（如 QQBot 多机器人）
   target: ""                       # 通道目标 ID

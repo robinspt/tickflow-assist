@@ -25,6 +25,7 @@ alert:
   # 通过 OpenClaw Webhook 发送告警
   openclaw_gateway: "http://127.0.0.1:18789"
   openclaw_token: ""          # Gateway auth token
+  openclaw_webhook_path: "/hooks/agent"  # Webhook 路径，需与 OpenClaw hooks.path 对应
   channel: "telegram"         # 告警通道（telegram / whatsapp / discord / slack / qqbot 等）
   account: ""                 # 多账号时指定 accountId（如 QQBot 多机器人场景）
   target: ""                  # 通道目标（可选）：

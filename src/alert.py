@@ -19,11 +19,12 @@ def send_alert(message: str) -> bool:
 
     gateway_url = alert_cfg.get("openclaw_gateway", "http://127.0.0.1:18789")
     token = alert_cfg.get("openclaw_token", "")
+    webhook_path = alert_cfg.get("openclaw_webhook_path", "/hooks/agent")
     channel = alert_cfg.get("channel", "telegram")
     account = alert_cfg.get("account", "")
     target = alert_cfg.get("target", "")
 
-    url = f"{gateway_url.rstrip('/')}/hooks/agent"
+    url = f"{gateway_url.rstrip('/')}/{webhook_path.lstrip('/')}"
     headers = {
         "Content-Type": "application/json",
     }
@@ -45,6 +46,14 @@ def send_alert(message: str) -> bool:
         resp = requests.post(url, headers=headers, json=payload, timeout=10)
         if resp.status_code == 200:
             return True
+        elif resp.status_code == 404:
+            print(
+                "[告警] 发送失败: HTTP 404 - "
+                "OpenClaw webhook 入口不存在。请检查是否已启用 hooks/webhooks，"
+                "以及 alert.openclaw_webhook_path 是否与 OpenClaw 的 hooks.path 一致。"
+            )
+            print(f"[告警] 当前请求地址: {url}")
+            return False
         else:
             print(f"[告警] 发送失败: HTTP {resp.status_code} - {resp.text}")
             return False
