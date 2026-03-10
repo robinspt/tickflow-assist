@@ -17,6 +17,7 @@ from src.config import load_config, get_config, china_now, CHINA_TZ
 from src.db import get_watchlist
 from src.alert import send_alert, format_system_notification
 from src.tickflow_api import fetch_quotes, TickFlowAPIError
+from src.calendar import is_trading_day, is_trading_time
 
 LOCK_FILE = "/tmp/tickflow_monitor.pid"
 MONITOR_SCRIPT = "realtime_monitor.py"
@@ -55,10 +56,37 @@ def _get_running_pid() -> int | None:
     return None
 
 
+def _get_trading_status_text() -> str:
+    now = china_now()
+    cfg = get_config()
+
+    if not is_trading_day(now.date()):
+        return f"❌ 非交易日 ({now.strftime('%Y-%m-%d')})"
+
+    if is_trading_time(now):
+        return f"🟢 交易中 ({now.strftime('%H:%M')})"
+
+    hours = cfg.get("trading_hours", {})
+    current_time = now.strftime("%H:%M")
+    morning_start = hours.get("morning_start", "09:30")
+    morning_end = hours.get("morning_end", "11:30")
+    afternoon_start = hours.get("afternoon_start", "13:00")
+    afternoon_end = hours.get("afternoon_end", "15:00")
+
+    if current_time < morning_start:
+        return f"🟡 盘前等待 ({current_time}，{morning_start} 开盘)"
+    if morning_end < current_time < afternoon_start:
+        return f"🟡 午间休市 ({current_time}，{afternoon_start} 恢复)"
+    if current_time > afternoon_end:
+        return f"🔴 已收盘 ({current_time})"
+    return f"🟡 非连续竞价时段 ({current_time})"
+
+
 def _print_summary(pid: int | None) -> None:
     cfg = get_config()
     watchlist = get_watchlist()
     interval = cfg.get("tickflow", {}).get("request_interval", 30)
+    trading_status = _get_trading_status_text()
 
     if pid is None:
         print("❌ 实时监控启动失败")
@@ -66,6 +94,7 @@ def _print_summary(pid: int | None) -> None:
 
     print("✅ 实时监控已启动！")
     print(f"\n监控进程 PID: {pid}")
+    print(f"当前状态: {trading_status}")
     print(
         f"\n监控进程正在后台运行，会在交易时段"
         f"（9:30-11:30, 13:00-15:00）每 {interval} 秒获取一次实时行情。"
@@ -85,6 +114,7 @@ def _send_start_notification(pid: int) -> None:
     lines = [f"时间: {china_now().strftime('%Y-%m-%d %H:%M:%S')}", f"进程 PID: {pid}"]
     interval = get_config().get("tickflow", {}).get("request_interval", 30)
     lines.append(f"轮询间隔: {interval} 秒")
+    lines.append(f"交易时段: {_get_trading_status_text()}")
 
     if len(watchlist) > 0:
         symbols = watchlist["symbol"].tolist()

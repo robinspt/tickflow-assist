@@ -172,26 +172,10 @@ openclaw plugins install @sliverp/qqbot@latest
 
 #### 5.3 配置 OpenClaw
 
-**方式一：CLI 向导（推荐）**
+**CLI 向导（推荐）**
 
 ```bash
 openclaw channels add --channel qqbot --token "AppID:AppSecret"
-```
-
-**方式二：编辑配置文件**
-
-编辑 `~/.openclaw/openclaw.json`：
-
-```json5
-{
-  "channels": {
-    "qqbot": {
-      "enabled": true,
-      "appId": "Your AppID",
-      "clientSecret": "Your AppSecret"
-    }
-  }
-}
 ```
 
 #### 5.4 配置告警通道
