@@ -14,7 +14,7 @@ llm:
 tickflow:
   api_url: "https://api.tickflow.org"
   api_key: "your-tickflow-api-key"
-  request_interval: 10       # 实时行情请求间隔（秒）
+  request_interval: 30       # 实时行情请求间隔（秒）
 
 # LanceDB 数据库配置
 database:

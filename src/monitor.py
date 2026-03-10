@@ -290,7 +290,7 @@ def run_monitor_loop():
         return
 
     cfg = get_config()
-    interval = cfg.get("tickflow", {}).get("request_interval", 10)
+    interval = cfg.get("tickflow", {}).get("request_interval", 30)
 
     print(f"[监控] 启动实时监控 (PID={os.getpid()})，间隔 {interval} 秒")
     print(f"[监控] 交易时段: "

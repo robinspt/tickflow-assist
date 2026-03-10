@@ -8,7 +8,7 @@
 - 📊 **日K线获取** — 自动从 TickFlow 批量接口获取前复权日K数据，交易时段内自动剔除当日未完成数据
 - 🧮 **技术指标计算** — MA / MACD / KDJ / RSI / CCI / BIAS / DMI / BOLL 等全套指标
 - 🤖 **LLM 智能分析** — 调用大模型分析K线形态和指标共振，输出 9 个关键价位 + 评分
-- ⏰ **实时监控** — 每 10 秒（可配置）获取实时行情，对比关键价位按规则推送告警
+- ⏰ **实时监控** — 按配置间隔（默认 30 秒）获取实时行情，对比关键价位按规则推送告警
 - 📅 **交易日历** — 内置交易日历，统一的时间约束判断（交易时段 / 收盘后 / 日更新窗口）
 - 💾 **LanceDB 存储** — 轻量级向量数据库，无需额外部署
 - ✅ **A 股代码强校验** — 入口统一校验交易所后缀、代码前缀，仅允许股票（不含指数/可转债）
@@ -42,7 +42,9 @@ tickflow-assist/
 │   ├── fetch_klines.py            # 获取K线 + 计算指标（单股）
 │   ├── update_all.py              # 收盘后批量全量更新
 │   ├── analyze.py                 # LLM 技术分析
-│   ├── realtime_monitor.py        # 实时监控
+│   ├── view_analysis.py           # 查看最近一次分析结果
+│   ├── start_monitor.py           # 启动实时监控并输出摘要
+│   ├── realtime_monitor.py        # 实时监控主循环
 │   ├── monitor_status.py          # 查看监控运行状态
 │   ├── stop_monitor.py            # 停止实时监控
 │   └── init_scheduler.py          # 注册/管理定时任务
@@ -227,6 +229,7 @@ openclaw gateway restart
 | `删除 600000.SH 保留数据` | 从关注列表移除，但保留已抓取数据 |
 | `更新 600000.SH 数据` | 获取最新日K线并计算指标 |
 | `分析 600000.SH` | 获取数据 + LLM 分析 + 输出关键价位 |
+| `查看 600000.SH 上次分析` | 回看最近一次分析结论和关键价位 |
 | `开始监控` | 启动实时行情监控 |
 | `监控状态` / `看看监控` | 查看监控进程、交易时段、今日告警等运行状态 |
 | `停止监控` / `关闭监控` | 优雅停止实时监控进程 |
@@ -258,8 +261,11 @@ uv run python scripts/update_all.py --force
 # LLM 分析（输出简洁结论 + 关键价位表格）
 uv run python scripts/analyze.py --symbol 600000.SH
 
-# 启动实时监控
-uv run python scripts/realtime_monitor.py
+# 查看最近一次分析结果
+uv run python scripts/view_analysis.py --symbol 600000.SH
+
+# 启动实时监控（按配置输出实际轮询间隔）
+uv run python scripts/start_monitor.py
 
 # 查看监控运行状态
 uv run python scripts/monitor_status.py
@@ -351,11 +357,11 @@ uv run python scripts/stop_monitor.py --force
 
 | 表名 | 说明 |
 |---|---|
-| `watchlist` | 关注列表（股票代码、成本价） |
+| `watchlist` | 关注列表（股票代码、股票名称、成本价、添加时间） |
 | `klines_daily` | 日K线数据（按股票维度全量替换，滚动窗口） |
 | `indicators` | 技术指标数据（全量重算覆盖） |
 | `key_levels` | 关键价位（仅存储校验通过的有效数据） |
-| `analysis_log` | 分析日志（记录每次 LLM 分析结果，含成功/失败标记） |
+| `analysis_log` | 分析日志（记录每次 LLM 分析结果，支持后续回看最近一次分析） |
 | `alert_log` | 告警日志（用于去重） |
 
 ## ✅ A 股代码校验
@@ -378,7 +384,7 @@ uv run python scripts/stop_monitor.py --force
 | `llm.model` | 模型名称 | `gpt-4o` |
 | `llm.temperature` | 生成温度 | `0.3` |
 | `tickflow.api_url` | TickFlow API 根地址（不含版本号） | `https://api.tickflow.org` |
-| `tickflow.request_interval` | 实时行情请求间隔（秒） | `10` |
+| `tickflow.request_interval` | 实时行情请求间隔（秒） | `30` |
 | `kline.days` | 默认获取K线天数 | `90` |
 | `kline.adjust` | 复权类型 | `forward` |
 | `alert.channel` | 告警通道 | `telegram` |

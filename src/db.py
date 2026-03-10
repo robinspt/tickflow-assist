@@ -394,6 +394,16 @@ def get_all_key_levels() -> pd.DataFrame:
     return table.to_pandas()
 
 
+def get_latest_analysis(symbol: str) -> Optional[dict]:
+    """获取指定股票最近一次分析记录。"""
+    table = _get_or_create_table("analysis_log", ANALYSIS_LOG_SCHEMA)
+    df = table.search().where(f"symbol = '{symbol}'").to_pandas()
+    if len(df) == 0:
+        return None
+    row = df.iloc[-1]
+    return row.to_dict()
+
+
 # ============================================================
 # 告警日志操作
 # ============================================================

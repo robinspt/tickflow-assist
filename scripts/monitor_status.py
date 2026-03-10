@@ -266,7 +266,7 @@ def main():
 
     # ---- 7. 配置摘要 ----
     print("\n--- ⚙️  监控配置 ---")
-    interval = cfg.get("tickflow", {}).get("request_interval", 10)
+    interval = cfg.get("tickflow", {}).get("request_interval", 30)
     alert_cfg = cfg.get("alert", {})
     channel = alert_cfg.get("channel", "未配置")
     rules = cfg.get("alert_rules", {})
