@@ -53,6 +53,12 @@ def send_alert(message: str) -> bool:
         return False
 
 
+def format_system_notification(title: str, lines: list[str]) -> str:
+    """格式化系统通知/生命周期通知。"""
+    body = "\n".join(lines)
+    return f"{title}\n\n{body}".strip()
+
+
 def format_price_alert(
     symbol: str,
     name: str,

@@ -9,11 +9,14 @@ import os
 import subprocess
 import sys
 import time
+from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.config import load_config, get_config
+from src.config import load_config, get_config, china_now, CHINA_TZ
 from src.db import get_watchlist
+from src.alert import send_alert, format_system_notification
+from src.tickflow_api import fetch_quotes, TickFlowAPIError
 
 LOCK_FILE = "/tmp/tickflow_monitor.pid"
 MONITOR_SCRIPT = "realtime_monitor.py"
@@ -77,6 +80,42 @@ def _print_summary(pid: int | None) -> None:
         print("\n⚠️ 当前关注列表为空")
 
 
+def _send_start_notification(pid: int) -> None:
+    watchlist = get_watchlist()
+    lines = [f"时间: {china_now().strftime('%Y-%m-%d %H:%M:%S')}", f"进程 PID: {pid}"]
+    interval = get_config().get("tickflow", {}).get("request_interval", 30)
+    lines.append(f"轮询间隔: {interval} 秒")
+
+    if len(watchlist) > 0:
+        symbols = watchlist["symbol"].tolist()
+        try:
+            quotes = fetch_quotes(symbols).get("data", [])
+            quote_map = {quote.get("symbol"): quote for quote in quotes if quote.get("symbol")}
+            for _, row in watchlist.iterrows():
+                symbol = row["symbol"]
+                name = row.get("name") or symbol
+                cost = row["cost_price"]
+                quote = quote_map.get(symbol, {})
+                price = quote.get("last_price")
+                quote_time = quote.get("timestamp")
+                quote_time_text = "未知"
+                if isinstance(quote_time, (int, float)):
+                    ts = quote_time / 1000 if quote_time > 1_000_000_000_000 else quote_time
+                    quote_time_text = datetime.fromtimestamp(ts, tz=CHINA_TZ).strftime("%H:%M:%S")
+                if price:
+                    lines.append(
+                        f"监控标的: {name}（{symbol}） 成本 {cost:.2f} | 最新价 {price:.2f} | 行情时间 {quote_time_text}"
+                    )
+                else:
+                    lines.append(f"监控标的: {name}（{symbol}） 成本 {cost:.2f}")
+        except TickFlowAPIError:
+            for _, row in watchlist.iterrows():
+                name = row.get("name") or row["symbol"]
+                lines.append(f"监控标的: {name}（{row['symbol']}） 成本 {row['cost_price']:.2f}")
+
+    send_alert(format_system_notification("✅ TickFlow 监控已启动", lines))
+
+
 def main():
     parser = argparse.ArgumentParser(description="启动实时监控")
     parser.add_argument("--config", default=None, help="配置文件路径")
@@ -111,6 +150,7 @@ def main():
         running_pid = _get_running_pid()
         if running_pid is not None:
             _print_summary(running_pid)
+            _send_start_notification(running_pid)
             return
 
     print("❌ 实时监控进程未能在预期时间内完成启动")

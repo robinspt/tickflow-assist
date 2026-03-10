@@ -39,6 +39,7 @@ tickflow-assist/
 │   ├── add_stock.py               # 添加关注股票
 │   ├── list_watchlist.py          # 查看当前关注列表
 │   ├── remove_stock.py            # 删除关注股票 + 清除数据
+│   ├── test_alert.py              # 发送测试告警验证 channel
 │   ├── fetch_klines.py            # 获取K线 + 计算指标（单股）
 │   ├── update_all.py              # 收盘后批量全量更新
 │   ├── analyze.py                 # LLM 技术分析
@@ -227,6 +228,7 @@ openclaw gateway restart
 | `查看关注列表` | 查看当前已关注股票及成本价 |
 | `删除 600000.SH` | 从关注列表移除并清除数据 |
 | `删除 600000.SH 保留数据` | 从关注列表移除，但保留已抓取数据 |
+| `测试告警` | 发送一条测试消息，验证告警 channel 是否可用 |
 | `更新 600000.SH 数据` | 获取最新日K线并计算指标 |
 | `分析 600000.SH` | 获取数据 + LLM 分析 + 输出关键价位 |
 | `查看 600000.SH 上次分析` | 回看最近一次分析结论和关键价位 |
@@ -248,6 +250,9 @@ uv run python scripts/remove_stock.py --symbol 600000.SH
 
 # 删除关注（保留 K 线和指标数据）
 uv run python scripts/remove_stock.py --symbol 600000.SH --keep-data
+
+# 发送测试告警，验证 channel 投递链路
+uv run python scripts/test_alert.py
 
 # 获取K线 + 计算指标（单股）
 uv run python scripts/fetch_klines.py --symbol 600000.SH --days 90
@@ -278,6 +283,8 @@ uv run python scripts/stop_monitor.py --force
 ```
 
 ## ⏰ 实时监控
+
+启动/停止监控时会主动向当前告警通道发送生命周期通知。这样即使当天没有触发价格类告警，也能确认 channel 投递链路仍然可用。
 
 ### 监控规则
 

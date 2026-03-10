@@ -115,6 +115,20 @@ def stop_monitor(force: bool = False) -> bool:
         if not _check_pid_alive(pid):
             print(f"✅ 监控进程已停止 (PID={pid})")
             _cleanup_lock()
+            try:
+                from src.config import load_config, china_now
+                from src.alert import send_alert, format_system_notification
+                load_config()
+                send_alert(format_system_notification(
+                    "🛑 TickFlow 监控已停止",
+                    [
+                        f"时间: {china_now().strftime('%Y-%m-%d %H:%M:%S')}",
+                        f"进程 PID: {pid}",
+                        f"停止方式: {'强制停止' if force else '优雅停止'}",
+                    ],
+                ))
+            except Exception:
+                pass
             return True
         if not force:
             print(f"   等待进程退出... ({i + 1}/{max_wait}s)")
@@ -127,6 +141,20 @@ def stop_monitor(force: bool = False) -> bool:
             if not _check_pid_alive(pid):
                 print(f"✅ 监控进程已强制停止 (PID={pid})")
                 _cleanup_lock()
+                try:
+                    from src.config import load_config, china_now
+                    from src.alert import send_alert, format_system_notification
+                    load_config()
+                    send_alert(format_system_notification(
+                        "🛑 TickFlow 监控已停止",
+                        [
+                            f"时间: {china_now().strftime('%Y-%m-%d %H:%M:%S')}",
+                            f"进程 PID: {pid}",
+                            "停止方式: 强制停止",
+                        ],
+                    ))
+                except Exception:
+                    pass
                 return True
         except (ProcessLookupError, PermissionError):
             pass

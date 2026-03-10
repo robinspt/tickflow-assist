@@ -19,7 +19,12 @@ from .db import (
     is_alert_sent_this_session,
     log_alert,
 )
-from .alert import send_alert, format_price_alert, format_volume_alert
+from .alert import (
+    send_alert,
+    format_price_alert,
+    format_volume_alert,
+    format_system_notification,
+)
 
 
 def _check_price_rules(
@@ -291,6 +296,9 @@ def run_monitor_loop():
 
     cfg = get_config()
     interval = cfg.get("tickflow", {}).get("request_interval", 30)
+    exit_reason = ""
+    exit_detail = ""
+    notify_exit = False
 
     print(f"[监控] 启动实时监控 (PID={os.getpid()})，间隔 {interval} 秒")
     print(f"[监控] 交易时段: "
@@ -328,5 +336,18 @@ def run_monitor_loop():
                 print(f"[监控] 异常: {e}")
                 traceback.print_exc()
                 time.sleep(interval)
+    except Exception as e:
+        exit_reason = "监控主循环异常退出"
+        exit_detail = str(e)
+        notify_exit = True
+        raise
     finally:
         _release_lock()
+        if notify_exit:
+            lines = [
+                f"时间: {china_now().strftime('%Y-%m-%d %H:%M:%S')}",
+                f"原因: {exit_reason}",
+            ]
+            if exit_detail:
+                lines.append(f"详情: {exit_detail}")
+            send_alert(format_system_notification("⚠️ TickFlow 监控退出通知", lines))
