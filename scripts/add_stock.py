@@ -12,6 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.config import load_config
+from src.tickflow_api import fetch_instrument, TickFlowAPIError
 from src.validators import validate_a_share_symbol, InvalidSymbolError
 from src.db import add_to_watchlist, get_watchlist
 
@@ -32,15 +33,24 @@ def main():
         print(f"❌ {e}")
         sys.exit(1)
 
-    add_to_watchlist(symbol, args.cost)
+    try:
+        instrument = fetch_instrument(symbol)
+    except TickFlowAPIError as e:
+        print(f"❌ 获取股票元数据失败: {e}")
+        sys.exit(1)
 
-    print(f"✅ 已添加: {symbol}，成本价: {args.cost:.2f}")
+    stock_name = instrument.get("name") or symbol
+
+    add_to_watchlist(symbol, args.cost, stock_name)
+
+    print(f"✅ 已添加: {stock_name}（{symbol}），成本价: {args.cost:.2f}")
 
     # 显示当前关注列表
     wl = get_watchlist()
     print(f"\n📋 当前关注列表 ({len(wl)} 只):")
     for _, row in wl.iterrows():
-        print(f"  • {row['symbol']}  成本: {row['cost_price']:.2f}")
+        label = f"{row['name']}（{row['symbol']}）" if row.get("name") else row["symbol"]
+        print(f"  • {label}  成本: {row['cost_price']:.2f}")
 
 
 if __name__ == "__main__":

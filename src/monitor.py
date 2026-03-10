@@ -182,9 +182,11 @@ def run_monitor_once() -> int:
         # 获取该股票的成本价
         wl_match = watchlist[watchlist["symbol"] == symbol]
         cost_price = wl_match.iloc[0]["cost_price"] if len(wl_match) > 0 else 0
+        watchlist_name = wl_match.iloc[0].get("name", "") if len(wl_match) > 0 else ""
 
         # 获取关键价位
         levels = get_key_levels(symbol)
+        name = watchlist_name or quote.get("ext", {}).get("name", symbol)
 
         if levels:
             # 检查价格规则

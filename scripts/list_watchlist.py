@@ -31,7 +31,8 @@ def main():
 
     print(f"📋 当前关注列表 ({len(watchlist)} 只):")
     for _, row in watchlist.iterrows():
-        print(f"  • {row['symbol']}  成本: {row['cost_price']:.2f}")
+        label = f"{row['name']}（{row['symbol']}）" if row.get("name") else row["symbol"]
+        print(f"  • {label}  成本: {row['cost_price']:.2f}")
 
 
 if __name__ == "__main__":

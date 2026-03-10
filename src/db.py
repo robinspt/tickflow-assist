@@ -25,6 +25,7 @@ _db = None
 
 WATCHLIST_SCHEMA = pa.schema([
     pa.field("symbol", pa.utf8()),
+    pa.field("name", pa.utf8()),
     pa.field("cost_price", pa.float64()),
     pa.field("added_at", pa.utf8()),
 ])
@@ -134,16 +135,49 @@ def _get_or_create_table(name: str, schema: pa.Schema):
     tables = db.list_tables()
     table_names = tables.tables if hasattr(tables, "tables") else tables
     if name in table_names:
-        return db.open_table(name)
+        table = db.open_table(name)
+        if name == "watchlist":
+            return _ensure_watchlist_schema(db, table)
+        return table
     else:
         return db.create_table(name, schema=schema)
+
+
+def _table_from_dataframe(df: pd.DataFrame, schema: pa.Schema) -> pa.Table:
+    """按指定 schema 构造 Arrow 表。"""
+    normalized = df.copy()
+    required_cols = [field.name for field in schema]
+    for field in schema:
+        if field.name not in normalized.columns:
+            normalized[field.name] = "" if pa.types.is_string(field.type) else None
+    return pa.Table.from_pandas(normalized[required_cols], schema=schema, preserve_index=False)
+
+
+def _ensure_watchlist_schema(db, table):
+    """
+    兼容旧版 watchlist schema。
+
+    旧表没有 name 列时，自动重建为新 schema。
+    """
+    try:
+        df = table.to_pandas()
+    except Exception:
+        return table
+
+    if "name" in df.columns:
+        return table
+
+    df["name"] = ""
+    rebuilt = _table_from_dataframe(df, WATCHLIST_SCHEMA)
+    db.create_table("watchlist", data=rebuilt, mode="overwrite")
+    return db.open_table("watchlist")
 
 
 # ============================================================
 # Watchlist 操作
 # ============================================================
 
-def add_to_watchlist(symbol: str, cost_price: float) -> None:
+def add_to_watchlist(symbol: str, cost_price: float, name: str = "") -> None:
     """添加股票到关注列表"""
     table = _get_or_create_table("watchlist", WATCHLIST_SCHEMA)
 
@@ -154,6 +188,7 @@ def add_to_watchlist(symbol: str, cost_price: float) -> None:
 
     data = pa.table({
         "symbol": [symbol],
+        "name": [name],
         "cost_price": [cost_price],
         "added_at": [china_now().isoformat()],
     })
@@ -169,7 +204,10 @@ def remove_from_watchlist(symbol: str) -> None:
 def get_watchlist() -> pd.DataFrame:
     """获取关注列表"""
     table = _get_or_create_table("watchlist", WATCHLIST_SCHEMA)
-    return table.to_pandas()
+    df = table.to_pandas()
+    if "name" not in df.columns:
+        df["name"] = ""
+    return df
 
 
 # ============================================================

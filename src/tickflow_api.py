@@ -280,3 +280,41 @@ def fetch_quotes(symbols: list[str]) -> dict:
         return resp.json()
     except requests.exceptions.RequestException as e:
         raise TickFlowAPIError(f"获取实时行情失败: {e}")
+
+
+# ============================================================
+# 标的元数据接口
+# ============================================================
+
+def fetch_instruments(symbols: list[str]) -> dict[str, dict]:
+    """
+    批量获取标的元数据。
+
+    GET /v1/instruments?symbols=600000.SH,000001.SZ
+
+    Returns:
+        {"600000.SH": {...}, "000001.SZ": {...}}
+    """
+    if not symbols:
+        return {}
+
+    url = f"{_get_base_url()}/v1/instruments"
+    params = {"symbols": ",".join(symbols)}
+
+    try:
+        resp = _request_with_retry("GET", url, params=params)
+        data = resp.json().get("data", [])
+    except requests.exceptions.RequestException as e:
+        raise TickFlowAPIError(f"获取标的元数据失败: {e}")
+
+    result = {}
+    for item in data:
+        symbol = item.get("symbol")
+        if symbol:
+            result[symbol] = item
+    return result
+
+
+def fetch_instrument(symbol: str) -> dict:
+    """获取单只标的元数据。"""
+    return fetch_instruments([symbol]).get(symbol, {})

@@ -130,12 +130,8 @@ uv run python scripts/init_scheduler.py --remove
 ```bash
 cd /path/to/tickflow-assist
 export TICKFLOW_ASSIST_ROOT=$(pwd)
-
-# 方式一：软链接到 OpenClaw skills 目录
-ln -s $(pwd)/skills/stock-analysis ~/.openclaw/skills/stock-analysis
-
-# 方式二：配置 extraDirs
-openclaw config set skills.load.extraDirs '["/path/to/tickflow-assist/skills"]'
+mkdir -p ~/.openclaw/workspace/skills
+cp -r $(pwd)/skills/stock-analysis ~/.openclaw/workspace/skills/stock-analysis
 ```
 
 如果只是在当前 shell 里手动启动 Gateway，上面的 `export` 执行一次即可。
