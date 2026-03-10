@@ -18,8 +18,8 @@
 
 ## 🧩 支持的 Claw
 
-- [OpenClaw](https://openclaw.ai)（已支持）
-- Nanobot（待定）
+- 🦞[OpenClaw](https://openclaw.ai)（已支持）
+- 🐈[Nanobot](https://github.com/HKUDS/nanobot)（待测试）
 - 其他 Claw（待增加）
 
 ## 📁 项目结构
@@ -400,8 +400,7 @@ uv run python scripts/stop_monitor.py --force
 
 ## 🙏 鸣谢
 
-- [TickFlow](https://tickflow.org) 提供行情数据服务与 API 支持
-- [tickflow-org/tickflow](https://github.com/tickflow-org/tickflow)
+- [TickFlow](https://tickflow.org) 提供行情数据服务与 API 支持。[项目地址](https://github.com/tickflow-org/tickflow)
 
 ## 📄 License
 
