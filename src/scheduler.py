@@ -12,6 +12,7 @@
 """
 
 import os
+import shutil
 import sys
 import subprocess
 from pathlib import Path
@@ -22,8 +23,12 @@ TASK_TAG = "# tickflow_plugin"
 # 项目根目录
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Python 解释器
-PYTHON_BIN = sys.executable
+# Python 运行命令：优先使用 uv run python（确保 cron 环境也能加载虚拟环境依赖）
+_uv_bin = shutil.which("uv")
+if _uv_bin:
+    PYTHON_CMD = f"{_uv_bin} run python"
+else:
+    PYTHON_CMD = sys.executable
 
 
 def _get_crontab_entries() -> list[dict]:
@@ -37,12 +42,12 @@ def _get_crontab_entries() -> list[dict]:
         {
             "name": "daily_update",
             "schedule": "35 15 * * 1-5",  # 周一到周五 15:35
-            "command": f"cd {PROJECT_ROOT} && {PYTHON_BIN} scripts/update_all.py >> /tmp/tickflow_daily_update.log 2>&1",
+            "command": f"cd {PROJECT_ROOT} && {PYTHON_CMD} scripts/update_all.py >> /tmp/tickflow_daily_update.log 2>&1",
         },
         {
             "name": "realtime_monitor",
             "schedule": "25 9 * * 1-5",  # 周一到周五 09:25
-            "command": f"cd {PROJECT_ROOT} && {PYTHON_BIN} scripts/realtime_monitor.py >> /tmp/tickflow_realtime_monitor.log 2>&1",
+            "command": f"cd {PROJECT_ROOT} && {PYTHON_CMD} scripts/realtime_monitor.py >> /tmp/tickflow_realtime_monitor.log 2>&1",
         },
     ]
 

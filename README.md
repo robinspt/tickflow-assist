@@ -109,13 +109,13 @@ export OPENCLAW_GATEWAY_TOKEN="your-token"
 
 ```bash
 # 一键注册 crontab 定时任务（收盘更新 + 实时监控）
-python scripts/init_scheduler.py
+uv run python scripts/init_scheduler.py
 
 # 查看已注册的任务
-python scripts/init_scheduler.py --list
+uv run python scripts/init_scheduler.py --list
 
 # 移除所有定时任务
-python scripts/init_scheduler.py --remove
+uv run python scripts/init_scheduler.py --remove
 ```
 
 注册后将自动创建两条 crontab 任务：
@@ -239,40 +239,40 @@ openclaw gateway restart
 
 ```bash
 # 添加关注（含 A 股代码校验，非法代码会被拒绝）
-python scripts/add_stock.py --symbol 600000.SH --cost 10.5
+uv run python scripts/add_stock.py --symbol 600000.SH --cost 10.5
 
 # 查看当前关注列表
-python scripts/list_watchlist.py
+uv run python scripts/list_watchlist.py
 
 # 删除关注（同时清除关联数据）
-python scripts/remove_stock.py --symbol 600000.SH
+uv run python scripts/remove_stock.py --symbol 600000.SH
 
 # 删除关注（保留 K 线和指标数据）
-python scripts/remove_stock.py --symbol 600000.SH --keep-data
+uv run python scripts/remove_stock.py --symbol 600000.SH --keep-data
 
 # 获取K线 + 计算指标（单股）
-python scripts/fetch_klines.py --symbol 600000.SH --days 90
+uv run python scripts/fetch_klines.py --symbol 600000.SH --days 90
 
 # 收盘后全量更新所有关注股票（需 15:30 后执行，自动处理除权除息）
-python scripts/update_all.py
+uv run python scripts/update_all.py
 
 # 强制更新（跳过时间检查）
-python scripts/update_all.py --force
+uv run python scripts/update_all.py --force
 
 # LLM 分析（输出简洁结论 + 关键价位表格）
-python scripts/analyze.py --symbol 600000.SH
+uv run python scripts/analyze.py --symbol 600000.SH
 
 # 启动实时监控
-python scripts/realtime_monitor.py
+uv run python scripts/realtime_monitor.py
 
 # 查看监控运行状态
-python scripts/monitor_status.py
+uv run python scripts/monitor_status.py
 
 # 停止实时监控（优雅退出）
-python scripts/stop_monitor.py
+uv run python scripts/stop_monitor.py
 
 # 强制停止实时监控
-python scripts/stop_monitor.py --force
+uv run python scripts/stop_monitor.py --force
 ```
 
 ## ⏰ 实时监控
