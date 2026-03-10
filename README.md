@@ -94,6 +94,7 @@ tickflow:
 
 # 告警配置
 alert:
+  mode: "openclaw_cli"             # 推荐：直接通过 OpenClaw CLI 发消息
   openclaw_token: "your-gateway-token"
   openclaw_webhook_path: "/hooks/agent"  # 若 OpenClaw 自定义了 hooks.path，这里也要同步修改
   channel: "telegram"              # 支持 telegram / whatsapp / discord / slack / qqbot 等

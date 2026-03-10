@@ -22,9 +22,11 @@ database:
 
 # 告警配置
 alert:
-  # 通过 OpenClaw Webhook 发送告警
+  # 通过 OpenClaw 发送告警：推荐 openclaw_cli；webhook 可作兼容方式
+  mode: "openclaw_cli"        # openclaw_cli / webhook
+  openclaw_cli_bin: "openclaw"
   openclaw_gateway: "http://127.0.0.1:18789"
-  openclaw_token: ""          # Gateway auth token
+  openclaw_token: ""          # webhook 模式使用的 hooks.token
   openclaw_webhook_path: "/hooks/agent"  # Webhook 路径，需与 OpenClaw hooks.path 对应
   channel: "telegram"         # 告警通道（telegram / whatsapp / discord / slack / qqbot 等）
   account: ""                 # 多账号时指定 accountId（如 QQBot 多机器人场景）
