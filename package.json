@@ -1,0 +1,45 @@
+{
+  "name": "tickflow-assist",
+  "version": "0.1.0",
+  "description": "OpenClaw plugin for TickFlow-based A-share analysis, monitoring, and alerting.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/plugin.js",
+  "files": [
+    "dist",
+    "skills",
+    "python",
+    "openclaw.plugin.json",
+    "README.md"
+  ],
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "tickflow",
+    "stocks",
+    "lancedb"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsc -p tsconfig.json --watch",
+    "tool": "node dist/dev/run-tool.js",
+    "monitor-loop": "node dist/dev/run-monitor-loop.js"
+  },
+  "openclaw": {
+    "extensions": [
+      "dist/plugin.js"
+    ]
+  },
+  "exports": {
+    ".": "./dist/plugin.js"
+  },
+  "dependencies": {
+    "apache-arrow": "^17.0.0",
+    "@lancedb/lancedb": "^0.18.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.11",
+    "typescript": "^5.8.2"
+  }
+}

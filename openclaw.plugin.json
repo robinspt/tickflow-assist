@@ -1,0 +1,90 @@
+{
+  "id": "tickflow-assist",
+  "name": "TickFlow Assist",
+  "version": "0.1.0",
+  "description": "A-share watchlist analysis, monitoring, and alert delivery powered by TickFlow and OpenClaw.",
+  "skills": [
+    "skills"
+  ],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "tickflowApiUrl": {
+        "type": "string",
+        "default": "https://api.tickflow.org"
+      },
+      "tickflowApiKey": {
+        "type": "string"
+      },
+      "llmBaseUrl": {
+        "type": "string",
+        "default": "https://api.openai.com/v1"
+      },
+      "llmApiKey": {
+        "type": "string"
+      },
+      "llmModel": {
+        "type": "string",
+        "default": "gpt-4o"
+      },
+      "databasePath": {
+        "type": "string",
+        "default": "./data/lancedb"
+      },
+      "calendarFile": {
+        "type": "string",
+        "default": "./day_future.txt"
+      },
+      "requestInterval": {
+        "type": "integer",
+        "minimum": 5,
+        "default": 30
+      },
+      "alertChannel": {
+        "type": "string",
+        "default": "telegram"
+      },
+      "openclawCliBin": {
+        "type": "string",
+        "default": "openclaw"
+      },
+      "alertAccount": {
+        "type": "string",
+        "default": ""
+      },
+      "alertTarget": {
+        "type": "string",
+        "default": ""
+      },
+      "pythonBin": {
+        "type": "string",
+        "default": "uv"
+      },
+      "pythonArgs": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": ["run", "python"]
+      },
+      "pythonWorkdir": {
+        "type": "string",
+        "default": "./python"
+      }
+    }
+  },
+  "uiHints": {
+    "tickflowApiKey": {
+      "label": "TickFlow API Key",
+      "sensitive": true
+    },
+    "llmApiKey": {
+      "label": "LLM API Key",
+      "sensitive": true
+    },
+    "alertTarget": {
+      "label": "Alert Target"
+    }
+  }
+}

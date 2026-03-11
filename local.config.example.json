@@ -1,0 +1,19 @@
+{
+  "plugin": {
+    "tickflowApiUrl": "https://api.tickflow.org",
+    "tickflowApiKey": "your-tickflow-key",
+    "llmBaseUrl": "https://api.openai.com/v1",
+    "llmApiKey": "sk-xxx",
+    "llmModel": "gpt-4o",
+    "databasePath": "./data/lancedb",
+    "calendarFile": "./day_future.txt",
+    "requestInterval": 30,
+    "alertChannel": "telegram",
+    "openclawCliBin": "openclaw",
+    "alertAccount": "",
+    "alertTarget": "your-target",
+    "pythonBin": "uv",
+    "pythonArgs": ["run", "python"],
+    "pythonWorkdir": "./python"
+  }
+}

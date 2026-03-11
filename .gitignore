@@ -1,28 +1,7 @@
-# Data
-data/
-*.db
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.egg-info/
 dist/
-build/
-.eggs/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Env
-.env
-.env.local
-venv/
-.venv/
-
-# OS
-.DS_Store
-Thumbs.db
+node_modules/
+data/
+local.config.json
+python/__pycache__/
+*.pyc
+MIGRATION*.md
