@@ -41,6 +41,10 @@
         "minimum": 5,
         "default": 30
       },
+      "dailyUpdateNotify": {
+        "type": "boolean",
+        "default": false
+      },
       "alertChannel": {
         "type": "string",
         "default": "telegram"

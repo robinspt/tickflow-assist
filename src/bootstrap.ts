@@ -22,6 +22,7 @@ import { addStockTool } from "./tools/add-stock.tool.js";
 import { analyzeTool } from "./tools/analyze.tool.js";
 import { fetchKlinesTool } from "./tools/fetch-klines.tool.js";
 import { listWatchlistTool } from "./tools/list-watchlist.tool.js";
+import { dailyUpdateStatusTool } from "./tools/daily-update-status.tool.js";
 import { monitorStatusTool } from "./tools/monitor-status.tool.js";
 import { refreshWatchlistNamesTool } from "./tools/refresh-watchlist-names.tool.js";
 import { queryDatabaseTool } from "./tools/query-database.tool.js";
@@ -115,7 +116,12 @@ export function createAppContext(
     monitorService,
     config.requestInterval * 1000,
   );
-  const dailyUpdateWorker = new DailyUpdateWorker(updateService, config.databasePath);
+  const dailyUpdateWorker = new DailyUpdateWorker(
+    updateService,
+    config.databasePath,
+    alertService,
+    config.dailyUpdateNotify,
+  );
 
   return {
     config,
@@ -134,6 +140,7 @@ export function createAppContext(
         klinesRepository,
         indicatorsRepository,
       ),
+      dailyUpdateStatusTool(dailyUpdateWorker),
       fetchKlinesTool(klineService, klinesRepository, indicatorService, indicatorsRepository),
       listWatchlistTool(watchlistService),
       monitorStatusTool(monitorService),

@@ -7,6 +7,7 @@ export interface PluginConfig {
   databasePath: string;
   calendarFile: string;
   requestInterval: number;
+  dailyUpdateNotify: boolean;
   alertChannel: string;
   openclawCliBin: string;
   alertAccount: string;
@@ -26,6 +27,7 @@ export const DEFAULT_PLUGIN_CONFIG: Omit<
   databasePath: "./data/lancedb",
   calendarFile: "./day_future.txt",
   requestInterval: 30,
+  dailyUpdateNotify: false,
   alertChannel: "telegram",
   openclawCliBin: "openclaw",
   alertAccount: "",

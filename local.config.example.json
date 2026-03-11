@@ -8,6 +8,7 @@
     "databasePath": "./data/lancedb",
     "calendarFile": "./day_future.txt",
     "requestInterval": 30,
+    "dailyUpdateNotify": false,
     "alertChannel": "telegram",
     "openclawCliBin": "openclaw",
     "alertAccount": "",

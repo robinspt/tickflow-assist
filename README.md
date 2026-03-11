@@ -120,6 +120,7 @@ openclaw plugins enable tickflow-assist
           "databasePath": "/path/to/tickflow-assist/data/lancedb",
           "calendarFile": "/path/to/tickflow-assist/day_future.txt",
           "requestInterval": 30,
+          "dailyUpdateNotify": false,
           "alertChannel": "telegram",
           "openclawCliBin": "openclaw",
           "alertAccount": "",
@@ -151,6 +152,7 @@ openclaw plugins enable tickflow-assist
 | `databasePath` | 是 | LanceDB 数据目录，建议使用绝对路径 |
 | `calendarFile` | 是 | 交易日历文件路径，建议使用绝对路径 |
 | `requestInterval` | 否 | 实时监控轮询间隔，默认 `30` 秒 |
+| `dailyUpdateNotify` | 否 | 是否发送定时日更通知，默认 `false` |
 | `alertChannel` | 是 | 告警通道，例如 `telegram` |
 | `openclawCliBin` | 否 | `openclaw` 可执行文件路径，默认 `openclaw` |
 | `alertAccount` | 否 | 多账号通道时指定账号，例如 QQBot 常用 `default` |
@@ -217,6 +219,7 @@ openclaw gateway restart
 - `-l` 安装是链接安装，OpenClaw 直接使用当前项目目录
 - 因此代码更新后，通常只需要拉取最新代码并重新构建
 - 插件变更生效前，建议执行一次 `openclaw gateway restart`
+- 如果你希望定时日更执行成功或失败时主动收到消息，可把 `dailyUpdateNotify` 设为 `true`
 - 如果本次更新涉及 Python 指标侧依赖变化，还应额外执行：
 
 ```bash
@@ -253,6 +256,7 @@ openclaw plugins doctor
 | `查看 002261 上次分析` | 回看最近一次分析结论 |
 | `开始监控` | 启动实时监控 |
 | `监控状态` | 查看监控状态、行情、关键价位覆盖情况 |
+| `日更状态` | 查看定时日更后台最近一次执行情况 |
 | `停止监控` | 停止监控 |
 | `测试告警` | 验证 OpenClaw channel 投递链路 |
 | `使用帮助` | 查看插件常用指令与示例 |
@@ -364,8 +368,20 @@ database_query
 - `start_monitor`
 - `stop_monitor`
 - `monitor_status`
+- `daily_update_status`
 - `test_alert`
 - `query_database`
+
+常用 skill / 指令示例：
+
+- `使用帮助`
+- `添加 002261 成本 34.15`
+- `添加 002261 成本 34.15 并获取 120 天日K`
+- `分析 002261`
+- `日更状态`
+- `数据库里有哪些表`
+- `看技术指标表结构`
+- `查 002261 最近 5 条技术指标`
 
 ## ⏰ 实时监控逻辑
 

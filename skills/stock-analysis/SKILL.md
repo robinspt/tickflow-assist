@@ -34,6 +34,7 @@ metadata:
 - “刷新股票名称”、“刷新名称” -> `refresh_watchlist_names`
 - “拉 K 线”、“更新 K 线”、“获取日线” -> `fetch_klines`
 - “全部更新”、“执行日更”、“更新全部股票” -> `update_all`
+- “日更状态”、“定时更新状态”、“收盘更新状态” -> `daily_update_status`
 - “分析一下某只股票”、“分析 002261” -> `analyze`
 - “查看分析结果”、“看上次分析” -> `view_analysis`
 - “开始盯盘”、“开启监控”、“启动监控” -> `start_monitor`
@@ -50,7 +51,7 @@ metadata:
 - 不要臆造股票代码、成本价、日期、阈值、分析结果或监控状态。
 
 输出规则：
-- 对 `add_stock`、`list_watchlist`、`start_monitor`、`stop_monitor`、`monitor_status`、`analyze`、`view_analysis`、`fetch_klines` 和 `update_all`，调用工具后尽量原样输出返回文本。
+- 对 `add_stock`、`list_watchlist`、`start_monitor`、`stop_monitor`、`monitor_status`、`daily_update_status`、`analyze`、`view_analysis`、`fetch_klines` 和 `update_all`，调用工具后尽量原样输出返回文本。
 - 不要改写、总结、翻译、重排、美化，也不要加表格、额外标题或解释性包装。
 - 除非工具明确返回错误，否则不要在工具结果前后添加追问、评论或推断字段。
 - 不要省略关键数值、价位、涨跌幅、日期或状态字段。

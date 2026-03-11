@@ -26,6 +26,25 @@ function normalizeStringArray(value: unknown, fallback: string[]): string[] {
   return fallback;
 }
 
+function normalizeBoolean(value: unknown, fallback: boolean): boolean {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["true", "1", "yes", "on"].includes(normalized)) {
+      return true;
+    }
+    if (["false", "0", "no", "off"].includes(normalized)) {
+      return false;
+    }
+  }
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+  return fallback;
+}
+
 export function normalizePluginConfig(input: unknown): PluginConfig {
   const raw = (input ?? {}) as RawConfig;
 
@@ -38,6 +57,7 @@ export function normalizePluginConfig(input: unknown): PluginConfig {
     databasePath: path.resolve(normalizeString(raw.databasePath, DEFAULT_PLUGIN_CONFIG.databasePath)),
     calendarFile: path.resolve(normalizeString(raw.calendarFile, DEFAULT_PLUGIN_CONFIG.calendarFile)),
     requestInterval: normalizeInteger(raw.requestInterval, DEFAULT_PLUGIN_CONFIG.requestInterval),
+    dailyUpdateNotify: normalizeBoolean(raw.dailyUpdateNotify, DEFAULT_PLUGIN_CONFIG.dailyUpdateNotify),
     alertChannel: normalizeString(raw.alertChannel, DEFAULT_PLUGIN_CONFIG.alertChannel),
     openclawCliBin: normalizeString(raw.openclawCliBin, DEFAULT_PLUGIN_CONFIG.openclawCliBin),
     alertAccount: normalizeString(raw.alertAccount, DEFAULT_PLUGIN_CONFIG.alertAccount),
