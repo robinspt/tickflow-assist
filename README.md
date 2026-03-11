@@ -42,9 +42,18 @@
 ```bash
 cd /path/to/tickflow-assist
 npm install
+cd python
+uv sync
+cd ..
 npm run check
 npm run build
 ```
+
+说明：
+
+- Node 侧依赖通过 `npm install` 安装
+- Python 指标子模块依赖通过 `python/` 目录下的 `uv sync` 安装
+- 正式运行时，指标计算默认通过 `uv run python` 调用 `python/indicator_runner.py`
 
 ### 2. 通过 OpenClaw 安装插件
 
