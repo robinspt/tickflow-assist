@@ -1,4 +1,4 @@
-# TickFlow Assist
+# 📈 TickFlow Assist
 
 基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件。当前版本已完成核心架构迁移：
 
@@ -20,6 +20,43 @@
 - 实时监控：按配置轮询 TickFlow 实时行情
 - 告警推送：通过 OpenClaw CLI 投递到 Telegram 等通道
 - OpenClaw 内置 Skill：`stock_analysis`
+
+## 🧩 支持的 Claw
+
+- 🦞 [OpenClaw](https://openclaw.ai)（已支持）
+- 🐈 [Nanobot](https://github.com/HKUDS/nanobot)（待测试）
+- 其他 Claw（待增加）
+
+## 📁 项目结构
+
+```text
+tickflow-assist/
+├── openclaw.plugin.json          # OpenClaw 插件清单
+├── package.json                  # Node/TS 项目配置
+├── tsconfig.json                 # TypeScript 配置
+├── day_future.txt                # 交易日历
+├── src/
+│   ├── plugin.ts                 # 插件入口
+│   ├── bootstrap.ts              # 服务与工具装配
+│   ├── config/                   # 配置 schema / normalize
+│   ├── services/                 # TickFlow / 分析 / 监控 / 更新服务
+│   ├── storage/                  # LanceDB 访问层
+│   ├── tools/                    # OpenClaw tools
+│   ├── background/               # 监控与日更后台 worker
+│   ├── prompts/                  # 分析 prompt
+│   ├── runtime/                  # 插件 API 适配
+│   ├── types/                    # 领域类型
+│   └── utils/                    # 时间、格式、symbol 等工具
+├── python/
+│   ├── indicator_runner.py       # Python 指标桥接入口
+│   ├── indicators.py             # 技术指标计算
+│   ├── pyproject.toml            # Python 子模块依赖
+│   └── requirements.txt          # Python 兼容依赖清单
+├── skills/stock-analysis/
+│   └── SKILL.md                  # 插件内置 Skill
+└── data/
+    └── lancedb/                  # 本地数据库目录（运行时生成）
+```
 
 ## 推荐目录
 
@@ -74,27 +111,27 @@ openclaw plugins enable tickflow-assist
 
 ```json5
 {
-  plugins: {
-    enabled: true,
-    entries: {
+  "plugins": {
+    "enabled": true,
+    "entries": {
       "tickflow-assist": {
-        enabled: true,
-        config: {
-          tickflowApiUrl: "https://api.tickflow.org",
-          tickflowApiKey: "your-tickflow-key",
-          llmBaseUrl: "https://api.openai.com/v1",
-          llmApiKey: "sk-xxx",
-          llmModel: "gpt-4o",
-          databasePath: "/home/ocuser/projects/tickflow-assist/data/lancedb",
-          calendarFile: "/home/ocuser/projects/tickflow-assist/day_future.txt",
-          requestInterval: 30,
-          alertChannel: "telegram",
-          openclawCliBin: "openclaw",
-          alertAccount: "",
-          alertTarget: "your-target",
-          pythonBin: "uv",
-          pythonArgs: ["run", "python"],
-          pythonWorkdir: "/home/ocuser/projects/tickflow-assist/python"
+        "enabled": true,
+        "config": {
+          "tickflowApiUrl": "https://api.tickflow.org",
+          "tickflowApiKey": "your-tickflow-key",
+          "llmBaseUrl": "https://api.openai.com/v1",
+          "llmApiKey": "sk-xxx",
+          "llmModel": "gpt-4o",
+          "databasePath": "/home/ocuser/projects/tickflow-assist/data/lancedb",
+          "calendarFile": "/home/ocuser/projects/tickflow-assist/day_future.txt",
+          "requestInterval": 30,
+          "alertChannel": "telegram",
+          "openclawCliBin": "openclaw",
+          "alertAccount": "",
+          "alertTarget": "your-target",
+          "pythonBin": "uv",
+          "pythonArgs": ["run", "python"],
+          "pythonWorkdir": "/home/ocuser/projects/tickflow-assist/python"
         }
       }
     }
@@ -106,6 +143,33 @@ openclaw plugins enable tickflow-assist
 
 - `tickflowApiKey`、`llmApiKey`、`alertTarget` 正式使用时必须填写
 - 插件允许先安装后填配置，所以安装阶段不会因为缺少这些值而失败
+
+### 3.1 配置字段说明
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `tickflowApiUrl` | 否 | TickFlow API 地址，默认 `https://api.tickflow.org` |
+| `tickflowApiKey` | 是 | TickFlow API Key |
+| `llmBaseUrl` | 否 | OpenAI 兼容接口地址 |
+| `llmApiKey` | 是 | 大模型 API Key |
+| `llmModel` | 是 | 分析使用的模型名 |
+| `databasePath` | 是 | LanceDB 数据目录，建议使用绝对路径 |
+| `calendarFile` | 是 | 交易日历文件路径，建议使用绝对路径 |
+| `requestInterval` | 否 | 实时监控轮询间隔，默认 `30` 秒 |
+| `alertChannel` | 是 | 告警通道，例如 `telegram` |
+| `openclawCliBin` | 否 | `openclaw` 可执行文件路径，默认 `openclaw` |
+| `alertAccount` | 否 | 多账号通道时指定账号，一般可留空 |
+| `alertTarget` | 是 | 告警投递目标，例如 Telegram 群组/会话 ID |
+| `pythonBin` | 否 | Python 子模块启动命令，默认 `uv` |
+| `pythonArgs` | 否 | Python 子模块命令参数，默认 `["run", "python"]` |
+| `pythonWorkdir` | 是 | Python 子模块工作目录，建议使用绝对路径 |
+
+`alertTarget` 说明：
+
+- 这是 OpenClaw 通道投递目标，不是 TickFlow 配置
+- 如果你用 Telegram，通常填写群组或会话 ID
+- 必须和你当前 OpenClaw 通道配置匹配，否则 `test_alert` 虽然执行了，也可能无法投递到目标会话
+- 最稳妥的做法是先用已知可用的 channel/target 跑通 `test_alert`
 
 ### 4. 重启 Gateway
 
@@ -169,11 +233,108 @@ openclaw plugins doctor
 
 然后在对话里直接使用：
 
-- `添加 002261 成本 34.154`
-- `分析 002261`
-- `开始监控`
-- `监控状态`
-- `停止监控`
+| 指令示例 | 功能 |
+|---|---|
+| `添加 002261 成本 34.154` | 添加股票到关注列表 |
+| `查看关注列表` | 查看当前关注股票及成本价 |
+| `删除 002202` | 从关注列表删除股票 |
+| `更新 002261 数据` | 抓取最新日 K 并重算指标 |
+| `分析 002261` | 执行 LLM 技术分析 |
+| `查看 002261 上次分析` | 回看最近一次分析结论 |
+| `开始监控` | 启动实时监控 |
+| `监控状态` | 查看监控状态、行情、关键价位覆盖情况 |
+| `停止监控` | 停止监控 |
+| `测试告警` | 验证 OpenClaw channel 投递链路 |
+
+## 配置 QQBot 通道（可选）
+
+如果希望通过 QQ 接收告警，需要先在 OpenClaw 中安装 QQBot 插件。
+
+### 1. 安装 QQBot 插件
+
+```bash
+openclaw plugins install @sliverp/qqbot@latest
+```
+
+### 2. 配置 OpenClaw
+
+```bash
+openclaw channels add --channel qqbot --token "AppID:AppSecret"
+```
+
+### 3. 修改本插件配置
+
+在 `~/.openclaw/openclaw.json` 的 `plugins.entries.tickflow-assist.config` 中配置：
+
+```json5
+{
+  "alertChannel": "qqbot",
+  "alertTarget": ""
+}
+```
+
+说明：
+
+- `alertTarget` 可留空，此时投递到当前默认会话
+- 如果要精确指定目标，可填写 QQBot 对应 target
+- 配完后执行 `test_alert` 验证链路
+
+## ⏰ 实时监控逻辑
+
+### 监控规则
+
+| 规则 | 说明 | 触发条件 |
+|---|---|---|
+| 止损告警 | 跌破止损位 | `价格 <= 止损位` |
+| 止损预警 | 接近止损位 | `价格 <= 止损位 × 1.005` |
+| 突破告警 | 突破关键位 | `价格 >= 突破位` |
+| 支撑告警 | 接近支撑位 | `价格 <= 支撑位 × 1.005` |
+| 压力告警 | 接近压力位 | `价格 >= 压力位 × 0.995` |
+| 止盈告警 | 达到止盈位 | `价格 >= 止盈位` |
+| 涨跌幅异动 | 单日涨跌幅超阈值 | `绝对涨跌幅 >= 5%` |
+| 成交量异动 | 成交量异常放大 | `当前量 >= 5日均量 × 3` |
+
+### 运行约束
+
+- 非交易日不监控
+- 交易时段：`09:30-11:30`、`13:00-15:00`
+- 收盘后 `update_all` 才允许执行日更
+- `monitor_status` 会显示当前是 `plugin_service` 还是 `fallback_process`
+
+## 📊 技术指标
+
+当前通过 Python 子模块计算的核心指标包括：
+
+| 类别 | 指标 |
+|---|---|
+| 均线系统 | `MA5`, `MA10`, `MA20`, `MA60` |
+| 趋势指标 | `MACD`, `Signal`, `Histogram`, `ADX`, `+DI`, `-DI` |
+| 动量指标 | `RSI6`, `RSI12`, `RSI24`, `KDJ`, `CCI` |
+| 波动指标 | `BOLL 上轨/中轨/下轨` |
+| 偏离指标 | `BIAS6`, `BIAS12`, `BIAS24` |
+
+## 🗄️ 数据库结构
+
+本项目使用 LanceDB，本地数据默认写入 `data/lancedb/`。
+
+| 表名 | 说明 |
+|---|---|
+| `watchlist` | 关注列表、股票名称、成本价、添加时间 |
+| `klines_daily` | 日 K 数据 |
+| `indicators` | 技术指标结果 |
+| `key_levels` | 关键价位与评分 |
+| `analysis_log` | 每次分析的文本和结构化结果 |
+| `alert_log` | 告警去重与留痕 |
+
+## 📋 依赖
+
+- Node.js
+- TypeScript
+- Python 3.10+
+- `uv`
+- TickFlow API Key
+- OpenAI 兼容 LLM API
+- OpenClaw
 
 ## 本地/服务器直连调试
 
@@ -236,3 +397,13 @@ rm -rf /path/to/tickflow-assist/data/lancedb
 ```
 
 这个动作会删除本地数据库内容，不会删除源码。
+
+## 🙏 鸣谢
+
+- [TickFlow](https://tickflow.org) 提供行情数据服务与 API 支持
+- [tickflow-org/tickflow](https://github.com/tickflow-org/tickflow)
+- [OpenClaw](https://openclaw.ai) 提供插件运行、对话通道与工具编排能力
+
+## 📄 License
+
+MIT
