@@ -1,6 +1,6 @@
 # 📈 TickFlow Assist
 
-基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件。当前版本已完成核心架构迁移：
+基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件，利用 [TickFlow API](https://tickflow.org/)数据接口获取股票数据。当前版本已完成核心架构迁移：
 
 - OpenClaw 插件是主入口
 - JS/TS 负责主业务流程
@@ -8,8 +8,8 @@
 
 发布状态与验证范围见：
 
-- [RELEASE_STATUS.md](/home/x/githubxm/tickflow-assist-beta/RELEASE_STATUS.md)
-- [RELEASE_CHECKLIST.md](/home/x/githubxm/tickflow-assist-beta/RELEASE_CHECKLIST.md)
+- [RELEASE_STATUS.md](https://github.com/robinspt/tickflow-assist/blob/main/RELEASE_STATUS.md)
+- [RELEASE_CHECKLIST.md](https://github.com/robinspt/tickflow-assist/blob/main/RELEASE_CHECKLIST.md)
 
 ## 功能
 
@@ -76,6 +76,14 @@ tickflow-assist/
 
 ### 1. 安装依赖并构建
 
+如果目标机器还没安装 `uv`，先执行：
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+然后安装依赖并构建：
+
 ```bash
 cd /path/to/tickflow-assist
 npm install
@@ -122,8 +130,8 @@ openclaw plugins enable tickflow-assist
           "llmBaseUrl": "https://api.openai.com/v1",
           "llmApiKey": "sk-xxx",
           "llmModel": "gpt-4o",
-          "databasePath": "/home/ocuser/projects/tickflow-assist/data/lancedb",
-          "calendarFile": "/home/ocuser/projects/tickflow-assist/day_future.txt",
+          "databasePath": "/path/to/tickflow-assist/data/lancedb",
+          "calendarFile": "/path/to/tickflow-assist/day_future.txt",
           "requestInterval": 30,
           "alertChannel": "telegram",
           "openclawCliBin": "openclaw",
@@ -131,7 +139,7 @@ openclaw plugins enable tickflow-assist
           "alertTarget": "your-target",
           "pythonBin": "uv",
           "pythonArgs": ["run", "python"],
-          "pythonWorkdir": "/home/ocuser/projects/tickflow-assist/python"
+          "pythonWorkdir": "/path/to/tickflow-assist/python"
         }
       }
     }
@@ -246,7 +254,7 @@ openclaw plugins doctor
 | `停止监控` | 停止监控 |
 | `测试告警` | 验证 OpenClaw channel 投递链路 |
 
-## 配置 QQBot 通道（可选）
+## 🐧 配置 QQBot 通道（可选）
 
 如果希望通过 QQ 接收告警，需要先在 OpenClaw 中安装 QQBot 插件。
 
