@@ -42,11 +42,11 @@ tickflow-assist/
 │   ├── services/                 # TickFlow / 分析 / 监控 / 更新服务
 │   ├── storage/                  # LanceDB 访问层
 │   ├── tools/                    # OpenClaw tools
-│   ├── background/               # 监控与日更后台 worker
+│   ├── background/               # 监控与日更 worker
 │   ├── prompts/                  # 分析 prompt
 │   ├── runtime/                  # 插件 API 适配
 │   ├── types/                    # 领域类型
-│   └── utils/                    # 时间、格式、symbol 等工具
+│   └── utils/                    # 时间、格式、symbol 工具
 ├── python/
 │   ├── indicator_runner.py       # Python 指标桥接入口
 │   ├── indicators.py             # 技术指标计算
@@ -166,8 +166,8 @@ openclaw plugins enable tickflow-assist
 | `requestInterval` | 否 | 实时监控轮询间隔，默认 `30` 秒 |
 | `alertChannel` | 是 | 告警通道，例如 `telegram` |
 | `openclawCliBin` | 否 | `openclaw` 可执行文件路径，默认 `openclaw` |
-| `alertAccount` | 否 | 多账号通道时指定账号，一般可留空 |
-| `alertTarget` | 是 | 告警投递目标，例如 Telegram 群组/会话 ID |
+| `alertAccount` | 否 | 多账号通道时指定账号，例如 QQBot 常用 `default` |
+| `alertTarget` | 是 | 告警投递目标，例如 Telegram 群组/会话 ID、QQBot OPENID |
 | `pythonBin` | 否 | Python 子模块启动命令，默认 `uv` |
 | `pythonArgs` | 否 | Python 子模块命令参数，默认 `["run", "python"]` |
 | `pythonWorkdir` | 是 | Python 子模块工作目录，建议使用绝对路径 |
@@ -176,8 +176,48 @@ openclaw plugins enable tickflow-assist
 
 - 这是 OpenClaw 通道投递目标，不是 TickFlow 配置
 - 如果你用 Telegram，通常填写群组或会话 ID
+- 如果你用 QQBot，私聊通常填写 `qqbot:c2c:OPENID`
 - 必须和你当前 OpenClaw 通道配置匹配，否则 `test_alert` 虽然执行了，也可能无法投递到目标会话
 - 最稳妥的做法是先用已知可用的 channel/target 跑通 `test_alert`
+
+QQBot 配置示例：
+
+```json5
+{
+  "alertChannel": "qqbot",
+  "openclawCliBin": "openclaw",
+  "alertAccount": "default",
+  "alertTarget": "qqbot:c2c:YOUR_OPENID"
+}
+```
+
+QQBot 获取 `OPENID` 的方式：
+
+1. 先让目标 QQ 用户给机器人发送一条消息
+2. 在服务器上查看日志：
+
+```bash
+openclaw logs --follow | grep -Ei 'qqbot|Processing message from|/v2/users/'
+```
+
+3. 从类似下面的日志里提取用户标识：
+
+```text
+Processing message from YOUR_OPENID: 今天上海的天气如何
+POST https://api.sgroup.qq.com/v2/users/YOUR_OPENID/messages
+```
+
+4. 把该值拼成：
+
+```text
+qqbot:c2c:YOUR_OPENID
+```
+
+注意：
+
+- `npm run tool -- ...` 读取的是项目根目录下的 `local.config.json`
+- 正式插件运行读取的是 `~/.openclaw/openclaw.json`
+- 本地调试和正式插件要分别确认配置文件里都填了正确的 `alertAccount` / `alertTarget`
 
 ### 4. 重启 Gateway
 
@@ -253,6 +293,128 @@ openclaw plugins doctor
 | `监控状态` | 查看监控状态、行情、关键价位覆盖情况 |
 | `停止监控` | 停止监控 |
 | `测试告警` | 验证 OpenClaw channel 投递链路 |
+
+## 配置 QQBot 通道（可选）
+
+如果你希望通过 QQ 接收告警，需要先在 OpenClaw 中安装并配置 QQBot 通道。
+
+### 1. 安装 QQBot 插件
+
+```bash
+openclaw plugins install @sliverp/qqbot@latest
+```
+
+### 2. 配置 OpenClaw QQBot 通道
+
+```bash
+openclaw channels add --channel qqbot --token "AppID:AppSecret"
+```
+
+### 3. 修改本插件配置
+
+在 `~/.openclaw/openclaw.json` 的 `plugins.entries.tickflow-assist.config` 中设置：
+
+```json5
+{
+  "alertChannel": "qqbot",
+  "alertTarget": "qqbot:c2c:OPENID"
+}
+```
+
+说明：
+
+- 当前实现通过 `openclaw message send --target ...` 发送消息
+- 因此 `alertTarget` 不应留空
+- 最稳妥的方式是先在 QQ 上和机器人建立会话，再通过 OpenClaw 日志确认实际 target
+- 配置完成后，先执行 `test_alert` 验证链路
+
+### 4. 获取 QQBot 的 OPENID / target
+
+先让目标 QQ 用户或群和机器人发生一次真实会话，然后在服务器上查看日志：
+
+```bash
+openclaw logs --follow
+```
+
+观察 QQBot 收到消息时的事件内容，记录对应的会话目标标识。常见做法是：
+
+- 先在 QQ 里给机器人发一条消息
+- 再在日志里查对应事件
+- 提取 OpenID 或插件输出的 target 标识
+
+如果日志很多，也可以先筛选 QQBot 相关内容：
+
+```bash
+openclaw logs --follow | grep -i qqbot
+```
+
+拿到后，将其填写到：
+
+```json5
+"alertTarget": "qqbot:c2c:OPENID"
+```
+
+注意：
+
+- 不同机器人下的 OpenID 不能混用
+- 如果是群场景，应以 QQBot 实际日志里打印出的 target 格式为准
+
+## ⏰ 实时监控逻辑
+
+### 监控规则
+
+| 规则 | 说明 | 触发条件 |
+|---|---|---|
+| 止损告警 | 跌破止损位 | `价格 <= 止损位` |
+| 止损预警 | 接近止损位 | `价格 <= 止损位 × 1.005` |
+| 突破告警 | 突破关键位 | `价格 >= 突破位` |
+| 支撑告警 | 接近支撑位 | `价格 <= 支撑位 × 1.005` |
+| 压力告警 | 接近压力位 | `价格 >= 压力位 × 0.995` |
+| 止盈告警 | 达到止盈位 | `价格 >= 止盈位` |
+| 涨跌幅异动 | 单日涨跌幅超阈值 | `绝对涨跌幅 >= 5%` |
+| 成交量异动 | 成交量异常放大 | `当前量 >= 5日均量 × 3` |
+
+### 运行约束
+
+- 非交易日不监控
+- 交易时段：`09:30-11:30`、`13:00-15:00`
+- 收盘后 `update_all` 才允许执行日更
+- `monitor_status` 会显示当前运行方式：`plugin_service` 或 `fallback_process`
+
+## 📊 技术指标
+
+当前通过 Python 子模块计算的核心指标包括：
+
+| 类别 | 指标 |
+|---|---|
+| 均线系统 | `MA5`, `MA10`, `MA20`, `MA60` |
+| 趋势指标 | `MACD`, `Signal`, `Histogram`, `ADX`, `+DI`, `-DI` |
+| 动量指标 | `RSI6`, `RSI12`, `RSI24`, `KDJ`, `CCI` |
+| 波动指标 | `BOLL 上轨/中轨/下轨` |
+| 偏离指标 | `BIAS6`, `BIAS12`, `BIAS24` |
+
+## 🗄️ 数据库结构
+
+本项目使用 LanceDB，本地数据默认写入 `data/lancedb/`。
+
+| 表名 | 说明 |
+|---|---|
+| `watchlist` | 关注列表、股票名称、成本价、添加时间 |
+| `klines_daily` | 日 K 数据 |
+| `indicators` | 技术指标结果 |
+| `key_levels` | 关键价位与评分 |
+| `analysis_log` | 每次分析的文本和结构化结果 |
+| `alert_log` | 告警去重与留痕 |
+
+## 📋 依赖
+
+- Node.js
+- TypeScript
+- Python 3.10+
+- `uv`
+- TickFlow API Key
+- OpenAI 兼容 LLM API
+- OpenClaw
 
 ## 🐧 配置 QQBot 通道（可选）
 
@@ -405,6 +567,16 @@ rm -rf /path/to/tickflow-assist/data/lancedb
 ```
 
 这个动作会删除本地数据库内容，不会删除源码。
+
+## 🙏 鸣谢
+
+- [TickFlow](https://tickflow.org) 提供行情数据服务与 API 支持
+- [tickflow-org/tickflow](https://github.com/tickflow-org/tickflow)
+- [OpenClaw](https://openclaw.ai) 提供插件运行、对话通道与工具编排能力
+
+## 📄 License
+
+MIT
 
 ## 🙏 鸣谢
 
