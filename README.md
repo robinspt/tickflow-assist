@@ -14,7 +14,10 @@
 - LLM 分析：输出分析结论、关键价位、技术面评分
 - 实时监控：按配置轮询 TickFlow 实时行情
 - 告警推送：通过 OpenClaw CLI 投递到 Telegram 等通道
-- OpenClaw 内置 Skill：`stock_analysis`
+- OpenClaw 内置 Skills：
+  - `stock_analysis`：股票管理、拉K、分析、监控
+  - `usage_help`：返回常用指令与示例
+  - `database_query`：查询 LanceDB 表、表结构和记录
 
 ## 🧩 支持的 Claw
 
@@ -252,6 +255,10 @@ openclaw plugins doctor
 | `监控状态` | 查看监控状态、行情、关键价位覆盖情况 |
 | `停止监控` | 停止监控 |
 | `测试告警` | 验证 OpenClaw channel 投递链路 |
+| `使用帮助` | 查看插件常用指令与示例 |
+| `数据库里有哪些表` | 查看 LanceDB 当前数据表 |
+| `看技术指标表结构` | 查看技术指标表的字段结构 |
+| `查 002261 最近 5 条技术指标` | 查询数据库中的技术指标记录 |
 
 ## 配置 QQBot 通道（可选）
 
@@ -330,15 +337,19 @@ qqbot:c2c:YOUR_OPENID
 
 ```text
 skills/stock-analysis/SKILL.md
+skills/usage-help/SKILL.md
+skills/database-query/SKILL.md
 ```
 
 Skill key：
 
 ```text
 stock_analysis
+usage_help
+database_query
 ```
 
-这是插件内置 skill，不需要再手动复制到 `~/.openclaw/workspace/skills`。
+这些都是插件内置 skills，不需要再手动复制到 `~/.openclaw/workspace/skills`。
 
 可用工具：
 
@@ -354,6 +365,17 @@ stock_analysis
 - `stop_monitor`
 - `monitor_status`
 - `test_alert`
+- `query_database`
+
+常用 skill / 指令示例：
+
+- `使用帮助`
+- `添加 002261 成本 34.15`
+- `添加 002261 成本 34.15 并获取 120 天日K`
+- `分析 002261`
+- `数据库里有哪些表`
+- `看技术指标表结构`
+- `查 002261 最近 5 条技术指标`
 
 ## ⏰ 实时监控逻辑
 
@@ -428,7 +450,11 @@ tickflow-assist/
 │   ├── pyproject.toml            # Python 子模块依赖
 │   └── requirements.txt          # Python 兼容依赖清单
 ├── skills/stock-analysis/
-│   └── SKILL.md                  # 插件内置 Skill
+│   └── SKILL.md                  # 股票分析与监控 Skill
+├── skills/usage-help/
+│   └── SKILL.md                  # 使用帮助 Skill
+├── skills/database-query/
+│   └── SKILL.md                  # 数据库查询 Skill
 └── data/
     └── lancedb/                  # 本地数据库目录（运行时生成）
 ```

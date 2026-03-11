@@ -22,10 +22,10 @@ metadata:
 
 中文意图与工具映射：
 - “数据库里有哪些表”、“列出数据库表” -> `query_database`，`action=tables`
-- “看 indicators 表结构”、“analysis_log 有哪些字段” -> `query_database`，`action=schema`
+- “看技术指标表结构”、“分析日志有哪些字段” -> `query_database`，`action=schema`
 - “查 002261 的指标数据”、“看 002261 的日K” -> `query_database`，`action=query`
 - “看最近 5 条分析日志”、“查告警日志” -> `query_database`，`action=query`
-- “在 analysis_log 里搜索突破” -> `query_database`，`action=query`
+- “在分析日志里搜索突破” -> `query_database`，`action=query`
 
 参数理解规则：
 - 常用表名可按自然语言理解并映射：
@@ -49,7 +49,7 @@ metadata:
 
 示例：
 - “数据库里有哪些表”
-- “看 indicators 表结构”
-- “查 002261 的 indicators 最近 5 条”
-- “看 analysis_log 最近 3 条”
-- “在 analysis_log 里搜索 突破”
+- “看技术指标表结构”
+- “查 002261 最近 5 条技术指标”
+- “看最近 3 条分析日志”
+- “在分析日志里搜索 突破”
