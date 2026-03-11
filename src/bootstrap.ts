@@ -12,6 +12,7 @@ import { AnalysisLogRepository } from "./storage/repositories/analysis-log-repo.
 import { AlertLogRepository } from "./storage/repositories/alert-log-repo.js";
 import { WatchlistService } from "./services/watchlist-service.js";
 import { AnalysisService } from "./services/analysis-service.js";
+import { KlineTechnicalAnalysisTask } from "./analysis/tasks/kline-technical.task.js";
 import { QuoteService } from "./services/quote-service.js";
 import { TradingCalendarService } from "./services/trading-calendar-service.js";
 import { MonitorService } from "./services/monitor-service.js";
@@ -23,6 +24,7 @@ import { fetchKlinesTool } from "./tools/fetch-klines.tool.js";
 import { listWatchlistTool } from "./tools/list-watchlist.tool.js";
 import { monitorStatusTool } from "./tools/monitor-status.tool.js";
 import { refreshWatchlistNamesTool } from "./tools/refresh-watchlist-names.tool.js";
+import { queryDatabaseTool } from "./tools/query-database.tool.js";
 import { removeStockTool } from "./tools/remove-stock.tool.js";
 import { startMonitorTool } from "./tools/start-monitor.tool.js";
 import { stopMonitorTool } from "./tools/stop-monitor.tool.js";
@@ -83,6 +85,9 @@ export function createAppContext(
     config.llmBaseUrl,
     config.llmApiKey,
     config.llmModel,
+    analysisLogRepository,
+  );
+  const klineTechnicalAnalysisTask = new KlineTechnicalAnalysisTask(
     keyLevelsRepository,
     analysisLogRepository,
   );
@@ -115,11 +120,24 @@ export function createAppContext(
   return {
     config,
     tools: [
-      addStockTool(watchlistService),
-      analyzeTool(analysisService, watchlistService, klinesRepository, indicatorsRepository),
+      addStockTool(
+        watchlistService,
+        klineService,
+        klinesRepository,
+        indicatorService,
+        indicatorsRepository,
+      ),
+      analyzeTool(
+        analysisService,
+        klineTechnicalAnalysisTask,
+        watchlistService,
+        klinesRepository,
+        indicatorsRepository,
+      ),
       fetchKlinesTool(klineService, klinesRepository, indicatorService, indicatorsRepository),
       listWatchlistTool(watchlistService),
       monitorStatusTool(monitorService),
+      queryDatabaseTool(database),
       refreshWatchlistNamesTool(watchlistService),
       removeStockTool(watchlistService),
       startMonitorTool(monitorService, runtime),

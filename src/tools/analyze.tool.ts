@@ -1,4 +1,5 @@
 import { AnalysisService } from "../services/analysis-service.js";
+import { KlineTechnicalAnalysisTask } from "../analysis/tasks/kline-technical.task.js";
 import { WatchlistService } from "../services/watchlist-service.js";
 import { KlinesRepository } from "../storage/repositories/klines-repo.js";
 import { IndicatorsRepository } from "../storage/repositories/indicators-repo.js";
@@ -19,6 +20,7 @@ function parseSymbol(rawInput: unknown): string {
 
 export function analyzeTool(
   analysisService: AnalysisService,
+  klineTechnicalAnalysisTask: KlineTechnicalAnalysisTask,
   watchlistService: WatchlistService,
   klinesRepository: KlinesRepository,
   indicatorsRepository: IndicatorsRepository,
@@ -33,13 +35,13 @@ export function analyzeTool(
         klinesRepository.listBySymbol(symbol),
         indicatorsRepository.listBySymbol(symbol),
       ]);
-      const result = await analysisService.analyze({
+      const result = await analysisService.runTask(klineTechnicalAnalysisTask, {
         symbol,
         watchlistItem,
         klines,
         indicators,
       });
-      return analysisService.formatAnalysisForUser(result.analysisText, result.levels);
+      return klineTechnicalAnalysisTask.formatForUser(result);
     },
   };
 }

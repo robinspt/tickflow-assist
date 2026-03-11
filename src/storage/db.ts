@@ -24,6 +24,11 @@ export class Database {
     return tableNames.includes(name);
   }
 
+  async listTables(): Promise<string[]> {
+    const connection = await this.getConnection();
+    return this.listTableNames(connection);
+  }
+
   async openTable(name: string): Promise<LanceTable> {
     const connection = await this.getConnection();
     return connection.openTable(name);
@@ -45,6 +50,21 @@ export class Database {
       throw new Error(`LanceDB query().toArray() is unavailable for table ${name}`);
     }
     return query.toArray();
+  }
+
+  async describeTable(name: string): Promise<Array<{ name: string; type: string; nullable: boolean }>> {
+    if (!(await this.hasTable(name))) {
+      return [];
+    }
+
+    const table = await this.openTable(name);
+    const schema = await table.schema();
+    const fields = (schema as { fields?: Array<{ name: string; type?: unknown; nullable?: boolean }> }).fields ?? [];
+    return fields.map((field) => ({
+      name: field.name,
+      type: String(field.type ?? "unknown"),
+      nullable: Boolean(field.nullable),
+    }));
   }
 
   private async connect(): Promise<LanceConnection> {
