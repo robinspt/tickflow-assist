@@ -34,7 +34,7 @@ metadata:
 - “刷新股票名称”、“刷新名称” -> `refresh_watchlist_names`
 - “拉 K 线”、“更新 K 线”、“获取日线” -> `fetch_klines`
 - “全部更新”、“执行日更”、“更新全部股票” -> `update_all`
-- “日更状态”、“定时更新状态”、“收盘更新状态” -> `daily_update_status`
+- “TickFlow日更状态”、“自选股日更状态”、“TickFlow定时更新状态” -> `daily_update_status`
 - “分析一下某只股票”、“分析 002261” -> `analyze`
 - “查看分析结果”、“看上次分析” -> `view_analysis`
 - “开始盯盘”、“开启监控”、“启动监控” -> `start_monitor`
@@ -47,6 +47,7 @@ metadata:
 - 成本价对应 `costPrice`。
 - `add_stock` 默认会在添加成功后自动拉取日K并计算指标。
 - 用户在“添加自选”意图中提到的“`N`天”对应 `add_stock.count`（或 `klineCount`），例如“添加 002261 成本 34.15 并获取 120 天日K”应调用 `add_stock`，其中 `count=120`。
+- 用户询问 TickFlow / 自选股 的日更状态时，必须调用 `daily_update_status`，不要把它解释成其他 crontab、系统任务或无关插件的定时更新。
 - 仅在工具必需参数缺失时，才简短指出缺少的字段。
 - 不要臆造股票代码、成本价、日期、阈值、分析结果或监控状态。
 
