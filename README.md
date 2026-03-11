@@ -191,6 +191,38 @@ npm run tool -- test_alert
 
 如果 `test_alert` 成功，说明插件、配置和通道投递链路都已基本就绪
 
+## 🔄 更新插件
+
+如果你是通过本地链接方式安装的：
+
+```bash
+openclaw plugins install -l /path/to/tickflow-assist
+```
+
+后续代码更新通常不需要重新安装插件，按下面步骤更新即可：
+
+```bash
+cd /path/to/tickflow-assist
+git pull
+npm install
+npm run build
+openclaw gateway restart
+```
+
+说明：
+
+- `-l` 安装是链接安装，OpenClaw 直接使用当前项目目录
+- 因此代码更新后，通常只需要拉取最新代码并重新构建
+- 插件变更生效前，建议执行一次 `openclaw gateway restart`
+- 如果本次更新涉及 Python 指标侧依赖变化，还应额外执行：
+
+```bash
+cd /path/to/tickflow-assist/python
+uv sync
+cd ..
+openclaw gateway restart
+```
+
 ## 正式使用建议
 
 配置边界说明：

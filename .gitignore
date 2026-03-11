@@ -2,6 +2,7 @@ dist/
 node_modules/
 data/
 local.config.json
+AGENTS.md
 python/__pycache__/
 *.pyc
 MIGRATION*.md
