@@ -114,6 +114,48 @@ openclaw plugins enable tickflow-assist
 - `tickflowApiKey`、`llmApiKey`、`alertTarget` 正式使用时必须填写
 - 插件允许先安装后填配置，所以安装阶段不会因为缺少这些值而失败
 - `tickflowApiKeyLevel` 用于声明当前 TickFlow Key 权限档位，影响是否尝试分钟K接口
+- 这份配置只供 OpenClaw 插件正式运行使用，不会自动同步到 `local.config.json`
+
+### 正式配置与本地调试配置的关系
+
+TickFlow Assist 目前有两条独立配置链路：
+
+- 正式插件链路：读取 `~/.openclaw/openclaw.json`
+- 本地调试 / CLI 链路：读取项目根目录 `local.config.json`
+
+它们互不共享，也不会自动同步。
+
+因此应按下面原则处理：
+
+- 如果你只依赖 OpenClaw 插件正式运行，而不使用 `npm run tool -- ...`、`npm run monitor-loop`、`npm run daily-update-loop` 这类本地命令，那么只填写 `~/.openclaw/openclaw.json` 即可。
+- 如果你在 VPS 上既会通过 OpenClaw 对话使用插件，也会直接执行项目目录下的 `npm run tool -- ...` 或本地 loop 脚本，那么建议两套配置都填写，并保持关键字段一致。
+
+建议至少保持一致的字段：
+
+- `tickflowApiUrl`
+- `tickflowApiKey`
+- `tickflowApiKeyLevel`
+- `llmBaseUrl`
+- `llmApiKey`
+- `llmModel`
+- `databasePath`
+- `calendarFile`
+- `requestInterval`
+- `dailyUpdateNotify`
+- `alertChannel`
+- `openclawCliBin`
+- `alertAccount`
+- `alertTarget`
+- `pythonBin`
+- `pythonArgs`
+- `pythonWorkdir`
+
+实践上，最容易引发“明明能用，但状态对不上”的是这几个字段不一致：
+
+- `databasePath`
+- `calendarFile`
+- `tickflowApiKey`
+- `alertTarget`
 
 ### 配置字段说明
 
@@ -232,7 +274,7 @@ openclaw gateway restart
 
 ### 命令行直连调试
 
-`npm run tool -- ...` 与 `npm run monitor-loop` 读取的是项目根目录 `local.config.json`，不是 `~/.openclaw/openclaw.json`。
+`npm run tool -- ...`、`npm run monitor-loop` 与 `npm run daily-update-loop` 读取的是项目根目录 `local.config.json`，不是 `~/.openclaw/openclaw.json`。
 
 先准备本地调试配置：
 
@@ -260,6 +302,8 @@ npm run daily-update-loop
 
 补充说明：
 
+- `local.config.json` 只影响本地调试 / CLI 链路，不会反向修改 `~/.openclaw/openclaw.json`
+- 如果你希望 OpenClaw 对话结果、`npm run tool -- ...`、后台 loop 状态完全一致，建议把两套配置保持同步
 - `update_all` 在收盘后执行时，会同时更新日K、日线指标和当日 `1m` 分钟K
 - `start_daily_update` 启动的是项目自管 detached 进程，不再依赖 OpenClaw 的 `tickflow-assist.daily-update` 后台服务
 - `npm run daily-update-loop` 可用于手工前台运行日更轮询，便于配合 `tmux`、`systemd --user` 或其它进程管理器排查
