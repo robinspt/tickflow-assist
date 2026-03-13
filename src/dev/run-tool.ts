@@ -15,7 +15,7 @@ async function main(): Promise<void> {
   }
 
   const config = await loadLocalConfig();
-  const app = createAppContext(config);
+  const app = createAppContext(config, { configSource: "local_config" });
   const normalizedToolName = normalizeToolName(toolName);
   const tool = app.tools.find((entry) => entry.name === normalizedToolName);
   if (!tool) {

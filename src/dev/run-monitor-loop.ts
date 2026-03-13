@@ -10,7 +10,7 @@ interface LocalConfigShape {
 
 async function main(): Promise<void> {
   const config = await loadLocalConfig();
-  const app = createAppContext(config);
+  const app = createAppContext(config, { configSource: "local_config" });
   const worker = app.services.realtimeMonitorWorker;
   const alertService = app.services.alertService;
   const monitorService = app.services.monitorService;

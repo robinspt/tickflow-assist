@@ -11,11 +11,13 @@ export default async function registerTickFlowAssist(api: PluginApi): Promise<vo
   }
 
   const app = createAppContext(config, {
+    configSource: "openclaw_plugin",
     pluginManagedServices: typeof api.registerService === "function",
   });
 
   api.log?.info?.("tickflow-assist plugin loaded", {
     tickflowApiKeyLevel: config.tickflowApiKeyLevel,
+    calendarFile: config.calendarFile,
     requestInterval: config.requestInterval,
     alertChannel: config.alertChannel,
     databasePath: config.databasePath,

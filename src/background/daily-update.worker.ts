@@ -8,6 +8,7 @@ import { chinaToday, formatChinaDateTime } from "../utils/china-time.js";
 type DailyUpdateResultType = "success" | "skipped" | "failed";
 
 interface DailyUpdateState {
+  lastHeartbeatAt: string | null;
   lastAttemptAt: string | null;
   lastAttemptDate: string | null;
   lastSuccessAt: string | null;
@@ -18,6 +19,7 @@ interface DailyUpdateState {
 }
 
 const EMPTY_STATE: DailyUpdateState = {
+  lastHeartbeatAt: null,
   lastAttemptAt: null,
   lastAttemptDate: null,
   lastSuccessAt: null,
@@ -33,6 +35,8 @@ export class DailyUpdateWorker {
     private readonly baseDir: string,
     private readonly alertService: AlertService,
     private readonly notifyEnabled: boolean,
+    private readonly configSource: string,
+    private readonly calendarFile: string,
     private readonly intervalMs = 15 * 60 * 1000,
   ) {}
 
@@ -42,6 +46,7 @@ export class DailyUpdateWorker {
 
   async runLoop(signal?: AbortSignal): Promise<void> {
     while (!signal?.aborted) {
+      await this.recordHeartbeat();
       try {
         await this.runScheduledPass();
       } catch (error) {
@@ -56,7 +61,10 @@ export class DailyUpdateWorker {
     const today = chinaToday();
     const lines = [
       "🕒 定时日更状态",
+      `配置来源: ${this.configSource}`,
+      `交易日历: ${this.calendarFile}`,
       `轮询间隔: ${Math.floor(this.intervalMs / 60_000)} 分钟`,
+      `最近心跳: ${state.lastHeartbeatAt ?? "暂无"}`,
       `今日已更新: ${state.lastSuccessDate === today ? "是" : "否"}`,
       `最近尝试: ${state.lastAttemptAt ?? "暂无"}`,
       `最近成功: ${state.lastSuccessAt ?? "暂无"}`,
@@ -104,6 +112,14 @@ export class DailyUpdateWorker {
     return path.join(this.baseDir, "daily-update-state.json");
   }
 
+  private async recordHeartbeat(): Promise<void> {
+    const state = await this.readState();
+    await this.writeState({
+      ...state,
+      lastHeartbeatAt: formatChinaDateTime(),
+    });
+  }
+
   private async recordFailure(error: unknown): Promise<void> {
     const today = chinaToday();
     const state = await this.readState();
@@ -124,6 +140,7 @@ export class DailyUpdateWorker {
       const raw = await readFile(file, "utf-8");
       const parsed = JSON.parse(raw) as Partial<DailyUpdateState>;
       return {
+        lastHeartbeatAt: parsed.lastHeartbeatAt ?? null,
         lastAttemptAt: parsed.lastAttemptAt ?? null,
         lastAttemptDate: parsed.lastAttemptDate ?? null,
         lastSuccessAt: parsed.lastSuccessAt ?? null,

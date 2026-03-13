@@ -43,6 +43,7 @@ export interface AppContext {
   tools: RegisteredTool[];
   backgroundServices: RegisteredService[];
   runtime: {
+    configSource: "openclaw_plugin" | "local_config";
     pluginManagedServices: boolean;
   };
   services: {
@@ -55,9 +56,13 @@ export interface AppContext {
 
 export function createAppContext(
   config: PluginConfig,
-  options: { pluginManagedServices?: boolean } = {},
+  options: {
+    pluginManagedServices?: boolean;
+    configSource?: "openclaw_plugin" | "local_config";
+  } = {},
 ): AppContext {
   const runtime = {
+    configSource: options.configSource ?? "local_config",
     pluginManagedServices: options.pluginManagedServices ?? false,
   };
   const tickflowClient = new TickFlowClient(config.tickflowApiUrl, config.tickflowApiKey);
@@ -126,6 +131,8 @@ export function createAppContext(
     config.databasePath,
     alertService,
     config.dailyUpdateNotify,
+    runtime.configSource,
+    config.calendarFile,
   );
 
   return {
