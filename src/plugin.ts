@@ -4,17 +4,8 @@ import { createAppContext } from "./bootstrap.js";
 
 const GENERIC_TOOL_PARAMETERS_SCHEMA = {
   type: "object",
-  description:
-    "Pass tool arguments as top-level fields. For tools that take a single free-form value, you may also use input or rawInput.",
-  properties: {
-    input: {
-      type: "string",
-      description: "Optional free-form text input for tools that accept a single textual argument.",
-    },
-    rawInput: {
-      description: "Optional compatibility field; if present, it is forwarded directly to the tool.",
-    },
-  },
+  description: "Pass tool arguments as top-level JSON fields.",
+  properties: {},
   additionalProperties: true,
 } as const;
 
@@ -85,6 +76,7 @@ export default function registerTickFlowAssist(api: PluginApi): void {
     alertChannel: config.alertChannel,
     databasePath: config.databasePath,
     pluginManagedServices: app.runtime.pluginManagedServices,
+    toolNames: app.tools.map((tool) => tool.name),
   });
 
   for (const tool of app.tools) {
