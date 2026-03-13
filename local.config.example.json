@@ -2,6 +2,7 @@
   "plugin": {
     "tickflowApiUrl": "https://api.tickflow.org",
     "tickflowApiKey": "your-tickflow-key",
+    "tickflowApiKeyLevel": "Free",
     "llmBaseUrl": "https://api.openai.com/v1",
     "llmApiKey": "sk-xxx",
     "llmModel": "gpt-4o",

@@ -15,6 +15,7 @@ export default async function registerTickFlowAssist(api: PluginApi): Promise<vo
   });
 
   api.log?.info?.("tickflow-assist plugin loaded", {
+    tickflowApiKeyLevel: config.tickflowApiKeyLevel,
     requestInterval: config.requestInterval,
     alertChannel: config.alertChannel,
     databasePath: config.databasePath,

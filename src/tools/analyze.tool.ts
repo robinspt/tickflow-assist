@@ -1,5 +1,12 @@
 import { AnalysisService } from "../services/analysis-service.js";
 import { KlineTechnicalAnalysisTask } from "../analysis/tasks/kline-technical.task.js";
+import type { IndicatorRow } from "../types/indicator.js";
+import type { TickFlowIntradayKlineRow } from "../types/tickflow.js";
+import {
+  formatTickflowApiKeyLevel,
+  supportsIntradayKlines,
+  type TickflowApiKeyLevel,
+} from "../config/tickflow-access.js";
 import { WatchlistService } from "../services/watchlist-service.js";
 import { KlineService } from "../services/kline-service.js";
 import { QuoteService } from "../services/quote-service.js";
@@ -29,6 +36,7 @@ function parseSymbol(rawInput: unknown): string {
 export function analyzeTool(
   analysisService: AnalysisService,
   klineTechnicalAnalysisTask: KlineTechnicalAnalysisTask,
+  tickflowApiKeyLevel: TickflowApiKeyLevel,
   watchlistService: WatchlistService,
   klineService: KlineService,
   quoteService: QuoteService,
@@ -43,30 +51,39 @@ export function analyzeTool(
     description: "Run LLM analysis using stored daily data plus fresh intraday K-lines and realtime quotes.",
     async run({ rawInput }: { rawInput?: unknown }): Promise<string> {
       const symbol = normalizeSymbol(parseSymbol(rawInput));
-      const [watchlistItem, klines, indicators, quotes, intradayKlines] = await Promise.all([
+      const [watchlistItem, klines, indicators, quotes] = await Promise.all([
         watchlistService.getBySymbol(symbol),
         klinesRepository.listBySymbol(symbol),
         indicatorsRepository.listBySymbol(symbol),
         quoteService.fetchQuotes([symbol]),
-        klineService.fetchIntradayKlines(symbol, {
-          period: ANALYZE_INTRADAY_PERIOD,
-        }),
       ]);
-      if (intradayKlines.length > 0) {
-        await intradayKlinesRepository.saveAll(symbol, ANALYZE_INTRADAY_PERIOD, intradayKlines);
-        const keepTradeDates = await tradingCalendarService.getRecentTradingDays(
-          ANALYZE_INTRADAY_RETENTION_DAYS,
-          new Date(intradayKlines[intradayKlines.length - 1].timestamp),
-        );
-        await intradayKlinesRepository.pruneToTradeDates(
-          symbol,
-          ANALYZE_INTRADAY_PERIOD,
-          keepTradeDates,
-        );
+      let intradayKlines: TickFlowIntradayKlineRow[] = [];
+      let intradayIndicators: IndicatorRow[] = [];
+      if (supportsIntradayKlines(tickflowApiKeyLevel)) {
+        try {
+          intradayKlines = await klineService.fetchIntradayKlines(symbol, {
+            period: ANALYZE_INTRADAY_PERIOD,
+          });
+          if (intradayKlines.length > 0) {
+            await intradayKlinesRepository.saveAll(symbol, ANALYZE_INTRADAY_PERIOD, intradayKlines);
+            const keepTradeDates = await tradingCalendarService.getRecentTradingDays(
+              ANALYZE_INTRADAY_RETENTION_DAYS,
+              new Date(intradayKlines[intradayKlines.length - 1].timestamp),
+            );
+            await intradayKlinesRepository.pruneToTradeDates(
+              symbol,
+              ANALYZE_INTRADAY_PERIOD,
+              keepTradeDates,
+            );
+            intradayIndicators = await indicatorService.calculate(intradayKlines);
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.warn(
+            `[analyze] intraday fetch skipped for ${symbol} (${formatTickflowApiKeyLevel(tickflowApiKeyLevel)}): ${message}`,
+          );
+        }
       }
-
-      const intradayIndicators =
-        intradayKlines.length > 0 ? await indicatorService.calculate(intradayKlines) : [];
 
       const result = await analysisService.runTask(klineTechnicalAnalysisTask, {
         symbol,

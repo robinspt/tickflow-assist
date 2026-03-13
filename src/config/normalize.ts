@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { normalizeTickflowApiKeyLevel } from "./tickflow-access.js";
 import { DEFAULT_PLUGIN_CONFIG, type PluginConfig } from "./schema.js";
 
 type RawConfig = Partial<PluginConfig> & Record<string, unknown>;
@@ -51,6 +52,10 @@ export function normalizePluginConfig(input: unknown): PluginConfig {
   return {
     tickflowApiUrl: normalizeString(raw.tickflowApiUrl, DEFAULT_PLUGIN_CONFIG.tickflowApiUrl),
     tickflowApiKey: normalizeString(raw.tickflowApiKey),
+    tickflowApiKeyLevel: normalizeTickflowApiKeyLevel(
+      raw.tickflowApiKeyLevel,
+      DEFAULT_PLUGIN_CONFIG.tickflowApiKeyLevel,
+    ),
     llmBaseUrl: normalizeString(raw.llmBaseUrl, DEFAULT_PLUGIN_CONFIG.llmBaseUrl),
     llmApiKey: normalizeString(raw.llmApiKey),
     llmModel: normalizeString(raw.llmModel, DEFAULT_PLUGIN_CONFIG.llmModel),

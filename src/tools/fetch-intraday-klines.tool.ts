@@ -1,3 +1,8 @@
+import {
+  formatTickflowApiKeyLevel,
+  supportsIntradayKlines,
+  type TickflowApiKeyLevel,
+} from "../config/tickflow-access.js";
 import { normalizeSymbol } from "../utils/symbol.js";
 import { KlineService } from "../services/kline-service.js";
 import { TradingCalendarService } from "../services/trading-calendar-service.js";
@@ -36,6 +41,7 @@ function parseInput(rawInput: unknown): FetchIntradayKlinesInput {
 }
 
 export function fetchIntradayKlinesTool(
+  tickflowApiKeyLevel: TickflowApiKeyLevel,
   klineService: KlineService,
   intradayKlinesRepository: IntradayKlinesRepository,
   tradingCalendarService: TradingCalendarService,
@@ -47,6 +53,10 @@ export function fetchIntradayKlinesTool(
       const input = parseInput(rawInput);
       const symbol = normalizeSymbol(input.symbol);
       const period = input.period ?? "1m";
+      if (!supportsIntradayKlines(tickflowApiKeyLevel)) {
+        return `⚠️ 当前 TickFlow API Key Level 为 ${formatTickflowApiKeyLevel(tickflowApiKeyLevel)}，不支持分钟K线接口`;
+      }
+
       const rows = await klineService.fetchIntradayKlines(symbol, {
         period,
         count: input.count,

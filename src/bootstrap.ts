@@ -109,6 +109,7 @@ export function createAppContext(
   );
   const updateService = new UpdateService(
     klineService,
+    config.tickflowApiKeyLevel,
     indicatorService,
     klinesRepository,
     indicatorsRepository,
@@ -140,6 +141,7 @@ export function createAppContext(
       analyzeTool(
         analysisService,
         klineTechnicalAnalysisTask,
+        config.tickflowApiKeyLevel,
         watchlistService,
         klineService,
         quoteService,
@@ -150,7 +152,12 @@ export function createAppContext(
         indicatorsRepository,
       ),
       dailyUpdateStatusTool(dailyUpdateWorker),
-      fetchIntradayKlinesTool(klineService, intradayKlinesRepository, tradingCalendarService),
+      fetchIntradayKlinesTool(
+        config.tickflowApiKeyLevel,
+        klineService,
+        intradayKlinesRepository,
+        tradingCalendarService,
+      ),
       fetchKlinesTool(klineService, klinesRepository, indicatorService, indicatorsRepository),
       listWatchlistTool(watchlistService),
       monitorStatusTool(monitorService),

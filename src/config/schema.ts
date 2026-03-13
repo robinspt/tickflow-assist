@@ -1,6 +1,9 @@
+import type { TickflowApiKeyLevel } from "./tickflow-access.js";
+
 export interface PluginConfig {
   tickflowApiUrl: string;
   tickflowApiKey: string;
+  tickflowApiKeyLevel: TickflowApiKeyLevel;
   llmBaseUrl: string;
   llmApiKey: string;
   llmModel: string;
@@ -22,6 +25,7 @@ export const DEFAULT_PLUGIN_CONFIG: Omit<
   "tickflowApiKey" | "llmApiKey" | "alertTarget"
 > = {
   tickflowApiUrl: "https://api.tickflow.org",
+  tickflowApiKeyLevel: "free",
   llmBaseUrl: "https://api.openai.com/v1",
   llmModel: "gpt-4o",
   databasePath: "./data/lancedb",

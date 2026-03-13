@@ -50,6 +50,7 @@ metadata:
 - `add_stock` 默认会在添加成功后自动拉取日K并计算指标。
 - `analyze` 除了读取本地日K和日线指标，还会临时获取当日分钟K、分钟指标与实时行情一起分析。
 - `update_all` 除了更新日K和日线指标，也会同步更新当日分钟K；本地分钟K默认仅保留近 10 个交易日。
+- 若配置中的 `tickflowApiKeyLevel` 为 `Free` 或 `Start`，则应自动跳过分钟K获取；若分钟K接口失败，也不要让 `analyze` 或 `update_all` 因此整体失败。
 - 用户在“添加自选”意图中提到的“`N`天”对应 `add_stock.count`（或 `klineCount`），例如“添加 002261 成本 34.15 并获取 120 天日K”应调用 `add_stock`，其中 `count=120`。
 - 用户询问 TickFlow / 自选股 的日更状态时，必须调用 `daily_update_status`，不要把它解释成其他 crontab、系统任务或无关插件的定时更新。
 - 仅在工具必需参数缺失时，才简短指出缺少的字段。

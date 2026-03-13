@@ -17,6 +17,11 @@
       "tickflowApiKey": {
         "type": "string"
       },
+      "tickflowApiKeyLevel": {
+        "type": "string",
+        "enum": ["Free", "Start", "Pro", "Expert"],
+        "default": "Free"
+      },
       "llmBaseUrl": {
         "type": "string",
         "default": "https://api.openai.com/v1"
@@ -82,6 +87,9 @@
     "tickflowApiKey": {
       "label": "TickFlow API Key",
       "sensitive": true
+    },
+    "tickflowApiKeyLevel": {
+      "label": "TickFlow API Key Level"
     },
     "llmApiKey": {
       "label": "LLM API Key",
