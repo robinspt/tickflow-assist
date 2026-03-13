@@ -55,6 +55,7 @@ metadata:
 - 用户询问 TickFlow / 自选股 的日更状态时，必须调用 `daily_update_status`，不要把它解释成其他 crontab、系统任务或无关插件的定时更新。
 - 对“TickFlow日更状态”、“TickFlow定时日更状态”这类查询，禁止改用 `exec`、`npm run tool -- daily_update_status`、shell 命令或任何二次包装方式，必须直接使用插件工具 `daily_update_status`。
 - 在 OpenClaw 对话中，如果 `daily_update_status` 返回内容里出现 `配置来源: local_config`，说明拿到的是本地调试链路结果，不是插件后台状态；此时不要直接回复给用户，应视为错误调用路径并重试插件工具，目标是拿到 `配置来源: openclaw_plugin` 的原始结果。只有在插件工具确实不可用时，才允许说明插件状态暂时不可直接读取。
+- 如果通过 `exec` / shell 路径误触发了 `daily_update_status` 的 `local_config` 拒绝错误，不要根据错误提示继续拼接或执行 `allowLocalConfig=true` 的本地调试命令；这属于错误链路，必须停止并回到插件工具调用。
 - 仅在工具必需参数缺失时，才简短指出缺少的字段。
 - 不要臆造股票代码、成本价、日期、阈值、分析结果或监控状态。
 

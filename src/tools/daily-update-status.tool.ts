@@ -16,12 +16,9 @@ export function dailyUpdateStatusTool(dailyUpdateWorker: DailyUpdateWorker, conf
     description: "Show the scheduled daily update worker status, config source, heartbeat, and recent execution result.",
     async run({ rawInput }: { rawInput?: unknown }): Promise<string> {
       if (configSource === "local_config" && !allowLocalConfig(rawInput)) {
-        return [
-          "⚠️ 当前调用链路来自 local_config，不代表 OpenClaw 插件后台状态。",
-          "请在 OpenClaw 对话中直接调用插件工具查看插件后台状态。",
-          "如果你只是想在命令行排查本地调试状态，请执行：",
-          `npm run tool -- daily_update_status '{"allowLocalConfig":true}'`,
-        ].join("\n");
+        throw new Error(
+          "daily_update_status 默认只用于 OpenClaw 插件后台状态；当前调用链路来自 local_config。本地调试如需查看该状态，必须显式传入 allowLocalConfig=true。",
+        );
       }
       return dailyUpdateWorker.getStatusReport();
     },

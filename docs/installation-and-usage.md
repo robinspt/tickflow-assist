@@ -259,6 +259,7 @@ npm run tool -- stop_monitor
 - 本地 `klines_intraday` 默认仅保留近 10 个交易日，超过部分会自动清理
 - `daily_update_status` 现在会额外显示配置来源、交易日历路径和最近心跳时间，便于排查“到底是插件后台没跑，还是本地调试状态文件”
 - 在 OpenClaw 对话里查询 `TickFlow日更状态` 时，应返回 `配置来源: openclaw_plugin` 的插件后台状态
+- 如果在 OpenClaw 对话里看到 `local_config` 拒绝错误，说明调用链路错误地绕到了本地调试入口，不应继续让模型改用 shell 或 `npm run tool -- daily_update_status`
 - 在命令行本地排查 `local.config.json` 链路时，需要显式执行 `npm run tool -- daily_update_status '{"allowLocalConfig":true}'`
 
 ## 10. 配置 QQBot 通道（可选）
