@@ -158,7 +158,7 @@ export function createAppContext(
         intradayKlinesRepository,
         indicatorsRepository,
       ),
-      dailyUpdateStatusTool(dailyUpdateWorker),
+      dailyUpdateStatusTool(dailyUpdateWorker, runtime.configSource),
       fetchIntradayKlinesTool(
         config.tickflowApiKeyLevel,
         klineService,
