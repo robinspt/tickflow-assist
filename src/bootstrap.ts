@@ -34,13 +34,13 @@ import { stopMonitorTool } from "./tools/stop-monitor.tool.js";
 import { testAlertTool } from "./tools/test-alert.tool.js";
 import { updateAllTool } from "./tools/update-all.tool.js";
 import { viewAnalysisTool } from "./tools/view-analysis.tool.js";
-import type { RegisteredService, RegisteredTool } from "./runtime/plugin-api.js";
+import type { LocalTool, RegisteredService } from "./runtime/plugin-api.js";
 import { RealtimeMonitorWorker } from "./background/realtime-monitor.worker.js";
 import { DailyUpdateWorker } from "./background/daily-update.worker.js";
 
 export interface AppContext {
   config: PluginConfig;
-  tools: RegisteredTool[];
+  tools: LocalTool[];
   backgroundServices: RegisteredService[];
   runtime: {
     configSource: "openclaw_plugin" | "local_config";

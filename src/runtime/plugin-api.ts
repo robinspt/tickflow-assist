@@ -2,14 +2,31 @@ export interface ToolContext {
   rawInput?: unknown;
 }
 
-export interface ServiceContext {
-  signal?: AbortSignal;
-}
-
-export interface RegisteredTool {
+export interface LocalTool {
   name: string;
   description: string;
   run: (context: ToolContext) => Promise<string> | string;
+}
+
+export interface RegisteredAgentToolResult {
+  content: Array<{
+    type: "text";
+    text: string;
+  }>;
+}
+
+export interface RegisteredAgentTool {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  execute: (
+    toolCallId: string,
+    params: Record<string, unknown>,
+  ) => Promise<RegisteredAgentToolResult> | RegisteredAgentToolResult;
+}
+
+export interface ServiceContext {
+  signal?: AbortSignal;
 }
 
 export interface RegisteredService {
@@ -26,7 +43,7 @@ export interface PluginApi {
     warn?: (message: string, meta?: Record<string, unknown>) => void;
     error?: (message: string, meta?: Record<string, unknown>) => void;
   };
-  registerTool?: (tool: RegisteredTool) => void;
+  registerTool?: (tool: RegisteredAgentTool) => void;
   registerService?: (service: RegisteredService) => void;
 }
 
