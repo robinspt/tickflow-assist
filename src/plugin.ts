@@ -51,9 +51,23 @@ function toAgentTool(tool: LocalTool): RegisteredAgentTool {
   };
 }
 
-export default async function registerTickFlowAssist(api: PluginApi): Promise<void> {
+function summarizeConfigKeys(config: unknown): string[] {
+  if (typeof config !== "object" || config === null) {
+    return [];
+  }
+  return Object.keys(config as Record<string, unknown>).sort();
+}
+
+export default function registerTickFlowAssist(api: PluginApi): void {
   const config = normalizePluginConfig(api.config ?? {});
   const errors = validatePluginConfig(config);
+
+  api.log?.info?.("tickflow-assist plugin registering", {
+    rawConfigKeys: summarizeConfigKeys(api.config),
+    calendarFile: config.calendarFile,
+    databasePath: config.databasePath,
+    requestInterval: config.requestInterval,
+  });
 
   if (errors.length > 0) {
     api.log?.warn?.("tickflow-assist config is incomplete", { errors });
