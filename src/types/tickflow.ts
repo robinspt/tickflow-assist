@@ -28,6 +28,8 @@ export interface TickFlowCompactKline {
   volume: number[];
   amount: number[];
   prev_close?: number[];
+  open_interest?: number[];
+  settlement_price?: number[];
 }
 
 export interface TickFlowKlineRow {
@@ -41,4 +43,21 @@ export interface TickFlowKlineRow {
   volume: number;
   amount: number;
   prev_close: number;
+}
+
+export interface TickFlowIntradayKlineRow {
+  symbol: string;
+  period: string;
+  trade_date: string;
+  trade_time: string;
+  timestamp: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  amount: number;
+  prev_close: number;
+  open_interest: number | null;
+  settlement_price: number | null;
 }

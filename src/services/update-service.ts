@@ -2,8 +2,12 @@ import { KlineService } from "./kline-service.js";
 import { IndicatorService } from "./indicator-service.js";
 import { KlinesRepository } from "../storage/repositories/klines-repo.js";
 import { IndicatorsRepository } from "../storage/repositories/indicators-repo.js";
+import { IntradayKlinesRepository } from "../storage/repositories/intraday-klines-repo.js";
 import { WatchlistService } from "./watchlist-service.js";
 import { TradingCalendarService } from "./trading-calendar-service.js";
+
+const INTRADAY_PERIOD = "1m";
+const INTRADAY_RETENTION_DAYS = 10;
 
 export class UpdateService {
   constructor(
@@ -11,6 +15,7 @@ export class UpdateService {
     private readonly indicatorService: IndicatorService,
     private readonly klinesRepository: KlinesRepository,
     private readonly indicatorsRepository: IndicatorsRepository,
+    private readonly intradayKlinesRepository: IntradayKlinesRepository,
     private readonly watchlistService: WatchlistService,
     private readonly tradingCalendarService: TradingCalendarService,
   ) {}
@@ -29,7 +34,7 @@ export class UpdateService {
     }
 
     const lines = [
-      `📊 收盘更新: ${watchlist.length} 只股票, 获取 ${days} 天 K 线 (复权: ${adjust})`,
+      `📊 收盘更新: ${watchlist.length} 只股票, 获取 ${days} 天日K与当日分钟K (复权: ${adjust})`,
     ];
 
     let success = 0;
@@ -49,10 +54,29 @@ export class UpdateService {
         await this.klinesRepository.saveAll(item.symbol, rows);
         const indicators = await this.indicatorService.calculate(rows);
         await this.indicatorsRepository.saveAll(item.symbol, indicators);
+        const intradayRows = await this.klineService.fetchIntradayKlines(item.symbol, {
+          period: INTRADAY_PERIOD,
+        });
+        if (intradayRows.length > 0) {
+          await this.intradayKlinesRepository.saveAll(item.symbol, INTRADAY_PERIOD, intradayRows);
+          const keepTradeDates = await this.tradingCalendarService.getRecentTradingDays(
+            INTRADAY_RETENTION_DAYS,
+            new Date(intradayRows[intradayRows.length - 1].timestamp),
+          );
+          await this.intradayKlinesRepository.pruneToTradeDates(
+            item.symbol,
+            INTRADAY_PERIOD,
+            keepTradeDates,
+          );
+        }
 
         const latest = rows[rows.length - 1];
+        const intradaySummary =
+          intradayRows.length > 0
+            ? `分钟K ${intradayRows.length} 根`
+            : "分钟K 0 根";
         lines.push(
-          `✅ ${item.name}（${item.symbol}）: ${rows.length} 根K线, 最新 ${latest.trade_date} 收盘 ${latest.close.toFixed(2)}`,
+          `✅ ${item.name}（${item.symbol}）: 日K ${rows.length} 根, ${intradaySummary}, 最新 ${latest.trade_date} 收盘 ${latest.close.toFixed(2)}`,
         );
         success += 1;
       } catch (error) {

@@ -10,10 +10,14 @@ import ta
 
 
 def calculate_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    if len(df) < 5:
-        raise ValueError("K-line data must contain at least 5 rows")
+    if len(df) == 0:
+        raise ValueError("K-line data must contain at least 1 row")
 
     result = df.copy()
+    sort_columns = [col for col in ["timestamp", "trade_date", "trade_time"] if col in result.columns]
+    if sort_columns:
+        result = result.sort_values(sort_columns, kind="stable").reset_index(drop=True)
+
     for col in ["open", "high", "low", "close"]:
         result[col] = result[col].astype(float)
     result["volume"] = result["volume"].astype(float)

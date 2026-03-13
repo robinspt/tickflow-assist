@@ -1,6 +1,6 @@
 import type { AnalysisLogEntry, KeyLevels, WatchlistItem } from "../../types/domain.js";
 import type { IndicatorRow } from "../../types/indicator.js";
-import type { TickFlowKlineRow } from "../../types/tickflow.js";
+import type { TickFlowIntradayKlineRow, TickFlowKlineRow, TickFlowQuote } from "../../types/tickflow.js";
 import {
   ANALYSIS_COMMON_SYSTEM_PROMPT,
   buildKlineAnalysisUserPrompt,
@@ -20,6 +20,9 @@ export interface KlineTechnicalAnalysisInput {
   watchlistItem: WatchlistItem | null;
   klines: TickFlowKlineRow[];
   indicators: IndicatorRow[];
+  intradayKlines: TickFlowIntradayKlineRow[];
+  intradayIndicators: IndicatorRow[];
+  realtimeQuote: TickFlowQuote | null;
 }
 
 export interface KlineTechnicalAnalysisResult {
@@ -52,6 +55,9 @@ export class KlineTechnicalAnalysisTask
         costPrice: input.watchlistItem?.costPrice ?? 0,
         klines: input.klines,
         indicators: input.indicators,
+        intradayKlines: input.intradayKlines,
+        intradayIndicators: input.intradayIndicators,
+        realtimeQuote: input.realtimeQuote,
       }),
     };
   }

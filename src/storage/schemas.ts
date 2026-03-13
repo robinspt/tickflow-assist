@@ -20,6 +20,23 @@ export const klinesDailySchema = new Schema([
   new Field("prev_close", new Float64(), true),
 ]);
 
+export const klinesIntradaySchema = new Schema([
+  new Field("symbol", new Utf8(), false),
+  new Field("period", new Utf8(), false),
+  new Field("trade_date", new Utf8(), false),
+  new Field("trade_time", new Utf8(), false),
+  new Field("timestamp", new Int64(), false),
+  new Field("open", new Float64(), false),
+  new Field("high", new Float64(), false),
+  new Field("low", new Float64(), false),
+  new Field("close", new Float64(), false),
+  new Field("volume", new Float64(), false),
+  new Field("amount", new Float64(), false),
+  new Field("prev_close", new Float64(), true),
+  new Field("open_interest", new Float64(), true),
+  new Field("settlement_price", new Float64(), true),
+]);
+
 export const indicatorsSchema = new Schema([
   new Field("symbol", new Utf8(), false),
   new Field("trade_date", new Utf8(), false),

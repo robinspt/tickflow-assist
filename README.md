@@ -1,6 +1,6 @@
 # 📈 TickFlow Assist
 
-基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件，利用 [TickFlow API](https://tickflow.org/)数据接口获取股票数据。当前版本已完成核心架构迁移：
+基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件，利用 [TickFlow API](https://tickflow.org/auth/register?ref=BUJ54JEDGE)数据接口获取股票数据。当前版本已完成核心架构迁移：
 
 - OpenClaw 插件是主入口
 - JS/TS 负责主业务流程
@@ -9,9 +9,10 @@
 ## ✨ 功能
 
 - 关注列表管理：添加、查看、删除股票
-- TickFlow 日 K 更新：单股抓取、收盘后批量更新
+- TickFlow 日 K / 分钟 K 更新：单股抓取、收盘后批量更新
+- TickFlow 分钟 K 抓取：支持 `1m/5m/10m/15m/30m/60m`
 - 技术指标计算：通过 Python 子模块计算并写回 LanceDB
-- LLM 分析：输出分析结论、关键价位、技术面评分
+- LLM 分析：读取日线/日线指标，并结合当日分钟线、分钟指标、实时行情输出分析结论、关键价位、技术面评分
 - 实时监控：按配置轮询 TickFlow 实时行情
 - 告警推送：通过 OpenClaw CLI 投递到 Telegram 等通道
 - OpenClaw 内置 Skills：
@@ -252,7 +253,8 @@ openclaw plugins doctor
 | `查看关注列表` | 查看当前关注股票及成本价 |
 | `删除 002202` | 从关注列表删除股票 |
 | `更新 002261 数据` | 抓取最新日 K 并重算指标 |
-| `分析 002261` | 执行 LLM 技术分析 |
+| `获取 002261 1m 分钟K` | 抓取当日分钟 K 并写入数据库 |
+| `分析 002261` | 执行 LLM 技术分析，并补充日内走势判断 |
 | `查看 002261 上次分析` | 回看最近一次分析结论 |
 | `开始监控` | 启动实时监控 |
 | `监控状态` | 查看监控状态、行情、关键价位覆盖情况 |
@@ -362,6 +364,7 @@ database_query
 - `list_watchlist`
 - `refresh_watchlist_names`
 - `fetch_klines`
+- `fetch_intraday_klines`
 - `update_all`
 - `analyze`
 - `view_analysis`
@@ -377,6 +380,7 @@ database_query
 - `使用帮助`
 - `添加 002261 成本 34.15`
 - `添加 002261 成本 34.15 并获取 120 天日K`
+- `获取 002261 1m 分钟K`
 - `分析 002261`
 - `TickFlow日更状态`
 - `数据库里有哪些表`
@@ -425,6 +429,7 @@ database_query
 |---|---|
 | `watchlist` | 关注列表、股票名称、成本价、添加时间 |
 | `klines_daily` | 日 K 数据 |
+| `klines_intraday` | 分钟 K 数据，包含 `period` 与 `trade_time`，默认仅保留近 10 个交易日 |
 | `indicators` | 技术指标结果 |
 | `key_levels` | 关键价位与评分 |
 | `analysis_log` | 每次分析的文本和结构化结果 |
@@ -490,6 +495,7 @@ cp local.config.example.json local.config.json
 npm run tool -- test_alert
 npm run tool -- add_stock '{"symbol":"002261","costPrice":34.154}'
 npm run tool -- fetch_klines '{"symbol":"002261","count":90}'
+npm run tool -- fetch_intraday_klines '{"symbol":"002261","period":"1m","count":240}'
 npm run tool -- analyze '{"symbol":"002261"}'
 npm run tool -- start_monitor
 npm run tool -- monitor_status
@@ -497,6 +503,12 @@ npm run tool -- stop_monitor
 ```
 
 `npm run monitor-loop` 仅用于非 Gateway 场景下的 fallback 验证，不是正式主路径。
+
+补充说明：
+
+- `update_all` 在收盘后执行时，会同时更新日K、日线指标和当日 `1m` 分钟K。
+- `analyze` 会读取本地日K和日线指标，并临时拉取当日全部分钟K、计算分钟指标、获取实时行情，再一起交给模型分析。
+- 本地 `klines_intraday` 默认仅保留近 10 个交易日，超过部分会自动清理。
 
 ## 卸载 / 从头测试
 
@@ -540,8 +552,7 @@ rm -rf /path/to/tickflow-assist/data/lancedb
 
 ## 🙏 鸣谢
 
-- [TickFlow](https://tickflow.org) 提供行情数据服务与 API 支持
-- [tickflow-org/tickflow](https://github.com/tickflow-org/tickflow)
+- [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 提供行情数据服务与 API 支持
 - [OpenClaw](https://openclaw.ai) 提供插件运行、对话通道与工具编排能力
 - [qqbot](https://github.com/sliverp/qqbot) 提供qq机器人通道接入
 

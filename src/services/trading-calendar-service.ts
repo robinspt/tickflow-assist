@@ -3,13 +3,13 @@ import { readFile } from "node:fs/promises";
 export type TradingPhase = "non_trading_day" | "pre_market" | "trading" | "lunch_break" | "closed";
 
 export class TradingCalendarService {
-  private cache: Set<string> | null = null;
+  private cache: { days: string[]; daySet: Set<string> } | null = null;
 
   constructor(private readonly calendarFile: string) {}
 
   async isTradingDay(date: Date = new Date()): Promise<boolean> {
-    const days = await this.loadDays();
-    return days.has(this.toChinaDate(date));
+    const { daySet } = await this.loadDays();
+    return daySet.has(this.toChinaDate(date));
   }
 
   async getTradingPhase(date: Date = new Date()): Promise<TradingPhase> {
@@ -49,7 +49,19 @@ export class TradingCalendarService {
     return { ok: true, reason: "交易日已收盘" };
   }
 
-  private async loadDays(): Promise<Set<string>> {
+  async getRecentTradingDays(limit: number, endDate: Date = new Date()): Promise<string[]> {
+    if (!Number.isInteger(limit) || limit <= 0) {
+      throw new Error(`limit must be a positive integer, got ${limit}`);
+    }
+
+    const { days } = await this.loadDays();
+    const end = this.toChinaDate(endDate);
+    const eligible = days.filter((day) => day <= end);
+    const source = eligible.length > 0 ? eligible : days;
+    return source.slice(-limit);
+  }
+
+  private async loadDays(): Promise<{ days: string[]; daySet: Set<string> }> {
     if (this.cache) {
       return this.cache;
     }
@@ -59,7 +71,7 @@ export class TradingCalendarService {
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean);
-    this.cache = new Set(days);
+    this.cache = { days, daySet: new Set(days) };
     return this.cache;
   }
 

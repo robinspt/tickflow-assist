@@ -1,6 +1,23 @@
+export interface IndicatorInputRow {
+  trade_date: string;
+  trade_time?: string;
+  period?: string;
+  timestamp?: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  amount: number;
+  prev_close?: number;
+}
+
 export interface IndicatorRow {
   symbol?: string;
   trade_date: string;
+  trade_time?: string;
+  period?: string;
+  timestamp?: number;
   ma5?: number | null;
   ma10?: number | null;
   ma20?: number | null;

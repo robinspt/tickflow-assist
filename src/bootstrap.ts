@@ -6,6 +6,7 @@ import { IndicatorService } from "./services/indicator-service.js";
 import { Database } from "./storage/db.js";
 import { WatchlistRepository } from "./storage/repositories/watchlist-repo.js";
 import { KlinesRepository } from "./storage/repositories/klines-repo.js";
+import { IntradayKlinesRepository } from "./storage/repositories/intraday-klines-repo.js";
 import { IndicatorsRepository } from "./storage/repositories/indicators-repo.js";
 import { KeyLevelsRepository } from "./storage/repositories/key-levels-repo.js";
 import { AnalysisLogRepository } from "./storage/repositories/analysis-log-repo.js";
@@ -21,6 +22,7 @@ import { UpdateService } from "./services/update-service.js";
 import { addStockTool } from "./tools/add-stock.tool.js";
 import { analyzeTool } from "./tools/analyze.tool.js";
 import { fetchKlinesTool } from "./tools/fetch-klines.tool.js";
+import { fetchIntradayKlinesTool } from "./tools/fetch-intraday-klines.tool.js";
 import { listWatchlistTool } from "./tools/list-watchlist.tool.js";
 import { dailyUpdateStatusTool } from "./tools/daily-update-status.tool.js";
 import { monitorStatusTool } from "./tools/monitor-status.tool.js";
@@ -62,6 +64,7 @@ export function createAppContext(
   const database = new Database(config.databasePath);
   const watchlistRepository = new WatchlistRepository(database);
   const klinesRepository = new KlinesRepository(database);
+  const intradayKlinesRepository = new IntradayKlinesRepository(database);
   const indicatorsRepository = new IndicatorsRepository(database);
   const keyLevelsRepository = new KeyLevelsRepository(database);
   const analysisLogRepository = new AnalysisLogRepository(database);
@@ -109,6 +112,7 @@ export function createAppContext(
     indicatorService,
     klinesRepository,
     indicatorsRepository,
+    intradayKlinesRepository,
     watchlistService,
     tradingCalendarService,
   );
@@ -137,10 +141,16 @@ export function createAppContext(
         analysisService,
         klineTechnicalAnalysisTask,
         watchlistService,
+        klineService,
+        quoteService,
+        indicatorService,
+        tradingCalendarService,
         klinesRepository,
+        intradayKlinesRepository,
         indicatorsRepository,
       ),
       dailyUpdateStatusTool(dailyUpdateWorker),
+      fetchIntradayKlinesTool(klineService, intradayKlinesRepository, tradingCalendarService),
       fetchKlinesTool(klineService, klinesRepository, indicatorService, indicatorsRepository),
       listWatchlistTool(watchlistService),
       monitorStatusTool(monitorService),

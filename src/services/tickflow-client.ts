@@ -75,6 +75,29 @@ export class TickFlowClient {
     });
   }
 
+  async fetchIntradayKlinesBatch<T = unknown>(
+    symbols: string[],
+    params: {
+      period?: string;
+      count?: number;
+    } = {},
+  ): Promise<{ data?: Record<string, T> }> {
+    if (symbols.length === 0) {
+      return { data: {} };
+    }
+
+    const url = new URL("/v1/klines/intraday/batch", this.baseUrl);
+    url.searchParams.set("symbols", symbols.join(","));
+    url.searchParams.set("period", params.period ?? "1m");
+    if (params.count != null) {
+      url.searchParams.set("count", String(params.count));
+    }
+
+    return this.requestJson<{ data?: Record<string, T> }>(url.toString(), {
+      method: "GET",
+    });
+  }
+
   private async requestJson<T>(url: string, init: RequestInit): Promise<T> {
     const headers = new Headers(init.headers ?? {});
     headers.set("x-api-key", this.apiKey);

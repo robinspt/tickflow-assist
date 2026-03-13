@@ -31,6 +31,7 @@ metadata:
 - 常用表名可按自然语言理解并映射：
   - “自选” -> `watchlist`
   - “日K”、“日线” -> `klines_daily`
+  - “分钟K”、“分钟线”、“分时” -> `klines_intraday`
   - “指标” -> `indicators`
   - “关键价位” -> `key_levels`
   - “分析日志” -> `analysis_log`

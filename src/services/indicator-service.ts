@@ -1,8 +1,7 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 
-import type { TickFlowKlineRow } from "../types/tickflow.js";
-import type { IndicatorRow } from "../types/indicator.js";
+import type { IndicatorInputRow, IndicatorRow } from "../types/indicator.js";
 
 export class IndicatorService {
   constructor(
@@ -11,13 +10,16 @@ export class IndicatorService {
     private readonly pythonWorkdir: string,
   ) {}
 
-  async calculate(rows: TickFlowKlineRow[]): Promise<IndicatorRow[]> {
-    if (rows.length < 5) {
-      throw new Error("K-line data must contain at least 5 rows to calculate indicators");
+  async calculate(rows: IndicatorInputRow[]): Promise<IndicatorRow[]> {
+    if (rows.length === 0) {
+      throw new Error("K-line data must contain at least 1 row to calculate indicators");
     }
 
     const payload = rows.map((row) => ({
       trade_date: row.trade_date,
+      trade_time: row.trade_time,
+      period: row.period,
+      timestamp: row.timestamp,
       open: row.open,
       high: row.high,
       low: row.low,
@@ -32,6 +34,9 @@ export class IndicatorService {
     return parsed.map((row) => ({
       ...row,
       trade_date: String(row.trade_date),
+      trade_time: row.trade_time == null ? undefined : String(row.trade_time),
+      period: row.period == null ? undefined : String(row.period),
+      timestamp: row.timestamp == null ? undefined : Number(row.timestamp),
     }));
   }
 
