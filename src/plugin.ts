@@ -86,4 +86,23 @@ export default function registerTickFlowAssist(api: PluginApi): void {
   for (const service of app.backgroundServices) {
     api.registerService?.(service);
   }
+
+  if (isGatewayProcess()) {
+    void app.services.dailyUpdateWorker.ensureLoopRunning(app.config, "openclaw_plugin")
+      .then(({ started, pid }) => {
+        api.log?.info?.("tickflow-assist daily-update scheduler ready", {
+          started,
+          pid,
+        });
+      })
+      .catch((error) => {
+        api.log?.warn?.("tickflow-assist daily-update scheduler failed to start", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+  }
+}
+
+function isGatewayProcess(): boolean {
+  return process.argv.includes("gateway");
 }

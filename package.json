@@ -25,7 +25,8 @@
     "check": "tsc -p tsconfig.json --noEmit",
     "dev": "tsc -p tsconfig.json --watch",
     "tool": "node dist/dev/run-tool.js",
-    "monitor-loop": "node dist/dev/run-monitor-loop.js"
+    "monitor-loop": "node dist/dev/run-monitor-loop.js",
+    "daily-update-loop": "node dist/dev/run-daily-update-loop.js"
   },
   "openclaw": {
     "extensions": [

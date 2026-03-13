@@ -29,7 +29,9 @@ import { monitorStatusTool } from "./tools/monitor-status.tool.js";
 import { refreshWatchlistNamesTool } from "./tools/refresh-watchlist-names.tool.js";
 import { queryDatabaseTool } from "./tools/query-database.tool.js";
 import { removeStockTool } from "./tools/remove-stock.tool.js";
+import { startDailyUpdateTool } from "./tools/start-daily-update.tool.js";
 import { startMonitorTool } from "./tools/start-monitor.tool.js";
+import { stopDailyUpdateTool } from "./tools/stop-daily-update.tool.js";
 import { stopMonitorTool } from "./tools/stop-monitor.tool.js";
 import { testAlertTool } from "./tools/test-alert.tool.js";
 import { updateAllTool } from "./tools/update-all.tool.js";
@@ -171,10 +173,12 @@ export function createAppContext(
       queryDatabaseTool(database),
       refreshWatchlistNamesTool(watchlistService),
       removeStockTool(watchlistService),
+      startDailyUpdateTool(dailyUpdateWorker, config, runtime.configSource),
       startMonitorTool(monitorService, runtime),
+      stopDailyUpdateTool(dailyUpdateWorker),
       stopMonitorTool(monitorService, runtime),
       testAlertTool(alertService),
-      updateAllTool(updateService),
+      updateAllTool(dailyUpdateWorker),
       viewAnalysisTool(analysisService),
     ],
     backgroundServices: [
@@ -186,13 +190,6 @@ export function createAppContext(
           await monitorService.setWorkerPid(null);
           await monitorService.setExpectedStop(false);
           await realtimeMonitorWorker.runLoop(signal);
-        },
-      },
-      {
-        id: "tickflow-assist.daily-update",
-        description: "Poll for post-close daily K-line updates and execute at most once per natural trading day.",
-        start: async ({ signal }) => {
-          await dailyUpdateWorker.runLoop(signal);
         },
       },
     ],

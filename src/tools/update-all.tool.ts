@@ -1,6 +1,6 @@
-import { UpdateService } from "../services/update-service.js";
+import { DailyUpdateWorker } from "../background/daily-update.worker.js";
 
-export function updateAllTool(updateService: UpdateService) {
+export function updateAllTool(dailyUpdateWorker: DailyUpdateWorker) {
   return {
     name: "update_all",
     description: "Batch update daily K-lines, daily indicators, and today's intraday K-lines for all watchlist symbols.",
@@ -12,7 +12,7 @@ export function updateAllTool(updateService: UpdateService) {
       if (typeof rawInput === "string") {
         force = rawInput.includes("--force");
       }
-      return updateService.updateAll(force);
+      return dailyUpdateWorker.run(force);
     },
   };
 }

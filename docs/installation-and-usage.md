@@ -220,7 +220,9 @@ openclaw gateway restart
 | `查看 002261 上次分析` | 回看最近一次分析结论 |
 | `开始监控` | 启动实时监控 |
 | `监控状态` | 查看监控状态、行情、关键价位覆盖情况 |
-| `TickFlow日更状态` | 查看本插件定时日更后台最近一次执行情况 |
+| `启动定时日更` | 启动项目自管的定时日更进程 |
+| `TickFlow日更状态` | 查看定时日更进程状态与最近一次执行情况 |
+| `停止定时日更` | 停止项目自管的定时日更进程 |
 | `停止监控` | 停止监控 |
 | `测试告警` | 验证 OpenClaw channel 投递链路 |
 | `使用帮助` | 查看插件常用指令与示例 |
@@ -247,20 +249,23 @@ npm run tool -- fetch_klines '{"symbol":"002261","count":90}'
 npm run tool -- fetch_intraday_klines '{"symbol":"002261","period":"1m","count":240}'
 npm run tool -- analyze '{"symbol":"002261"}'
 npm run tool -- update_all
+npm run tool -- start_daily_update
+npm run tool -- daily_update_status
+npm run tool -- stop_daily_update
 npm run tool -- start_monitor
 npm run tool -- monitor_status
 npm run tool -- stop_monitor
+npm run daily-update-loop
 ```
 
 补充说明：
 
 - `update_all` 在收盘后执行时，会同时更新日K、日线指标和当日 `1m` 分钟K
+- `start_daily_update` 启动的是项目自管 detached 进程，不再依赖 OpenClaw 的 `tickflow-assist.daily-update` 后台服务
+- `npm run daily-update-loop` 可用于手工前台运行日更轮询，便于配合 `tmux`、`systemd --user` 或其它进程管理器排查
 - `analyze` 会读取本地日K和日线指标，并临时拉取当日全部分钟K、计算分钟指标、获取实时行情，再一起交给模型分析
 - 本地 `klines_intraday` 默认仅保留近 10 个交易日，超过部分会自动清理
-- `daily_update_status` 现在会额外显示配置来源、交易日历路径和最近心跳时间，便于排查“到底是插件后台没跑，还是本地调试状态文件”
-- 在 OpenClaw 对话里查询 `TickFlow日更状态` 时，应返回 `配置来源: openclaw_plugin` 的插件后台状态
-- 如果在 OpenClaw 对话里看到 `local_config` 拒绝错误，说明调用链路错误地绕到了本地调试入口，不应继续让模型改用 shell 或 `npm run tool -- daily_update_status`
-- 在命令行本地排查 `local.config.json` 链路时，需要显式执行 `npm run tool -- daily_update_status '{"allowLocalConfig":true}'`
+- `daily_update_status` 现在会显示 `定时进程`、`运行方式`、`进程配置来源`、`配置来源`、`最近心跳` 与最近执行结果，便于排查“后台进程没跑”还是“只是当天尚未触发更新”
 
 ## 10. 配置 QQBot 通道（可选）
 
@@ -353,6 +358,7 @@ qqbot:c2c:YOUR_OPENID
 - 交易时段：`09:30-11:30`、`13:00-15:00`
 - 收盘后 `update_all` 才允许执行日更
 - `monitor_status` 会显示当前运行方式：`plugin_service` 或 `fallback_process`
+- `daily_update_status` 会显示当前日更运行方式：`project_scheduler`
 
 ## 12. 卸载 / 从头测试
 
