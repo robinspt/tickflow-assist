@@ -36,7 +36,7 @@ metadata:
 - “拉 K 线”、“更新 K 线”、“获取日线” -> `fetch_klines`
 - “获取分钟K”、“拉取分钟线”、“抓分时K” -> `fetch_intraday_klines`
 - “全部更新”、“执行日更”、“更新全部股票” -> `update_all`
-- “TickFlow日更状态”、“自选股日更状态”、“TickFlow定时更新状态” -> `daily_update_status`
+- “TickFlow日更状态”、“自选股日更状态”、“TickFlow定时更新状态”、“TickFlow定时日更状态” -> `daily_update_status`
 - “分析一下某只股票”、“分析 002261” -> `analyze`
 - “查看分析结果”、“看上次分析” -> `view_analysis`
 - “开始盯盘”、“开启监控”、“启动监控” -> `start_monitor`
@@ -53,11 +53,13 @@ metadata:
 - 若配置中的 `tickflowApiKeyLevel` 为 `Free` 或 `Start`，则应自动跳过分钟K获取；若分钟K接口失败，也不要让 `analyze` 或 `update_all` 因此整体失败。
 - 用户在“添加自选”意图中提到的“`N`天”对应 `add_stock.count`（或 `klineCount`），例如“添加 002261 成本 34.15 并获取 120 天日K”应调用 `add_stock`，其中 `count=120`。
 - 用户询问 TickFlow / 自选股 的日更状态时，必须调用 `daily_update_status`，不要把它解释成其他 crontab、系统任务或无关插件的定时更新。
+- 对“TickFlow日更状态”、“TickFlow定时日更状态”这类查询，禁止改用 `exec`、`npm run tool -- daily_update_status`、shell 命令或任何二次包装方式，必须直接使用插件工具 `daily_update_status`。
 - 仅在工具必需参数缺失时，才简短指出缺少的字段。
 - 不要臆造股票代码、成本价、日期、阈值、分析结果或监控状态。
 
 输出规则：
 - 对 `add_stock`、`list_watchlist`、`start_monitor`、`stop_monitor`、`monitor_status`、`daily_update_status`、`analyze`、`view_analysis`、`fetch_klines`、`fetch_intraday_klines` 和 `update_all`，调用工具后尽量原样输出返回文本。
+- 对 `daily_update_status` 必须完整原样输出，尤其不要省略 `配置来源`、`交易日历`、`轮询间隔`、`最近心跳`、`最近尝试`、`最近成功`、`最近结果`、`连续失败`、`状态文件` 与 `最近摘要`。
 - 不要改写、总结、翻译、重排、美化，也不要加表格、额外标题或解释性包装。
 - 除非工具明确返回错误，否则不要在工具结果前后添加追问、评论或推断字段。
 - 不要省略关键数值、价位、涨跌幅、日期或状态字段。
