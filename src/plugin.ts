@@ -1,6 +1,7 @@
 import type { LocalTool, PluginApi, RegisteredAgentTool } from "./runtime/plugin-api.js";
 import { normalizePluginConfig, validatePluginConfig } from "./config/normalize.js";
 import { createAppContext } from "./bootstrap.js";
+import { registerPluginCommands } from "./plugin-commands.js";
 
 const GENERIC_TOOL_PARAMETERS_SCHEMA = {
   type: "object",
@@ -83,4 +84,6 @@ export default function registerTickFlowAssist(api: PluginApi): void {
   for (const tool of app.tools) {
     api.registerTool?.(toAgentTool(tool));
   }
+
+  registerPluginCommands(api, app.tools);
 }

@@ -159,6 +159,34 @@ TickFlow Assist 目前有两条独立配置链路：
 - `tickflowApiKey`
 - `alertTarget`
 
+### 推荐：让股票 Agent 优先走已注册插件工具
+
+如果你希望 OpenClaw 对话优先调用 TickFlow Assist 已注册的插件工具，而不是退回 `exec` 再试错 `npm run tool -- ...`，推荐对负责股票会话的 agent 显式禁用运行时命令工具：
+
+```json5
+{
+  "agents": {
+    "list": [
+      {
+        "id": "stock",
+        "workspace": "~/.openclaw/workspace-stock",
+        "tools": {
+          "profile": "coding",
+          "deny": ["group:runtime"]
+        }
+      }
+    ]
+  }
+}
+```
+
+说明：
+
+- `group:runtime` 包含 `exec`、`bash`、`process`
+- 禁用后，股票对话更容易稳定落到插件已注册的 `add_stock`、`remove_stock`、`monitor_status` 等工具
+- 修改 `~/.openclaw/openclaw.json` 后需要重启 Gateway
+- 最好再执行一次 `/new`，避免旧 session 继续沿用之前的工具选择习惯
+
 ### 配置字段说明
 
 | 字段 | 必填 | 说明 |
@@ -273,6 +301,22 @@ openclaw gateway restart
 | `数据库里有哪些表` | 查看 LanceDB 当前数据表 |
 | `看技术指标表结构` | 查看技术指标表字段结构 |
 | `查 002261 最近 5 条技术指标` | 查询数据库中的技术指标记录 |
+
+### 免 AI 直达命令
+
+如果你希望跳过模型决策，直接执行插件动作，可使用插件注册的 slash commands：
+
+```text
+/addstock 601872 5.32
+/addstock 002261 34.15 120
+/rmstock 601872
+/watchlist
+/monitorstatus
+/dailyupdatestatus
+/testalert
+```
+
+这些命令由插件直接处理，优先于 AI agent，适合添加/删除自选、查看状态、测试告警这类零歧义操作。
 
 ### 命令行直连调试
 

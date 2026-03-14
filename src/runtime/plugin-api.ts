@@ -15,6 +15,10 @@ export interface RegisteredAgentToolResult {
   }>;
 }
 
+export interface RegisteredCommandResult {
+  text: string;
+}
+
 export interface RegisteredAgentTool {
   name: string;
   description: string;
@@ -36,6 +40,25 @@ export interface RegisteredService {
   stop?: () => Promise<void> | void;
 }
 
+export interface CommandContext {
+  senderId?: string;
+  channel?: string;
+  isAuthorizedSender?: boolean;
+  args?: string;
+  commandBody?: string;
+  config?: unknown;
+}
+
+export interface RegisteredCommand {
+  name: string;
+  description: string;
+  acceptsArgs?: boolean;
+  requireAuth?: boolean;
+  handler: (
+    context: CommandContext,
+  ) => Promise<RegisteredCommandResult> | RegisteredCommandResult;
+}
+
 export interface PluginApi {
   config?: unknown;
   log?: {
@@ -45,6 +68,7 @@ export interface PluginApi {
   };
   registerTool?: (tool: RegisteredAgentTool) => void;
   registerService?: (service: RegisteredService) => void;
+  registerCommand?: (command: RegisteredCommand) => void;
 }
 
 export interface PluginDefinition {
