@@ -85,5 +85,5 @@ export default function registerTickFlowAssist(api: PluginApi): void {
     api.registerTool?.(toAgentTool(tool));
   }
 
-  registerPluginCommands(api, app.tools);
+  registerPluginCommands(api, app.tools, app);
 }

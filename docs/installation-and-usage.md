@@ -314,6 +314,7 @@ openclaw gateway restart
 /monitorstatus
 /dailyupdatestatus
 /testalert
+/tickflowdebug
 ```
 
 这些命令由插件直接处理，优先于 AI agent，适合添加/删除自选、查看状态、测试告警这类零歧义操作。
@@ -322,6 +323,7 @@ openclaw gateway restart
 
 - `/addstock` 必须提供成本价，格式为 `/addstock <symbol> <costPrice> [count]`
 - 例如 `/addstock 002558` 会失败，因为缺少 `costPrice`
+- `/tickflowdebug` 会返回插件进程当前看到的数据库路径、配置来源和 watchlist 快照，适合排查“CLI 有数据但插件命令看不到”的问题
 
 ### 命令行直连调试
 

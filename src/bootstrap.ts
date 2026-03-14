@@ -39,6 +39,7 @@ import { viewAnalysisTool } from "./tools/view-analysis.tool.js";
 import type { LocalTool, RegisteredService } from "./runtime/plugin-api.js";
 import { RealtimeMonitorWorker } from "./background/realtime-monitor.worker.js";
 import { DailyUpdateWorker } from "./background/daily-update.worker.js";
+import type { WatchlistItem } from "./types/domain.js";
 
 export interface AppContext {
   config: PluginConfig;
@@ -53,6 +54,8 @@ export interface AppContext {
     monitorService: MonitorService;
     realtimeMonitorWorker: RealtimeMonitorWorker;
     dailyUpdateWorker: DailyUpdateWorker;
+    watchlistService: WatchlistService;
+    database: Database;
   };
 }
 
@@ -199,6 +202,35 @@ export function createAppContext(
       monitorService,
       realtimeMonitorWorker,
       dailyUpdateWorker,
+      watchlistService,
+      database,
     },
+  };
+}
+
+export interface WatchlistDebugSnapshot {
+  databasePath: string;
+  calendarFile: string;
+  requestInterval: number;
+  configSource: "openclaw_plugin" | "local_config";
+  pid: number;
+  watchlistTableExists: boolean;
+  watchlistCount: number;
+  watchlistPreview: WatchlistItem[];
+}
+
+export async function buildWatchlistDebugSnapshot(app: AppContext): Promise<WatchlistDebugSnapshot> {
+  const watchlistTableExists = await app.services.database.hasTable("watchlist");
+  const watchlistPreview = await app.services.watchlistService.list();
+
+  return {
+    databasePath: app.config.databasePath,
+    calendarFile: app.config.calendarFile,
+    requestInterval: app.config.requestInterval,
+    configSource: app.runtime.configSource,
+    pid: process.pid,
+    watchlistTableExists,
+    watchlistCount: watchlistPreview.length,
+    watchlistPreview: watchlistPreview.slice(0, 5),
   };
 }

@@ -1,3 +1,4 @@
+import { buildWatchlistDebugSnapshot, type AppContext } from "./bootstrap.js";
 import type { LocalTool, PluginApi, RegisteredCommand } from "./runtime/plugin-api.js";
 
 function getTool(tools: LocalTool[], name: string): LocalTool {
@@ -43,7 +44,30 @@ async function runToolText(tool: LocalTool, rawInput?: unknown): Promise<string>
   return tool.run({ rawInput });
 }
 
-export function registerPluginCommands(api: PluginApi, tools: LocalTool[]): void {
+async function renderWatchlistDebug(app: AppContext): Promise<string> {
+  const snapshot = await buildWatchlistDebugSnapshot(app);
+  const lines = [
+    "🛠 TickFlow 调试信息",
+    `PID: ${snapshot.pid}`,
+    `配置来源: ${snapshot.configSource}`,
+    `数据库路径: ${snapshot.databasePath}`,
+    `交易日历: ${snapshot.calendarFile}`,
+    `轮询间隔: ${snapshot.requestInterval}`,
+    `watchlist 表存在: ${snapshot.watchlistTableExists ? "是" : "否"}`,
+    `watchlist 记录数: ${snapshot.watchlistCount}`,
+  ];
+
+  if (snapshot.watchlistPreview.length > 0) {
+    lines.push("", "watchlist 预览:");
+    for (const item of snapshot.watchlistPreview) {
+      lines.push(`• ${item.name}（${item.symbol}） 成本: ${item.costPrice.toFixed(2)}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: AppContext): void {
   const addStock = getTool(tools, "add_stock");
   const removeStock = getTool(tools, "remove_stock");
   const listWatchlist = getTool(tools, "list_watchlist");
@@ -102,6 +126,14 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[]): void
       requireAuth: true,
       handler: async () => ({
         text: await runToolText(testAlert),
+      }),
+    },
+    {
+      name: "tickflowdebug",
+      description: "Show TickFlow plugin runtime config and watchlist snapshot for debugging.",
+      requireAuth: true,
+      handler: async () => ({
+        text: await renderWatchlistDebug(app),
       }),
     },
   ];
