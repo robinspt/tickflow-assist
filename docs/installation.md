@@ -19,7 +19,25 @@
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-## 2. 推荐目录
+## 2. 一键安装向导（推荐）
+
+为了简化部署，我们提供了一个交互式的安装向导 `setup-tickflow.sh`。它可以自动探测环境、安装依赖、并在交互中收集您的配置。
+
+执行以下命令即可启动一键安装：
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist/main/setup-tickflow.sh)"
+```
+
+向导会提示您输入 API Key 和消息通道目标等信息，生成配置并自动重启 OpenClaw Gateway。
+如果目标目录里已经存在 `local.config.json`，向导会优先沿用其中已有的本地调试配置，避免重复安装时把现有参数覆盖回默认值。
+如果完成向导，你可以跳至 **第 8 步 安装后验收**。
+
+---
+
+如果因为某些原因你想手动部署（或升级过程中需知悉具体步骤），请参考下方的详细指引：
+
+## 2.1 推荐目录（手动步骤）
 
 正式使用时，推荐把项目源码放在普通项目目录，例如：
 
@@ -187,9 +205,42 @@ TickFlow Assist 目前有两条独立配置链路：
 }
 ```
 
+如果你的 OpenClaw 目前没有 `agents.list`，而是单 Agent 默认模式，应写到顶层 `tools`：
+
+```json5
+{
+  "tools": {
+    "profile": "full",
+    "deny": [
+      "exec",
+      "bash",
+      "process",
+      "read",
+      "write",
+      "edit",
+      "apply_patch"
+    ]
+  }
+}
+```
+
+不要写成下面这种形式，因为 OpenClaw 会报配置无效：
+
+```json5
+{
+  "agents": {
+    "defaults": {
+      "tools": {
+        "profile": "full"
+      }
+    }
+  }
+}
+```
+
 说明：
 
-- 需在你自己的 agent 配置下补充 `tools` 段即可
+- 多 Agent 场景补到对应的 `agents.list[].tools`；单 Agent 默认模式补到顶层 `tools`
 - `profile: "full"` 可以避免插件工具在某些 OpenClaw 版本/配置组合下被一并裁掉
 - 显式禁用 `exec`、`bash`、`process`、`read`、`write`、`edit`、`apply_patch` 后，股票对话更容易稳定落到插件已注册的 `add_stock`、`remove_stock`、`monitor_status` 等工具
 - 修改 `~/.openclaw/openclaw.json` 后需要重启 Gateway
