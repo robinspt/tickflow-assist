@@ -169,10 +169,17 @@ TickFlow Assist 目前有两条独立配置链路：
     "list": [
       {
         "id": "stock",
-        "workspace": "~/.openclaw/workspace-stock",
         "tools": {
-          "profile": "coding",
-          "deny": ["group:runtime"]
+          "profile": "full",
+          "deny": [
+            "exec",
+            "bash",
+            "process",
+            "read",
+            "write",
+            "edit",
+            "apply_patch"
+          ]
         }
       }
     ]
@@ -182,8 +189,9 @@ TickFlow Assist 目前有两条独立配置链路：
 
 说明：
 
-- `group:runtime` 包含 `exec`、`bash`、`process`
-- 禁用后，股票对话更容易稳定落到插件已注册的 `add_stock`、`remove_stock`、`monitor_status` 等工具
+- 不要照抄别人的 `workspace` 路径；只需在你自己的 `stock` agent 配置下补充 `tools` 段即可
+- `profile: "full"` 可以避免插件工具在某些 OpenClaw 版本/配置组合下被一并裁掉
+- 显式禁用 `exec`、`bash`、`process`、`read`、`write`、`edit`、`apply_patch` 后，股票对话更容易稳定落到插件已注册的 `add_stock`、`remove_stock`、`monitor_status` 等工具
 - 修改 `~/.openclaw/openclaw.json` 后需要重启 Gateway
 - 最好再执行一次 `/new`，避免旧 session 继续沿用之前的工具选择习惯
 
