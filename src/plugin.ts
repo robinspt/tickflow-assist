@@ -4,6 +4,17 @@ import { createAppContext } from "./bootstrap.js";
 import { registerPluginCommands } from "./plugin-commands.js";
 
 const PLUGIN_ID = "tickflow-assist";
+const STOCK_AGENT_ID = "stock";
+const STOCK_PROMPT_ENFORCEMENT = [
+  "You are handling the stock agent.",
+  "For watchlist management and stock status intents, prefer TickFlow Assist plugin tools over generic built-in tools.",
+  "If the user asks to add a stock and provides symbol plus cost, your first action must be calling add_stock.",
+  "If the user asks to remove a stock and provides symbol, your first action must be calling remove_stock.",
+  "If the user asks for watchlist, your first action must be calling list_watchlist.",
+  "Do not call read, write, edit, query_database, session tools, or environment-inspection tools to figure out how to perform add/remove/list watchlist actions.",
+  "Do not say you need to inspect the environment, confirm available tools, or find the method first when add_stock/remove_stock/list_watchlist are available.",
+  "If a required tool parameter is missing, ask only for that missing parameter.",
+].join("\n");
 
 const GENERIC_TOOL_PARAMETERS_SCHEMA = {
   type: "object",
@@ -66,6 +77,40 @@ function extractPluginConfig(rawConfig: unknown): unknown {
   return root.plugins?.entries?.[PLUGIN_ID]?.config ?? rawConfig;
 }
 
+function extractAgentId(event: unknown, context: unknown): string | undefined {
+  if (typeof context === "object" && context !== null) {
+    const ctx = context as {
+      agentId?: unknown;
+      agent?: {
+        id?: unknown;
+      };
+    };
+    if (typeof ctx.agentId === "string" && ctx.agentId.trim()) {
+      return ctx.agentId;
+    }
+    if (typeof ctx.agent?.id === "string" && ctx.agent.id.trim()) {
+      return ctx.agent.id;
+    }
+  }
+
+  if (typeof event === "object" && event !== null) {
+    const evt = event as {
+      agentId?: unknown;
+      agent?: {
+        id?: unknown;
+      };
+    };
+    if (typeof evt.agentId === "string" && evt.agentId.trim()) {
+      return evt.agentId;
+    }
+    if (typeof evt.agent?.id === "string" && evt.agent.id.trim()) {
+      return evt.agent.id;
+    }
+  }
+
+  return undefined;
+}
+
 export default function registerTickFlowAssist(api: PluginApi): void {
   const pluginConfigInput = extractPluginConfig(api.config);
   const config = normalizePluginConfig(pluginConfigInput ?? {});
@@ -104,4 +149,18 @@ export default function registerTickFlowAssist(api: PluginApi): void {
   }
 
   registerPluginCommands(api, app.tools, app);
+
+  api.on?.(
+    "before_prompt_build",
+    (event, context) => {
+      if (extractAgentId(event, context) !== STOCK_AGENT_ID) {
+        return;
+      }
+
+      return {
+        prependSystemContext: STOCK_PROMPT_ENFORCEMENT,
+      };
+    },
+    { priority: 100 },
+  );
 }

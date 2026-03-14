@@ -310,8 +310,16 @@ openclaw gateway restart
 /addstock 601872 5.32
 /addstock 002261 34.15 120
 /rmstock 601872
+/analyze 002261
+/viewanalysis 002261
 /watchlist
+/refreshnames
+/startmonitor
+/stopmonitor
 /monitorstatus
+/startdailyupdate
+/stopdailyupdate
+/updateall
 /dailyupdatestatus
 /testalert
 /tickflowdebug

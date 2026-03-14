@@ -69,9 +69,17 @@ async function renderWatchlistDebug(app: AppContext): Promise<string> {
 
 export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: AppContext): void {
   const addStock = getTool(tools, "add_stock");
+  const analyze = getTool(tools, "analyze");
+  const viewAnalysis = getTool(tools, "view_analysis");
   const removeStock = getTool(tools, "remove_stock");
   const listWatchlist = getTool(tools, "list_watchlist");
+  const refreshWatchlistNames = getTool(tools, "refresh_watchlist_names");
+  const startMonitor = getTool(tools, "start_monitor");
+  const stopMonitor = getTool(tools, "stop_monitor");
   const monitorStatus = getTool(tools, "monitor_status");
+  const startDailyUpdate = getTool(tools, "start_daily_update");
+  const stopDailyUpdate = getTool(tools, "stop_daily_update");
+  const updateAll = getTool(tools, "update_all");
   const dailyUpdateStatus = getTool(tools, "daily_update_status");
   const testAlert = getTool(tools, "test_alert");
 
@@ -97,6 +105,29 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       }),
     },
     {
+      name: "analyze",
+      description: "Run analysis for a symbol without invoking the AI agent. Usage: /analyze <symbol>",
+      acceptsArgs: true,
+      requireAuth: true,
+      handler: async ({ args }) => ({
+        text: await runToolText(analyze, {
+          symbol: parseRequiredSymbol(args, "/analyze <symbol>"),
+        }),
+      }),
+    },
+    {
+      name: "viewanalysis",
+      description:
+        "Show the latest saved analysis for a symbol without invoking the AI agent. Usage: /viewanalysis <symbol>",
+      acceptsArgs: true,
+      requireAuth: true,
+      handler: async ({ args }) => ({
+        text: await runToolText(viewAnalysis, {
+          symbol: parseRequiredSymbol(args, "/viewanalysis <symbol>"),
+        }),
+      }),
+    },
+    {
       name: "watchlist",
       description: "Show the current watchlist without invoking the AI agent.",
       requireAuth: true,
@@ -105,11 +136,59 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       }),
     },
     {
+      name: "refreshnames",
+      description: "Refresh watchlist names without invoking the AI agent.",
+      requireAuth: true,
+      handler: async () => ({
+        text: await runToolText(refreshWatchlistNames),
+      }),
+    },
+    {
+      name: "startmonitor",
+      description: "Start monitor without invoking the AI agent.",
+      requireAuth: true,
+      handler: async () => ({
+        text: await runToolText(startMonitor),
+      }),
+    },
+    {
+      name: "stopmonitor",
+      description: "Stop monitor without invoking the AI agent.",
+      requireAuth: true,
+      handler: async () => ({
+        text: await runToolText(stopMonitor),
+      }),
+    },
+    {
       name: "monitorstatus",
       description: "Show monitor status without invoking the AI agent.",
       requireAuth: true,
       handler: async () => ({
         text: await runToolText(monitorStatus),
+      }),
+    },
+    {
+      name: "startdailyupdate",
+      description: "Start daily update scheduler without invoking the AI agent.",
+      requireAuth: true,
+      handler: async () => ({
+        text: await runToolText(startDailyUpdate),
+      }),
+    },
+    {
+      name: "stopdailyupdate",
+      description: "Stop daily update scheduler without invoking the AI agent.",
+      requireAuth: true,
+      handler: async () => ({
+        text: await runToolText(stopDailyUpdate),
+      }),
+    },
+    {
+      name: "updateall",
+      description: "Run one full update immediately without invoking the AI agent.",
+      requireAuth: true,
+      handler: async () => ({
+        text: await runToolText(updateAll),
       }),
     },
     {

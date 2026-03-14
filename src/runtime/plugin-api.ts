@@ -59,6 +59,27 @@ export interface RegisteredCommand {
   ) => Promise<RegisteredCommandResult> | RegisteredCommandResult;
 }
 
+export interface PromptBuildEvent {
+  agentId?: string;
+  [key: string]: unknown;
+}
+
+export interface PromptBuildContext {
+  agentId?: string;
+  agent?: {
+    id?: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+export interface PromptBuildResult {
+  prependSystemContext?: string;
+  appendSystemContext?: string;
+  prependContext?: string;
+  systemPrompt?: string;
+}
+
 export interface PluginApi {
   config?: unknown;
   log?: {
@@ -69,6 +90,16 @@ export interface PluginApi {
   registerTool?: (tool: RegisteredAgentTool) => void;
   registerService?: (service: RegisteredService) => void;
   registerCommand?: (command: RegisteredCommand) => void;
+  on?: (
+    eventName: "before_prompt_build",
+    handler: (
+      event: PromptBuildEvent,
+      context: PromptBuildContext,
+    ) => Promise<PromptBuildResult | void> | PromptBuildResult | void,
+    options?: {
+      priority?: number;
+    },
+  ) => void;
 }
 
 export interface PluginDefinition {
