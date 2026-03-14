@@ -318,6 +318,11 @@ openclaw gateway restart
 
 这些命令由插件直接处理，优先于 AI agent，适合添加/删除自选、查看状态、测试告警这类零歧义操作。
 
+注意：
+
+- `/addstock` 必须提供成本价，格式为 `/addstock <symbol> <costPrice> [count]`
+- 例如 `/addstock 002558` 会失败，因为缺少 `costPrice`
+
 ### 命令行直连调试
 
 `npm run tool -- ...`、`npm run monitor-loop` 与 `npm run daily-update-loop` 读取的是项目根目录 `local.config.json`，不是 `~/.openclaw/openclaw.json`。

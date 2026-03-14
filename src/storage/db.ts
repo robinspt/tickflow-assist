@@ -7,15 +7,10 @@ export type DbRow = Record<string, unknown>;
 export type DbSchema = Awaited<ReturnType<LanceTable["schema"]>>;
 
 export class Database {
-  private connectionPromise: Promise<LanceConnection> | null = null;
-
   constructor(private readonly baseDir: string) {}
 
   async getConnection(): Promise<LanceConnection> {
-    if (!this.connectionPromise) {
-      this.connectionPromise = this.connect();
-    }
-    return this.connectionPromise;
+    return this.connect();
   }
 
   async hasTable(name: string): Promise<boolean> {
