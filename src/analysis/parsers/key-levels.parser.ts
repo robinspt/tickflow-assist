@@ -51,10 +51,16 @@ export function validateKeyLevels(levels: KeyLevels): void {
     throw new Error(`score must be integer 1-10, got ${levels.score}`);
   }
   for (const [, key] of PRICE_FIELDS.slice(1)) {
+    if (key === "gap") {
+      continue;
+    }
     const value = levels[key];
     if (value != null && value < 0) {
       throw new Error(`${String(key)} must be >= 0, got ${value}`);
     }
+  }
+  if (levels.gap != null && !Number.isFinite(levels.gap)) {
+    throw new Error(`gap must be a finite number, got ${levels.gap}`);
   }
 }
 
@@ -66,7 +72,7 @@ export function formatKeyLevelsAnalysis(analysisText: string, levels: KeyLevels 
     lines.push("", "📊 关键价位汇总:");
     for (const [label, key] of PRICE_FIELDS) {
       const value = levels[key];
-      lines.push(`  ${label}: ${value && value > 0 ? value.toFixed(2) : "暂无"}`);
+      lines.push(`  ${label}: ${value != null ? value.toFixed(2) : "暂无"}`);
     }
     lines.push("", `  技术面评分: ${levels.score}/10`);
   }

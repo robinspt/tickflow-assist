@@ -304,34 +304,54 @@ openclaw gateway restart
 
 ### 免 AI 直达命令
 
-如果你希望跳过模型决策，直接执行插件动作，可使用插件注册的 slash commands：
+如果你希望跳过模型决策，直接执行插件动作，可使用 TickFlow Assist 注册的 `ta_` 前缀 slash commands。
+
+当前一共注册了 15 个直达命令：
+
+- `/ta_addstock <symbol> <costPrice> [count]`
+- `/ta_rmstock <symbol>`
+- `/ta_analyze <symbol>`
+- `/ta_viewanalysis <symbol>`
+- `/ta_watchlist`
+- `/ta_refreshnames`
+- `/ta_startmonitor`
+- `/ta_stopmonitor`
+- `/ta_monitorstatus`
+- `/ta_startdailyupdate`
+- `/ta_stopdailyupdate`
+- `/ta_updateall`
+- `/ta_dailyupdatestatus`
+- `/ta_testalert`
+- `/ta_debug`
+
+常用示例：
 
 ```text
-/addstock 601872 5.32
-/addstock 002261 34.15 120
-/rmstock 601872
-/analyze 002261
-/viewanalysis 002261
-/watchlist
-/refreshnames
-/startmonitor
-/stopmonitor
-/monitorstatus
-/startdailyupdate
-/stopdailyupdate
-/updateall
-/dailyupdatestatus
-/testalert
-/tickflowdebug
+/ta_addstock 601872 5.32
+/ta_addstock 002261 34.15 120
+/ta_rmstock 601872
+/ta_analyze 002261
+/ta_viewanalysis 002261
+/ta_watchlist
+/ta_refreshnames
+/ta_startmonitor
+/ta_stopmonitor
+/ta_monitorstatus
+/ta_startdailyupdate
+/ta_stopdailyupdate
+/ta_updateall
+/ta_dailyupdatestatus
+/ta_testalert
+/ta_debug
 ```
 
 这些命令由插件直接处理，优先于 AI agent，适合添加/删除自选、查看状态、测试告警这类零歧义操作。
 
 注意：
 
-- `/addstock` 必须提供成本价，格式为 `/addstock <symbol> <costPrice> [count]`
-- 例如 `/addstock 002558` 会失败，因为缺少 `costPrice`
-- `/tickflowdebug` 会返回插件进程当前看到的数据库路径、配置来源和 watchlist 快照，适合排查“CLI 有数据但插件命令看不到”的问题
+- `/ta_addstock` 必须提供成本价，格式为 `/ta_addstock <symbol> <costPrice> [count]`
+- 例如 `/ta_addstock 002558` 会失败，因为缺少 `costPrice`
+- `/ta_debug` 会返回插件进程当前看到的数据库路径、配置来源和 watchlist 快照，适合排查“CLI 有数据但插件命令看不到”的问题
 
 ### 命令行直连调试
 

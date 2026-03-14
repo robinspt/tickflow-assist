@@ -16,14 +16,14 @@ function parseAddStockArgs(args: string | undefined): {
 } {
   const parts = (args ?? "").trim().split(/\s+/).filter(Boolean);
   if (parts.length < 2) {
-    throw new Error("用法: /addstock <symbol> <costPrice> [count]");
+    throw new Error("用法: /ta_addstock <symbol> <costPrice> [count]");
   }
 
   const symbol = parts[0];
   const costPrice = Number(parts[1]);
   const count = parts[2] ? Number(parts[2]) : undefined;
   if (!symbol || !Number.isFinite(costPrice) || costPrice <= 0) {
-    throw new Error("用法: /addstock <symbol> <costPrice> [count]");
+    throw new Error("用法: /ta_addstock <symbol> <costPrice> [count]");
   }
   if (count != null && (!Number.isFinite(count) || count <= 0)) {
     throw new Error("count 必须大于 0");
@@ -85,8 +85,9 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
 
   const commands: RegisteredCommand[] = [
     {
-      name: "addstock",
-      description: "Add a watchlist symbol without invoking the AI agent. Usage: /addstock <symbol> <costPrice> [count]",
+      name: "ta_addstock",
+      description:
+        "Add a watchlist symbol without invoking the AI agent. Usage: /ta_addstock <symbol> <costPrice> [count]",
       acceptsArgs: true,
       requireAuth: true,
       handler: async ({ args }) => ({
@@ -94,41 +95,43 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       }),
     },
     {
-      name: "rmstock",
-      description: "Remove a watchlist symbol without invoking the AI agent. Usage: /rmstock <symbol>",
+      name: "ta_rmstock",
+      description:
+        "Remove a watchlist symbol without invoking the AI agent. Usage: /ta_rmstock <symbol>",
       acceptsArgs: true,
       requireAuth: true,
       handler: async ({ args }) => ({
         text: await runToolText(removeStock, {
-          symbol: parseRequiredSymbol(args, "/rmstock <symbol>"),
+          symbol: parseRequiredSymbol(args, "/ta_rmstock <symbol>"),
         }),
       }),
     },
     {
-      name: "analyze",
-      description: "Run analysis for a symbol without invoking the AI agent. Usage: /analyze <symbol>",
+      name: "ta_analyze",
+      description:
+        "Run analysis for a symbol without invoking the AI agent. Usage: /ta_analyze <symbol>",
       acceptsArgs: true,
       requireAuth: true,
       handler: async ({ args }) => ({
         text: await runToolText(analyze, {
-          symbol: parseRequiredSymbol(args, "/analyze <symbol>"),
+          symbol: parseRequiredSymbol(args, "/ta_analyze <symbol>"),
         }),
       }),
     },
     {
-      name: "viewanalysis",
+      name: "ta_viewanalysis",
       description:
-        "Show the latest saved analysis for a symbol without invoking the AI agent. Usage: /viewanalysis <symbol>",
+        "Show the latest saved analysis for a symbol without invoking the AI agent. Usage: /ta_viewanalysis <symbol>",
       acceptsArgs: true,
       requireAuth: true,
       handler: async ({ args }) => ({
         text: await runToolText(viewAnalysis, {
-          symbol: parseRequiredSymbol(args, "/viewanalysis <symbol>"),
+          symbol: parseRequiredSymbol(args, "/ta_viewanalysis <symbol>"),
         }),
       }),
     },
     {
-      name: "watchlist",
+      name: "ta_watchlist",
       description: "Show the current watchlist without invoking the AI agent.",
       requireAuth: true,
       handler: async () => ({
@@ -136,7 +139,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       }),
     },
     {
-      name: "refreshnames",
+      name: "ta_refreshnames",
       description: "Refresh watchlist names without invoking the AI agent.",
       requireAuth: true,
       handler: async () => ({
@@ -144,7 +147,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       }),
     },
     {
-      name: "startmonitor",
+      name: "ta_startmonitor",
       description: "Start monitor without invoking the AI agent.",
       requireAuth: true,
       handler: async () => ({
@@ -152,7 +155,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       }),
     },
     {
-      name: "stopmonitor",
+      name: "ta_stopmonitor",
       description: "Stop monitor without invoking the AI agent.",
       requireAuth: true,
       handler: async () => ({
@@ -160,7 +163,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       }),
     },
     {
-      name: "monitorstatus",
+      name: "ta_monitorstatus",
       description: "Show monitor status without invoking the AI agent.",
       requireAuth: true,
       handler: async () => ({
@@ -168,7 +171,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       }),
     },
     {
-      name: "startdailyupdate",
+      name: "ta_startdailyupdate",
       description: "Start daily update scheduler without invoking the AI agent.",
       requireAuth: true,
       handler: async () => ({
@@ -176,7 +179,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       }),
     },
     {
-      name: "stopdailyupdate",
+      name: "ta_stopdailyupdate",
       description: "Stop daily update scheduler without invoking the AI agent.",
       requireAuth: true,
       handler: async () => ({
@@ -184,7 +187,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       }),
     },
     {
-      name: "updateall",
+      name: "ta_updateall",
       description: "Run one full update immediately without invoking the AI agent.",
       requireAuth: true,
       handler: async () => ({
@@ -192,7 +195,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       }),
     },
     {
-      name: "dailyupdatestatus",
+      name: "ta_dailyupdatestatus",
       description: "Show daily update status without invoking the AI agent.",
       requireAuth: true,
       handler: async () => ({
@@ -200,7 +203,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       }),
     },
     {
-      name: "testalert",
+      name: "ta_testalert",
       description: "Send a test alert without invoking the AI agent.",
       requireAuth: true,
       handler: async () => ({
@@ -208,7 +211,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       }),
     },
     {
-      name: "tickflowdebug",
+      name: "ta_debug",
       description: "Show TickFlow plugin runtime config and watchlist snapshot for debugging.",
       requireAuth: true,
       handler: async () => ({
