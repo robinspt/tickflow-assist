@@ -24,7 +24,8 @@
 
 ## 📚 文档导航
 
-- 安装与使用指南：[docs/installation-and-usage.md](docs/installation-and-usage.md)
+- 安装指南：[docs/installation.md](docs/installation.md)
+- 使用指南：[docs/usage.md](docs/usage.md)
 - 插件清单：[openclaw.plugin.json](openclaw.plugin.json)
 - 内置技能：
   - [skills/stock-analysis/SKILL.md](skills/stock-analysis/SKILL.md)
