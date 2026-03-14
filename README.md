@@ -36,6 +36,24 @@
   - TickFlow 是为量化开发者打造的**专业金融数据 API**
   - Free 套餐即可使用稳定的**日线K线、实时行情**，具体详见官网介绍。
 
+## ⚡ 一键安装
+
+如果你已经安装了 `git`、`node`、`npm`、`uv`、`openclaw` 与 `jq`，可以直接运行一键安装向导：
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist/main/setup-tickflow.sh)"
+```
+
+安装向导会自动：
+
+- 拉取或更新源码
+- 安装依赖并构建
+- 收集 TickFlow / LLM / 告警通道配置
+- 写入 `local.config.json` 与 `~/.openclaw/openclaw.json`
+- 安装并启用 OpenClaw 插件
+- 重启 OpenClaw Gateway
+
+如果项目目录里已经有 `local.config.json`，向导会优先沿用已有配置，避免重复安装时把本地调试参数覆盖回默认值。完整安装说明见 [docs/installation.md](docs/installation.md)。
 
 ## 🚀 核心能力
 
