@@ -3,6 +3,8 @@ import { normalizePluginConfig, validatePluginConfig } from "./config/normalize.
 import { createAppContext } from "./bootstrap.js";
 import { registerPluginCommands } from "./plugin-commands.js";
 
+const PLUGIN_ID = "tickflow-assist";
+
 const GENERIC_TOOL_PARAMETERS_SCHEMA = {
   type: "object",
   description: "Pass tool arguments as top-level JSON fields.",
@@ -50,13 +52,29 @@ function summarizeConfigKeys(config: unknown): string[] {
   return Object.keys(config as Record<string, unknown>).sort();
 }
 
+function extractPluginConfig(rawConfig: unknown): unknown {
+  if (typeof rawConfig !== "object" || rawConfig === null) {
+    return rawConfig;
+  }
+
+  const root = rawConfig as {
+    plugins?: {
+      entries?: Record<string, { config?: unknown } | undefined>;
+    };
+  };
+
+  return root.plugins?.entries?.[PLUGIN_ID]?.config ?? rawConfig;
+}
+
 export default function registerTickFlowAssist(api: PluginApi): void {
-  const config = normalizePluginConfig(api.config ?? {});
+  const pluginConfigInput = extractPluginConfig(api.config);
+  const config = normalizePluginConfig(pluginConfigInput ?? {});
   const errors = validatePluginConfig(config);
   const pluginManagedServices = false;
 
   api.log?.info?.("tickflow-assist plugin registering", {
     rawConfigKeys: summarizeConfigKeys(api.config),
+    pluginConfigKeys: summarizeConfigKeys(pluginConfigInput),
     calendarFile: config.calendarFile,
     databasePath: config.databasePath,
     requestInterval: config.requestInterval,
