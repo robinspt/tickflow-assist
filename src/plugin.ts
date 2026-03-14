@@ -52,6 +52,7 @@ function summarizeConfigKeys(config: unknown): string[] {
 export default function registerTickFlowAssist(api: PluginApi): void {
   const config = normalizePluginConfig(api.config ?? {});
   const errors = validatePluginConfig(config);
+  const pluginManagedServices = false;
 
   api.log?.info?.("tickflow-assist plugin registering", {
     rawConfigKeys: summarizeConfigKeys(api.config),
@@ -66,7 +67,7 @@ export default function registerTickFlowAssist(api: PluginApi): void {
 
   const app = createAppContext(config, {
     configSource: "openclaw_plugin",
-    pluginManagedServices: typeof api.registerService === "function",
+    pluginManagedServices,
   });
 
   api.log?.info?.("tickflow-assist plugin loaded", {
@@ -75,34 +76,11 @@ export default function registerTickFlowAssist(api: PluginApi): void {
     requestInterval: config.requestInterval,
     alertChannel: config.alertChannel,
     databasePath: config.databasePath,
-    pluginManagedServices: app.runtime.pluginManagedServices,
+    pluginManagedServices,
     toolNames: app.tools.map((tool) => tool.name),
   });
 
   for (const tool of app.tools) {
     api.registerTool?.(toAgentTool(tool));
   }
-
-  for (const service of app.backgroundServices) {
-    api.registerService?.(service);
-  }
-
-  if (isGatewayProcess()) {
-    void app.services.dailyUpdateWorker.ensureLoopRunning(app.config, "openclaw_plugin")
-      .then(({ started, pid }) => {
-        api.log?.info?.("tickflow-assist daily-update scheduler ready", {
-          started,
-          pid,
-        });
-      })
-      .catch((error) => {
-        api.log?.warn?.("tickflow-assist daily-update scheduler failed to start", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      });
-  }
-}
-
-function isGatewayProcess(): boolean {
-  return process.argv.includes("gateway");
 }

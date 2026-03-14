@@ -11,7 +11,7 @@ metadata:
 
 这个技能用于查询 TickFlow Assist 插件写入的 LanceDB 数据，包括数据表列表、表结构，以及表内记录。
 
-优先使用 `query_database` 工具，不要改用 shell 命令直接读数据库文件，也不要在没有工具返回结果的前提下猜测数据库内容。
+优先使用 `query_database` 工具，不要改用 `exec`、shell 命令、`node -e`、`python -c`、LanceDB 脚本或直接读数据库文件，也不要在没有工具返回结果的前提下猜测数据库内容。
 
 适用场景：
 - 查看当前有哪些数据表
@@ -42,6 +42,8 @@ metadata:
 - “按 trade_date 排序”可传 `sortBy="trade_date"`，最近数据默认优先考虑 `sortOrder="desc"`。
 - “搜索某个关键词”可传 `contains`。
 - 如果用户只是问数据库里有什么，优先先列出表，不要直接猜测表内容。
+- 禁止使用 `exec`、shell、`node -e`、`python -c`、直接打开 LanceDB 文件、临时写脚本查询或任何绕过 `query_database` 的方式。
+- 如果当前环境拿不到 `query_database` 工具，直接说明当前无法按技能约束查询，不要回退到命令行或脚本直读数据库。
 
 输出规则：
 - 对 `query_database` 的返回尽量原样输出。

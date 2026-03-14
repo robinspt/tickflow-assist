@@ -13,7 +13,7 @@ metadata:
 
 此技能随插件加载，不需要手动复制到 workspace。
 
-优先使用 TickFlow Assist 插件工具，不要改用 shell 命令，也不要在没有工具结果的前提下自行推断分析结论、监控状态或数据更新结果。
+优先使用 TickFlow Assist 插件工具，不要改用 `exec`、shell 命令、`node -e`、`python -c`、直接文件读写或数据库脚本，也不要在没有工具结果的前提下自行推断分析结论、监控状态或数据更新结果。
 
 适用场景：
 - 添加或删除自选股
@@ -58,6 +58,8 @@ metadata:
 - 用户询问 TickFlow / 自选股 的日更状态时，必须调用 `daily_update_status`，不要把它解释成其他 crontab、系统任务或无关插件的定时更新。
 - 对 `daily_update_status`、`monitor_status`、`list_watchlist` 这类轻量状态查询，禁止使用 `sessions_spawn`、子代理、并行子任务、`query_database`、文件读取或任何“先分析再回答”的编排；必须在当前回合直接调用对应插件工具并返回结果。
 - `daily_update_status` 不依赖数据库查询工具；如果模型想改用 `query_database`、读取状态文件、读取交易日历文件，或拆成多个子任务，应视为错误策略并立即改回直接调用 `daily_update_status`。
+- 禁止使用 `exec`、shell、`node -e`、`python -c`、SQL/LanceDB 脚本、直接编辑数据文件或任何“自己写脚本完成工具能力”的替代路径。
+- 如果当前环境拿不到对应插件工具，应直接说明无法通过该技能执行，不要回退到 `exec` 或命令行绕过。
 - 当用户追问“这个任务怎么执行的”“刚才是怎么做的”时，如果任务是通过插件工具完成的，应只说明实际调用的工具名与关键参数；不要默认展开成 `npm run tool -- ...`、shell 命令、`cd ~/projects/...`，也不要把本地调试命令当成对话里的真实执行链路。只有用户明确要求“给我命令行等价命令”时，才允许给出 CLI 示例。
 - 对 `daily_update_status` 的返回结果，不要额外追加“当前是 local_config”“插件配置问题”“已重试但结果相同”这类解释性警告。先完整原样输出工具结果；只有用户继续追问原因时，才再解释调用链路差异。
 - 仅在工具必需参数缺失时，才简短指出缺少的字段。
@@ -76,6 +78,6 @@ metadata:
 - 工具报错时不要编造原因，不要给出没有依据的补救建议。
 
 监控规则：
-- `start_monitor` 与 `stop_monitor` 控制的是插件内置后台监控服务，不是临时 shell 进程。
+- `start_monitor` 与 `stop_monitor` 默认控制的是项目自管的 detached 监控进程，状态里通常显示为 `fallback_process`。
 - `start_daily_update` 与 `stop_daily_update` 控制的是项目自管的日更定时进程，不是一次性的 `update_all`。
 - 查询监控是否运行时优先调用 `monitor_status`，不要根据上下文猜测。

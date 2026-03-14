@@ -67,9 +67,9 @@ openclaw plugins install -l /path/to/tickflow-assist
 openclaw plugins enable tickflow-assist
 ```
 
-## 5. 配置插件
+## 5. 配置正式插件
 
-正式运行时，插件配置写在：
+如果你是在 OpenClaw 对话中正式使用 TickFlow Assist，插件配置写在：
 
 ```text
 ~/.openclaw/openclaw.json
@@ -115,6 +115,7 @@ openclaw plugins enable tickflow-assist
 - 插件允许先安装后填配置，所以安装阶段不会因为缺少这些值而失败
 - `tickflowApiKeyLevel` 用于声明当前 TickFlow Key 权限档位，影响是否尝试分钟K接口
 - 这份配置只供 OpenClaw 插件正式运行使用，不会自动同步到 `local.config.json`
+- `npm run tool -- ...`、`npm run monitor-loop`、`npm run daily-update-loop` 不读取这里，而是读取项目根目录 `local.config.json`
 
 ### 正式配置与本地调试配置的关系
 
@@ -129,6 +130,7 @@ TickFlow Assist 目前有两条独立配置链路：
 
 - 如果你只依赖 OpenClaw 插件正式运行，而不使用 `npm run tool -- ...`、`npm run monitor-loop`、`npm run daily-update-loop` 这类本地命令，那么只填写 `~/.openclaw/openclaw.json` 即可。
 - 如果你在 VPS 上既会通过 OpenClaw 对话使用插件，也会直接执行项目目录下的 `npm run tool -- ...` 或本地 loop 脚本，那么建议两套配置都填写，并保持关键字段一致。
+- 像 `npm run tool -- add_stock '{"symbol":"601872","costPrice":5.32}'` 这样的命令，会读取 `local.config.json.plugin.tickflowApiKey`，不会去读 `~/.openclaw/openclaw.json`
 
 建议至少保持一致的字段：
 
@@ -284,6 +286,23 @@ cp local.config.example.json local.config.json
 
 再填写其中的 `plugin` 配置，然后执行：
 
+```json
+{
+  "plugin": {
+    "tickflowApiUrl": "https://api.tickflow.org",
+    "tickflowApiKey": "your-tickflow-key"
+  }
+}
+```
+
+这里要特别注意：
+
+- CLI 工具读取的是 `local.config.json.plugin`
+- 不是 `local.config.json` 顶层其它字段
+- 也不会自动 fallback 到 `~/.openclaw/openclaw.json`
+
+然后执行：
+
 ```bash
 npm run tool -- test_alert
 npm run tool -- add_stock '{"symbol":"002261","costPrice":34.154}'
@@ -329,7 +348,7 @@ openclaw channels add --channel qqbot --token "AppID:AppSecret"
 
 ### 3. 修改本插件配置
 
-在 `~/.openclaw/openclaw.json` 的 `plugins.entries.tickflow-assist.config` 中设置：
+如果你是通过 OpenClaw 对话正式运行插件，在 `~/.openclaw/openclaw.json` 的 `plugins.entries.tickflow-assist.config` 中设置：
 
 ```json5
 {
@@ -346,6 +365,7 @@ openclaw channels add --channel qqbot --token "AppID:AppSecret"
 - QQBot 已验证配置建议显式填写 `alertAccount: "default"`
 - `alertTarget` 不应留空
 - 配置完成后，先执行 `test_alert` 验证链路
+- 如果你是用 `npm run tool -- test_alert` 做本地调试，需要把同样的字段填写到 `local.config.json.plugin`
 
 ### 4. 获取 QQBot 的 OPENID / target
 
@@ -401,7 +421,7 @@ qqbot:c2c:YOUR_OPENID
 - 非交易日不监控
 - 交易时段：`09:30-11:30`、`13:00-15:00`
 - 收盘后 `update_all` 才允许执行日更
-- `monitor_status` 会显示当前运行方式：`plugin_service` 或 `fallback_process`
+- `monitor_status` 会显示当前运行方式；当前默认是项目自管进程，因此通常显示为 `fallback_process`
 - `daily_update_status` 会显示当前日更运行方式：`project_scheduler`
 
 ## 12. 卸载 / 从头测试
