@@ -14,9 +14,15 @@ export class RealtimeMonitorWorker {
     return this.monitorService.runMonitorOnce();
   }
 
-  async runLoop(signal?: AbortSignal): Promise<void> {
+  async runLoop(
+    signal?: AbortSignal,
+    runtimeHost?: "plugin_service" | "fallback_process",
+  ): Promise<void> {
     while (!signal?.aborted) {
-      await this.monitorService.runMonitorOnce();
+      if (runtimeHost) {
+        await this.monitorService.markRuntimeHost(runtimeHost);
+      }
+      await this.runOnce();
       await new Promise((resolve) => setTimeout(resolve, this.intervalMs));
     }
   }

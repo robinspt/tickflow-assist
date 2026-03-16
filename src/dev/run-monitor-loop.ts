@@ -42,7 +42,7 @@ async function main(): Promise<void> {
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
   try {
-    await worker.runLoop(controller.signal);
+    await worker.runLoop(controller.signal, "fallback_process");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const state = await monitorService.getState();

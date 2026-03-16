@@ -115,7 +115,7 @@ export default function registerTickFlowAssist(api: PluginApi): void {
   const pluginConfigInput = extractPluginConfig(api.config);
   const config = normalizePluginConfig(pluginConfigInput ?? {});
   const errors = validatePluginConfig(config);
-  const pluginManagedServices = false;
+  const pluginManagedServices = typeof api.registerService === "function";
 
   api.log?.info?.("tickflow-assist plugin registering", {
     rawConfigKeys: summarizeConfigKeys(api.config),
@@ -146,6 +146,12 @@ export default function registerTickFlowAssist(api: PluginApi): void {
 
   for (const tool of app.tools) {
     api.registerTool?.(toAgentTool(tool));
+  }
+
+  if (pluginManagedServices) {
+    for (const service of app.backgroundServices) {
+      api.registerService?.(service);
+    }
   }
 
   registerPluginCommands(api, app.tools, app);

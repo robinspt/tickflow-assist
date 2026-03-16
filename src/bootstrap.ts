@@ -192,7 +192,7 @@ export function createAppContext(
           await monitorService.markRuntimeHost("plugin_service");
           await monitorService.setWorkerPid(null);
           await monitorService.setExpectedStop(false);
-          await realtimeMonitorWorker.runLoop(signal);
+          await realtimeMonitorWorker.runLoop(signal, "plugin_service");
         },
       },
     ],
