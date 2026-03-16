@@ -175,20 +175,22 @@ export class DailyUpdateWorker {
     const today = chinaToday();
     const lines = [
       "🕒 定时日更状态",
-      `配置来源: ${this.configSource}`,
-      `定时任务: ${formatProcessState(state)}`,
+      `状态: ${formatProcessState(state)}`,
       `运行方式: ${formatRuntimeHost(state)}`,
-      `运行配置来源: ${state.runtimeConfigSource ?? "暂无"}`,
-      `交易日历: ${this.calendarFile}`,
-      `轮询间隔: ${Math.floor(this.intervalMs / 60_000)} 分钟`,
-      `最近心跳: ${state.lastHeartbeatAt ?? "暂无"}`,
-      `今日已更新: ${state.lastSuccessDate === today ? "是" : "否"}`,
-      `最近尝试: ${state.lastAttemptAt ?? "暂无"}`,
-      `最近成功: ${state.lastSuccessAt ?? "暂无"}`,
-      `最近结果: ${formatResultType(state.lastResultType)}`,
-      `连续失败: ${state.consecutiveFailures}`,
-      `状态文件: ${this.getStateFilePath()}`,
+      `配置来源: ${this.configSource}`,
+      `调度: ${Math.floor(this.intervalMs / 60_000)} 分钟对齐轮询 | 交易日 15:25 后执行`,
+      "",
+      "执行情况:",
+      `• 今日已更新: ${state.lastSuccessDate === today ? "是" : "否"}`,
+      `• 最近心跳: ${state.lastHeartbeatAt ?? "暂无"}`,
+      `• 最近尝试: ${state.lastAttemptAt ?? "暂无"}`,
+      `• 最近成功: ${state.lastSuccessAt ?? "暂无"}`,
+      `• 最近结果: ${formatResultType(state.lastResultType)}`,
     ];
+
+    if (state.consecutiveFailures > 0) {
+      lines.push(`• 连续失败: ${state.consecutiveFailures}`);
+    }
 
     if (state.lastResultSummary) {
       lines.push("", "最近摘要:", state.lastResultSummary);
@@ -387,13 +389,9 @@ function formatProcessState(state: DailyUpdateState): string {
 }
 
 function formatRuntimeHost(state: DailyUpdateState): string {
-  const label = state.runtimeHost === "project_scheduler"
+  return state.runtimeHost === "project_scheduler"
     ? "project_scheduler"
     : state.runtimeHost === "plugin_service"
       ? "plugin_service"
       : "unknown";
-  if (!state.runtimeObservedAt) {
-    return label;
-  }
-  return `${label} (最近观测 ${state.runtimeObservedAt})`;
 }

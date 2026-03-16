@@ -75,7 +75,7 @@ metadata:
 
 输出规则：
 - 对 `add_stock`、`list_watchlist`、`start_monitor`、`stop_monitor`、`monitor_status`、`start_daily_update`、`stop_daily_update`、`daily_update_status`、`analyze`、`view_analysis`、`fetch_klines`、`fetch_intraday_klines` 和 `update_all`，调用工具后尽量原样输出返回文本。
-- 对 `daily_update_status` 必须完整原样输出，尤其不要省略 `定时任务`、`运行方式`、`运行配置来源`、`配置来源`、`交易日历`、`轮询间隔`、`最近心跳`、`最近尝试`、`最近成功`、`最近结果`、`连续失败`、`状态文件` 与 `最近摘要`。
+- 对 `daily_update_status` 必须完整原样输出，尤其不要省略 `状态`、`运行方式`、`配置来源`、`调度`、`执行情况` 与 `最近摘要`。
 - 不要改写、总结、翻译、重排、美化，也不要加表格、额外标题或解释性包装。
 - 除非工具明确返回错误，否则不要在工具结果前后添加追问、评论或推断字段。
 - 不要省略关键数值、价位、涨跌幅、日期或状态字段。

@@ -107,23 +107,27 @@ export class MonitorService {
 
     const lines = [
       "📊 监控状态",
-      `查询时间: ${formatChinaDateTime()}`,
-      `监控进程: ${state.running ? formatRunningState(state) : "⭕ 未启动"}`,
+      `状态: ${state.running ? formatRunningState(state) : "⭕ 未启动"}`,
       `运行方式: ${formatRuntimeHost(state)}`,
       `交易时段: ${formatTradingPhase(phase)}`,
-      `关注列表: ${watchlist.length}只`,
+      `轮询间隔: ${this.requestInterval} 秒`,
+      `告警通道: ${this.alertChannel}`,
+      await this.buildAlertLine(),
     ];
 
-    if (watchlist.length > 0) {
+    lines.push("", `关注列表（${watchlist.length}只）:`);
+    if (watchlist.length === 0) {
+      lines.push("• 暂无关注股票");
+    } else {
       for (const item of watchlist) {
-        lines.push(`• ${item.name}（${item.symbol}） 成本: ${item.costPrice.toFixed(2)}`);
+        lines.push(`• ${item.name}（${item.symbol}） 成本 ${item.costPrice.toFixed(2)}`);
       }
     }
 
+    lines.push("");
     lines.push(...(await this.buildQuoteLines(watchlist)));
-    lines.push(await this.buildKeyLevelsLine(watchlist));
-    lines.push(await this.buildAlertLine());
-    lines.push(`配置: 轮询${this.requestInterval}秒 | 通道${this.alertChannel} | CLI ${this.alertService.getCliBinary()}`);
+    lines.push("");
+    lines.push(...(await this.buildKeyLevelsLines(watchlist)));
     return lines.join("\n");
   }
 
@@ -174,7 +178,7 @@ export class MonitorService {
   private async buildQuoteLines(watchlist: WatchlistItem[]): Promise<string[]> {
     const lines = ["💹 最新行情:"];
     if (watchlist.length === 0) {
-      lines.push("• 无关注股票，未查询实时行情");
+      lines.push("• 暂无");
       return lines;
     }
 
@@ -193,9 +197,9 @@ export class MonitorService {
     return lines;
   }
 
-  private async buildKeyLevelsLine(watchlist: WatchlistItem[]): Promise<string> {
+  private async buildKeyLevelsLines(watchlist: WatchlistItem[]): Promise<string[]> {
     if (watchlist.length === 0) {
-      return "关键价位: 暂无";
+      return ["关键价位:", "• 暂无"];
     }
 
     const entries = await Promise.all(
@@ -203,19 +207,19 @@ export class MonitorService {
     );
     const covered = entries.filter((entry) => entry.levels != null);
     if (covered.length === 0) {
-      return "关键价位: 暂无";
+      return ["关键价位:", "• 暂无"];
     }
 
     const missing = entries.filter((entry) => entry.levels == null).map((entry) => `${entry.item.name}（${entry.item.symbol}）`);
     const scores = covered.map((entry) => `${entry.item.name} ${entry.levels?.score}/10`);
-    let line = `关键价位: ${covered.length}/${watchlist.length} 已分析`;
+    const lines = ["关键价位:", `• 已分析: ${covered.length}/${watchlist.length}`];
     if (missing.length > 0) {
-      line += ` | 缺失: ${missing.join(", ")}`;
+      lines.push(`• 缺失: ${missing.join(", ")}`);
     }
     if (scores.length > 0) {
-      line += ` | 评分: ${scores.join(" / ")}`;
+      lines.push(`• 评分: ${scores.join(" / ")}`);
     }
-    return line;
+    return lines;
   }
 
   private async buildAlertLine(): Promise<string> {
@@ -341,17 +345,11 @@ function formatRunningState(state: MonitorState): string {
 }
 
 function formatRuntimeHost(state: MonitorState): string {
-  const label = state.runtimeHost === "plugin_service"
+  return state.runtimeHost === "plugin_service"
     ? "plugin_service"
     : state.runtimeHost === "fallback_process"
       ? "fallback_process"
       : "unknown";
-
-  if (!state.runtimeObservedAt) {
-    return label;
-  }
-
-  return `${label} (最近观测 ${state.runtimeObservedAt})`;
 }
 
 function formatTradingPhase(phase: string): string {
@@ -381,13 +379,13 @@ function formatQuoteLine(item: WatchlistItem, quote: TickFlowQuote): string {
   const quoteTime = formatQuoteTimestamp(quote.timestamp);
   const profitPct = item.costPrice > 0 ? ((lastPrice - item.costPrice) / item.costPrice) * 100 : null;
 
-  let line = `• ${item.name}（${item.symbol}）: ${lastPrice.toFixed(2)}`;
+  let line = `• ${item.name}（${item.symbol}） ${lastPrice.toFixed(2)}`;
   if (changePct != null) {
-    line += ` (涨跌幅 ${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%)`;
+    line += ` | 涨跌 ${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`;
   }
-  line += ` | 行情时间: ${quoteTime}`;
+  line += ` | ${quoteTime}`;
   if (profitPct != null) {
-    line += ` | 浮盈: ${profitPct >= 0 ? "+" : ""}${profitPct.toFixed(2)}%`;
+    line += ` | 浮盈 ${profitPct >= 0 ? "+" : ""}${profitPct.toFixed(2)}%`;
   }
   return line;
 }
