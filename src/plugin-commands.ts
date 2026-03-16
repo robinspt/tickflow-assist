@@ -87,7 +87,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     {
       name: "ta_addstock",
       description:
-        "Add a watchlist symbol without invoking the AI agent. Usage: /ta_addstock <symbol> <costPrice> [count]",
+        "添加自选股，不经过 AI 对话。用法: /ta_addstock <symbol> <costPrice> [count]",
       acceptsArgs: true,
       requireAuth: true,
       handler: async ({ args }) => ({
@@ -97,7 +97,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     {
       name: "ta_rmstock",
       description:
-        "Remove a watchlist symbol without invoking the AI agent. Usage: /ta_rmstock <symbol>",
+        "删除自选股，不经过 AI 对话。用法: /ta_rmstock <symbol>",
       acceptsArgs: true,
       requireAuth: true,
       handler: async ({ args }) => ({
@@ -109,7 +109,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     {
       name: "ta_analyze",
       description:
-        "Run analysis for a symbol without invoking the AI agent. Usage: /ta_analyze <symbol>",
+        "分析单只股票，不经过 AI 对话。用法: /ta_analyze <symbol>",
       acceptsArgs: true,
       requireAuth: true,
       handler: async ({ args }) => ({
@@ -121,7 +121,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     {
       name: "ta_viewanalysis",
       description:
-        "Show the latest saved analysis for a symbol without invoking the AI agent. Usage: /ta_viewanalysis <symbol>",
+        "查看单只股票最近一次保存的分析结果，不经过 AI 对话。用法: /ta_viewanalysis <symbol>",
       acceptsArgs: true,
       requireAuth: true,
       handler: async ({ args }) => ({
@@ -132,7 +132,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     },
     {
       name: "ta_watchlist",
-      description: "Show the current watchlist without invoking the AI agent.",
+      description: "查看当前自选列表，不经过 AI 对话。",
       requireAuth: true,
       handler: async () => ({
         text: await runToolText(listWatchlist),
@@ -140,7 +140,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     },
     {
       name: "ta_refreshnames",
-      description: "Refresh watchlist names without invoking the AI agent.",
+      description: "刷新自选股名称，不经过 AI 对话。",
       requireAuth: true,
       handler: async () => ({
         text: await runToolText(refreshWatchlistNames),
@@ -148,7 +148,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     },
     {
       name: "ta_startmonitor",
-      description: "Start monitor without invoking the AI agent.",
+      description: "启动实时监控，不经过 AI 对话。",
       requireAuth: true,
       handler: async () => ({
         text: await runToolText(startMonitor),
@@ -156,7 +156,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     },
     {
       name: "ta_stopmonitor",
-      description: "Stop monitor without invoking the AI agent.",
+      description: "停止实时监控，不经过 AI 对话。",
       requireAuth: true,
       handler: async () => ({
         text: await runToolText(stopMonitor),
@@ -164,7 +164,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     },
     {
       name: "ta_monitorstatus",
-      description: "Show monitor status without invoking the AI agent.",
+      description: "查看实时监控状态，不经过 AI 对话。",
       requireAuth: true,
       handler: async () => ({
         text: await runToolText(monitorStatus),
@@ -172,7 +172,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     },
     {
       name: "ta_startdailyupdate",
-      description: "Start daily update scheduler without invoking the AI agent.",
+      description: "启动定时日更任务，不经过 AI 对话。",
       requireAuth: true,
       handler: async () => ({
         text: await runToolText(startDailyUpdate),
@@ -180,7 +180,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     },
     {
       name: "ta_stopdailyupdate",
-      description: "Stop daily update scheduler without invoking the AI agent.",
+      description: "停止定时日更任务，不经过 AI 对话。",
       requireAuth: true,
       handler: async () => ({
         text: await runToolText(stopDailyUpdate),
@@ -188,7 +188,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     },
     {
       name: "ta_updateall",
-      description: "Run one full update immediately without invoking the AI agent.",
+      description: "立即执行一次完整日更，不经过 AI 对话。",
       requireAuth: true,
       handler: async () => ({
         text: await runToolText(updateAll),
@@ -196,7 +196,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     },
     {
       name: "ta_dailyupdatestatus",
-      description: "Show daily update status without invoking the AI agent.",
+      description: "查看定时日更状态，不经过 AI 对话。",
       requireAuth: true,
       handler: async () => ({
         text: await runToolText(dailyUpdateStatus),
@@ -204,7 +204,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     },
     {
       name: "ta_testalert",
-      description: "Send a test alert without invoking the AI agent.",
+      description: "发送一条测试告警，不经过 AI 对话。",
       requireAuth: true,
       handler: async () => ({
         text: await runToolText(testAlert),
@@ -212,7 +212,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     },
     {
       name: "ta_debug",
-      description: "Show TickFlow plugin runtime config and watchlist snapshot for debugging.",
+      description: "查看 TickFlow 插件运行时调试信息。",
       requireAuth: true,
       handler: async () => ({
         text: await renderWatchlistDebug(app),
