@@ -53,7 +53,7 @@ export class DailyUpdateWorker {
       if (state.running) {
         await this.runScheduledPass();
       }
-      await new Promise((resolve) => setTimeout(resolve, this.intervalMs));
+      await sleep(getNextAlignedDelayMs(this.intervalMs));
     }
   }
 
@@ -176,9 +176,9 @@ export class DailyUpdateWorker {
     const lines = [
       "🕒 定时日更状态",
       `配置来源: ${this.configSource}`,
-      `定时进程: ${formatProcessState(state)}`,
+      `定时任务: ${formatProcessState(state)}`,
       `运行方式: ${formatRuntimeHost(state)}`,
-      `进程配置来源: ${state.runtimeConfigSource ?? "暂无"}`,
+      `运行配置来源: ${state.runtimeConfigSource ?? "暂无"}`,
       `交易日历: ${this.calendarFile}`,
       `轮询间隔: ${Math.floor(this.intervalMs / 60_000)} 分钟`,
       `最近心跳: ${state.lastHeartbeatAt ?? "暂无"}`,
@@ -311,6 +311,33 @@ export class DailyUpdateWorker {
     const message = this.alertService.formatSystemNotification(title, lines);
     await this.alertService.send(message);
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getNextAlignedDelayMs(intervalMs: number): number {
+  const intervalMinutes = Math.max(1, Math.floor(intervalMs / 60_000));
+  const anchorMinute = 10;
+  const now = new Date();
+  const chinaNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Shanghai" }));
+  const currentMinute = chinaNow.getMinutes();
+  const currentSecond = chinaNow.getSeconds();
+  const currentMillisecond = chinaNow.getMilliseconds();
+  const normalized = ((currentMinute - anchorMinute) % intervalMinutes + intervalMinutes) % intervalMinutes;
+  let minutesToAdd = intervalMinutes - normalized;
+  if (minutesToAdd === intervalMinutes && currentSecond === 0 && currentMillisecond === 0) {
+    minutesToAdd = intervalMinutes;
+  }
+  if (normalized === 0 && (currentSecond > 0 || currentMillisecond > 0)) {
+    minutesToAdd = intervalMinutes;
+  }
+
+  const next = new Date(chinaNow);
+  next.setSeconds(0, 0);
+  next.setMinutes(currentMinute + minutesToAdd);
+  return Math.max(1_000, next.getTime() - chinaNow.getTime());
 }
 
 function classifyResult(result: string): DailyUpdateResultType {

@@ -42,8 +42,8 @@ export class TradingCalendarService {
 
     const china = this.toChinaParts(date);
     const hhmm = `${china.hour}:${china.minute}`;
-    if (hhmm < "15:30") {
-      return { ok: false, reason: `当前 ${hhmm}，须等到 15:30 后执行` };
+    if (hhmm < "15:25") {
+      return { ok: false, reason: `当前 ${hhmm}，须等到 15:25 后执行` };
     }
 
     return { ok: true, reason: "交易日已收盘" };
