@@ -6,7 +6,7 @@ export interface DailyUpdateState {
   lastStoppedAt: string | null;
   workerPid: number | null;
   expectedStop: boolean;
-  runtimeHost: "project_scheduler" | null;
+  runtimeHost: "project_scheduler" | "plugin_service" | null;
   runtimeObservedAt: string | null;
   runtimeConfigSource: "openclaw_plugin" | "local_config" | null;
   lastHeartbeatAt: string | null;

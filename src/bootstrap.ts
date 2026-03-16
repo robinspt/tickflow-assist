@@ -176,15 +176,23 @@ export function createAppContext(
       queryDatabaseTool(database),
       refreshWatchlistNamesTool(watchlistService),
       removeStockTool(watchlistService),
-      startDailyUpdateTool(dailyUpdateWorker, config, runtime.configSource),
+      startDailyUpdateTool(dailyUpdateWorker, config, runtime.configSource, runtime),
       startMonitorTool(monitorService, runtime),
-      stopDailyUpdateTool(dailyUpdateWorker),
+      stopDailyUpdateTool(dailyUpdateWorker, runtime),
       stopMonitorTool(monitorService, runtime),
       testAlertTool(alertService),
       updateAllTool(dailyUpdateWorker),
       viewAnalysisTool(analysisService),
     ],
     backgroundServices: [
+      {
+        id: "tickflow-assist.daily-update",
+        description: "Run the TickFlow daily-update scheduler on the configured interval while enabled.",
+        start: async ({ signal }) => {
+          await dailyUpdateWorker.bindManagedServiceRuntime(runtime.configSource);
+          await dailyUpdateWorker.runLoop(signal, "plugin_service", runtime.configSource);
+        },
+      },
       {
         id: "tickflow-assist.realtime-monitor",
         description: "Run realtime market checks on the configured interval while monitor state is enabled.",

@@ -42,10 +42,17 @@ export class DailyUpdateWorker {
     return this.executeAndRecord(force, "manual", true);
   }
 
-  async runLoop(signal?: AbortSignal): Promise<void> {
+  async runLoop(
+    signal?: AbortSignal,
+    runtimeHost?: "project_scheduler" | "plugin_service",
+    runtimeConfigSource?: "openclaw_plugin" | "local_config",
+  ): Promise<void> {
     while (!signal?.aborted) {
-      await this.recordHeartbeat();
-      await this.runScheduledPass();
+      await this.recordHeartbeat(runtimeHost, runtimeConfigSource);
+      const state = await this.readState();
+      if (state.running) {
+        await this.runScheduledPass();
+      }
       await new Promise((resolve) => setTimeout(resolve, this.intervalMs));
     }
   }
@@ -86,6 +93,39 @@ export class DailyUpdateWorker {
       // Best-effort stop for the detached daily-update worker.
     }
     return { stopped: true, pid: workerPid };
+  }
+
+  async enableManagedLoop(
+    configSource: "openclaw_plugin" | "local_config",
+  ): Promise<{ started: boolean; pid: number | null }> {
+    const state = await this.readState();
+    const now = formatChinaDateTime();
+    await this.writeState({
+      ...state,
+      running: true,
+      startedAt: state.startedAt ?? now,
+      workerPid: null,
+      expectedStop: false,
+      runtimeHost: "plugin_service",
+      runtimeObservedAt: now,
+      runtimeConfigSource: configSource,
+    });
+    return { started: !state.running, pid: null };
+  }
+
+  async bindManagedServiceRuntime(
+    configSource: "openclaw_plugin" | "local_config",
+  ): Promise<void> {
+    const state = await this.readState();
+    const now = formatChinaDateTime();
+    await this.writeState({
+      ...state,
+      workerPid: null,
+      expectedStop: false,
+      runtimeHost: "plugin_service",
+      runtimeObservedAt: now,
+      runtimeConfigSource: configSource,
+    });
   }
 
   async markSchedulerRunning(
@@ -223,12 +263,18 @@ export class DailyUpdateWorker {
     return path.join(this.baseDir, "daily-update-state.json");
   }
 
-  private async recordHeartbeat(): Promise<void> {
+  private async recordHeartbeat(
+    runtimeHost?: "project_scheduler" | "plugin_service",
+    runtimeConfigSource?: "openclaw_plugin" | "local_config",
+  ): Promise<void> {
     const state = await this.readState();
+    const observedAt = formatChinaDateTime();
     await this.writeState({
       ...state,
-      lastHeartbeatAt: formatChinaDateTime(),
-      runtimeObservedAt: formatChinaDateTime(),
+      lastHeartbeatAt: observedAt,
+      runtimeHost: runtimeHost ?? state.runtimeHost,
+      runtimeObservedAt: observedAt,
+      runtimeConfigSource: runtimeConfigSource ?? state.runtimeConfigSource,
     });
   }
 
@@ -314,7 +360,11 @@ function formatProcessState(state: DailyUpdateState): string {
 }
 
 function formatRuntimeHost(state: DailyUpdateState): string {
-  const label = state.runtimeHost === "project_scheduler" ? "project_scheduler" : "unknown";
+  const label = state.runtimeHost === "project_scheduler"
+    ? "project_scheduler"
+    : state.runtimeHost === "plugin_service"
+      ? "plugin_service"
+      : "unknown";
   if (!state.runtimeObservedAt) {
     return label;
   }
