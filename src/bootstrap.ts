@@ -186,35 +186,20 @@ export function createAppContext(
     ],
     backgroundServices: [
       {
-        id: "tickflow-assist.daily-update",
-        description: "Run the TickFlow daily-update scheduler on the configured interval while enabled.",
+        id: "tickflow-assist.managed-loop",
+        description: "Run TickFlow daily-update scheduler and realtime monitor concurrently.",
         start: async ({ signal }) => {
           await dailyUpdateWorker.bindManagedServiceRuntime(runtime.configSource);
-          await dailyUpdateWorker.runLoop(signal, "plugin_service", runtime.configSource);
-        },
-      },
-      {
-        id: "tickflow-assist.realtime-monitor",
-        description: "Run realtime market checks on the configured interval while monitor state is enabled.",
-        start: async ({ signal }) => {
-          const fs = await import("node:fs/promises");
-          const diagPath = `${config.databasePath}/monitor-diag.log`;
-          const log = async (msg: string) => {
-            const line = `[${new Date().toISOString()}] ${msg}\n`;
-            await fs.appendFile(diagPath, line).catch(() => {});
-          };
+          await monitorService.bindManagedServiceRuntime();
 
-          await log("service start callback invoked");
-          try {
-            await monitorService.bindManagedServiceRuntime();
-            await log("bindManagedServiceRuntime done, entering runLoop");
-            await realtimeMonitorWorker.runLoop(signal, "plugin_service");
-            await log("runLoop exited normally");
-          } catch (err) {
-            const msg = err instanceof Error ? err.stack ?? err.message : String(err);
-            await log(`service crashed: ${msg}`);
-            throw err;
-          }
+          await Promise.all([
+            dailyUpdateWorker
+              .runLoop(signal, "plugin_service", runtime.configSource)
+              .catch(() => {}),
+            realtimeMonitorWorker
+              .runLoop(signal, "plugin_service")
+              .catch(() => {}),
+          ]);
         },
       },
     ],
