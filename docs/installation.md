@@ -128,7 +128,7 @@ openclaw plugins enable tickflow-assist
 
 说明：
 
-- `tickflowApiKey`、`llmApiKey`、`alertTarget` 正式使用时必须填写
+- `tickflowApiKey`、`llmApiKey`、`alertTarget` 正式使用时必须填写（注意：使用 Ollama、vLLM 等本地部署模型时，`llmApiKey` 字段也不能为空缺，配置校验要求该字段必须存在。可填入任意占位字符，例如 `sk-xxx` 或 `ollama`）
 - 插件允许先安装后填配置，所以安装阶段不会因为缺少这些值而失败
 - `tickflowApiKeyLevel` 用于声明当前 TickFlow Key 权限档位，影响是否尝试分钟K接口
 - 这份配置只供 OpenClaw 插件正式运行使用，不会自动同步到 `local.config.json`
@@ -238,7 +238,7 @@ TickFlow Assist 目前有两条独立配置链路：
 | `tickflowApiKey` | 是 | TickFlow API Key |
 | `tickflowApiKeyLevel` | 否 | TickFlow API Key 档位：`Free`、`Start`、`Pro`、`Expert`，默认 `Free` |
 | `llmBaseUrl` | 否 | OpenAI 兼容接口地址 |
-| `llmApiKey` | 是 | 大模型 API Key |
+| `llmApiKey` | 是 | 大模型 API Key（使用Ollama/vLLM等本地模型时不能留空，请填入任意占位字符如 `sk-xxx`） |
 | `llmModel` | 是 | 分析使用的模型名 |
 | `databasePath` | 是 | LanceDB 数据目录，建议使用绝对路径 |
 | `calendarFile` | 是 | 交易日历文件路径，建议使用绝对路径 |
