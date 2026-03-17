@@ -128,7 +128,7 @@ npm run daily-update-loop
 - `local.config.json` 只影响本地调试 / CLI 链路，不会反向修改 `~/.openclaw/openclaw.json`
 - 如果你希望 OpenClaw 对话结果、`npm run tool -- ...`、后台 loop 状态完全一致，建议把两套配置保持同步
 - `update_all` 在收盘后执行时，会同时更新日K、日线指标和当日 `1m` 分钟K
-- `start_daily_update` 启动的是项目自管 detached 进程，不再依赖 OpenClaw 的 `tickflow-assist.daily-update` 后台服务
+- `start_daily_update` 启动的是项目自管 detached 进程，如果运行环境未托管插件服务，则不再依赖 OpenClaw 的 `tickflow-assist.managed-loop` 后台服务
 - `npm run daily-update-loop` 可用于手工前台运行日更轮询，便于配合 `tmux`、`systemd --user` 或其它进程管理器排查
 - `analyze` 会读取本地日K和日线指标，并临时拉取当日全部分钟K、计算分钟指标、获取实时行情，再一起交给模型分析
 - 本地 `klines_intraday` 默认仅保留近 10 个交易日，超过部分会自动清理
