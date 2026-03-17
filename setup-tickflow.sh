@@ -190,9 +190,190 @@ alert_target_hint() {
   esac
 }
 
+prompt_manual_alert_channel() {
+  echo "  1) telegram   (默认 / Default)"
+  echo "  2) qqbot"
+  echo "  3) wecom"
+  DEFAULT_CHANNEL_CHOICE=1
+  case "$DEFAULT_ALERT_CHANNEL" in
+    qqbot) DEFAULT_CHANNEL_CHOICE=2 ;;
+    wecom) DEFAULT_CHANNEL_CHOICE=3 ;;
+    *) DEFAULT_CHANNEL_CHOICE=1 ;;
+  esac
+  while true; do
+    read -r -p "  请选择推送通道 (1-3) [默认 ${DEFAULT_CHANNEL_CHOICE}]: " CH_CHOICE
+    CH_CHOICE=${CH_CHOICE:-$DEFAULT_CHANNEL_CHOICE}
+    case "$CH_CHOICE" in
+      1) ALERT_CHANNEL="telegram"; return 0 ;;
+      2) ALERT_CHANNEL="qqbot"; return 0 ;;
+      3) ALERT_CHANNEL="wecom"; return 0 ;;
+      *) warn "无效选择，请输入 1-3。" ;;
+    esac
+  done
+}
+
+discover_configured_alert_channels() {
+  if [[ "$HAS_JQ" != "yes" ]] || [[ ! -f "$OPENCLAW_JSON" ]]; then
+    return 0
+  fi
+
+  jq -r '
+    (.channels // {})
+    | to_entries[]
+    | select(.value | type == "object")
+    | select((.value.enabled // true) == true)
+    | .key as $channel
+    | if (.value.accounts? | type) == "object" and ((.value.accounts | keys | length) > 0) then
+        [
+          .value.accounts
+          | to_entries[]
+          | select(.value | type == "object")
+          | select((.value.enabled // true) == true)
+          | .key
+        ] as $accounts
+        | select(($accounts | length) > 0)
+        | "\($channel)|\($accounts | join(","))"
+      else
+        select((.value.enabled // true) == true)
+        | "\($channel)|"
+      end
+  ' "$OPENCLAW_JSON" 2>/dev/null || true
+}
+
+discover_channel_accounts() {
+  local channel="$1"
+
+  if [[ "$HAS_JQ" != "yes" ]] || [[ ! -f "$OPENCLAW_JSON" ]]; then
+    return 0
+  fi
+
+  jq -r --arg channel "$channel" '
+    if ((.channels[$channel].enabled // true) == true) then
+      (.channels[$channel].accounts // {})
+    else
+      {}
+    end
+    | if type == "object" then
+        to_entries[]
+        | select(.value | type == "object")
+        | select((.value.enabled // true) == true)
+        | .key
+      else
+        empty
+      end
+  ' "$OPENCLAW_JSON" 2>/dev/null || true
+}
+
+select_alert_account_for_channel() {
+  local channel="$1"
+  local configured_default_account=""
+  local default_choice=1
+  local idx=0
+  local account=""
+
+  if [[ "$DEFAULT_ALERT_CHANNEL" == "$channel" ]]; then
+    configured_default_account="$DEFAULT_ALERT_ACCOUNT"
+  fi
+
+  mapfile -t ALERT_CHANNEL_ACCOUNTS < <(discover_channel_accounts "$channel")
+
+  if [[ ${#ALERT_CHANNEL_ACCOUNTS[@]} -eq 0 ]]; then
+    ALERT_ACCOUNT="$configured_default_account"
+    if [[ -z "$ALERT_ACCOUNT" && ( "$channel" == "qqbot" || "$channel" == "wecom" ) ]]; then
+      ALERT_ACCOUNT="default"
+    fi
+    return 0
+  fi
+
+  if [[ ${#ALERT_CHANNEL_ACCOUNTS[@]} -eq 1 ]]; then
+    ALERT_ACCOUNT="${ALERT_CHANNEL_ACCOUNTS[0]}"
+    success "已选择账号: $ALERT_ACCOUNT"
+    return 0
+  fi
+
+  echo "  检测到该通道已配置多个账号："
+  for account in "${ALERT_CHANNEL_ACCOUNTS[@]}"; do
+    idx=$((idx + 1))
+    echo "  ${idx}) ${account}"
+    if [[ -n "$configured_default_account" && "$account" == "$configured_default_account" ]]; then
+      default_choice=$idx
+    fi
+  done
+
+  while true; do
+    read -r -p "  请选择账号 (1-${#ALERT_CHANNEL_ACCOUNTS[@]}) [默认 ${default_choice}]: " ACCOUNT_CHOICE
+    ACCOUNT_CHOICE=${ACCOUNT_CHOICE:-$default_choice}
+    if [[ "$ACCOUNT_CHOICE" =~ ^[0-9]+$ ]] && [[ "$ACCOUNT_CHOICE" -ge 1 ]] && [[ "$ACCOUNT_CHOICE" -le ${#ALERT_CHANNEL_ACCOUNTS[@]} ]]; then
+      ALERT_ACCOUNT="${ALERT_CHANNEL_ACCOUNTS[$((ACCOUNT_CHOICE - 1))]}"
+      success "已选择账号: $ALERT_ACCOUNT"
+      return 0
+    fi
+    warn "无效选择，请输入 1-${#ALERT_CHANNEL_ACCOUNTS[@]}。"
+  done
+}
+
+prompt_alert_channel_from_openclaw_config() {
+  local idx=0
+  local manual_choice=0
+  local default_choice=1
+  local line=""
+  local channel=""
+  local accounts=""
+  local label=""
+
+  mapfile -t CONFIGURED_ALERT_CHANNEL_LINES < <(discover_configured_alert_channels)
+  if [[ ${#CONFIGURED_ALERT_CHANNEL_LINES[@]} -eq 0 ]]; then
+    return 1
+  fi
+
+  echo "  检测到 openclaw.json 中已有通道配置："
+  ALERT_CHANNEL_OPTIONS=()
+  for line in "${CONFIGURED_ALERT_CHANNEL_LINES[@]}"; do
+    channel="${line%%|*}"
+    accounts="${line#*|}"
+    idx=$((idx + 1))
+    ALERT_CHANNEL_OPTIONS+=("$channel")
+    if [[ -n "$accounts" ]]; then
+      label="${channel} (accounts: ${accounts})"
+    else
+      label="$channel"
+    fi
+    echo "  ${idx}) ${label}"
+    if [[ "$channel" == "$DEFAULT_ALERT_CHANNEL" ]]; then
+      default_choice=$idx
+    fi
+  done
+
+  manual_choice=$((idx + 1))
+  echo "  ${manual_choice}) 重新输入其他通道"
+
+  while true; do
+    read -r -p "  请选择推送通道 (1-${manual_choice}) [默认 ${default_choice}]: " CHANNEL_SELECT
+    CHANNEL_SELECT=${CHANNEL_SELECT:-$default_choice}
+    if [[ "$CHANNEL_SELECT" == "$manual_choice" ]]; then
+      return 1
+    fi
+    if [[ "$CHANNEL_SELECT" =~ ^[0-9]+$ ]] && [[ "$CHANNEL_SELECT" -ge 1 ]] && [[ "$CHANNEL_SELECT" -le ${#ALERT_CHANNEL_OPTIONS[@]} ]]; then
+      ALERT_CHANNEL="${ALERT_CHANNEL_OPTIONS[$((CHANNEL_SELECT - 1))]}"
+      select_alert_account_for_channel "$ALERT_CHANNEL"
+      return 0
+    fi
+    warn "无效选择，请输入 1-${manual_choice}。"
+  done
+}
+
 parent_dir() {
   local path="$1"
   dirname "$path"
+}
+
+canonicalize_dir_path() {
+  local path="$1"
+  if [[ -d "$path" ]]; then
+    (
+      cd "$path" >/dev/null 2>&1 && pwd -P
+    )
+  fi
 }
 
 candidate_dir_from_config_path() {
@@ -678,10 +859,10 @@ collect_configuration() {
   LLM_BASE_URL=${LLM_BASE_URL:-$DEFAULT_LLM_BASE_URL}
 
   if [[ -n "$DEFAULT_LLM_KEY" ]]; then
-    read -r -p "  LLM API Key (直接回车保持不变): " LLM_API_KEY
+    read -r -p "  LLM API Key (vLLM / Ollama 可随便填；直接回车保持不变): " LLM_API_KEY
     LLM_API_KEY=${LLM_API_KEY:-$DEFAULT_LLM_KEY}
   else
-    read -r -p "  LLM API Key: " LLM_API_KEY
+    read -r -p "  LLM API Key (vLLM / Ollama 可随便填): " LLM_API_KEY
     LLM_API_KEY=${LLM_API_KEY:-"YOUR_LLM_API_KEY"}
   fi
 
@@ -690,31 +871,11 @@ collect_configuration() {
 
   echo ""
   echo -e "${BOLD}--- 告警投递配置 ---${NC}"
-  echo "  1) telegram   (默认 / Default)"
-  echo "  2) qqbot"
-  echo "  3) wecom"
-  DEFAULT_CHANNEL_CHOICE=1
-  case "$DEFAULT_ALERT_CHANNEL" in
-    qqbot) DEFAULT_CHANNEL_CHOICE=2 ;;
-    wecom) DEFAULT_CHANNEL_CHOICE=3 ;;
-    *) DEFAULT_CHANNEL_CHOICE=1 ;;
-  esac
-  while true; do
-    read -r -p "  请选择推送通道 (1-3) [默认 ${DEFAULT_CHANNEL_CHOICE}]: " CH_CHOICE
-    CH_CHOICE=${CH_CHOICE:-$DEFAULT_CHANNEL_CHOICE}
-    case "$CH_CHOICE" in
-      1) ALERT_CHANNEL="telegram"; break ;;
-      2) ALERT_CHANNEL="qqbot"; break ;;
-      3) ALERT_CHANNEL="wecom"; break ;;
-      *) warn "无效选择，请输入 1-3。" ;;
-    esac
-  done
-  success "已选择通道: $ALERT_CHANNEL"
-
-  ALERT_ACCOUNT="$DEFAULT_ALERT_ACCOUNT"
-  if [[ ( "$ALERT_CHANNEL" == "qqbot" || "$ALERT_CHANNEL" == "wecom" ) && -z "$ALERT_ACCOUNT" ]]; then
-    ALERT_ACCOUNT="default"
+  if ! prompt_alert_channel_from_openclaw_config; then
+    prompt_manual_alert_channel
+    select_alert_account_for_channel "$ALERT_CHANNEL"
   fi
+  success "已选择通道: $ALERT_CHANNEL"
 
   TARGET_HINT=$(alert_target_hint "$ALERT_CHANNEL")
   if [[ -n "$DEFAULT_ALERT_TARGET" ]]; then
@@ -917,6 +1078,7 @@ write_openclaw_config() {
   MERGED=$(jq \
     --argjson pcfg "$PLUGIN_CONFIG_JSON" \
     --argjson tools "$AGENT_TOOLS_JSON" \
+    --arg plugin_id "$PLUGIN_ID" \
     --arg agent_id "${SELECTED_AGENT:-}" \
     --arg agent_type "${SELECTED_AGENT_TYPE:-}" '
     def merge_tool_policy($base; $patch):
@@ -936,10 +1098,33 @@ write_openclaw_config() {
           .
         end;
 
+    def object_keys($value):
+      if ($value | type) == "object" then
+        ($value | keys)
+      else
+        []
+      end;
+
     (.agents.defaults.tools // {}) as $legacyDefaultTools |
     .plugins //= {} |
+    .plugins.enabled = (.plugins.enabled // true) |
     .plugins.entries //= {} |
     .plugins.entries["tickflow-assist"] = $pcfg |
+    .plugins.allow = (
+      if (.plugins.allow? | type) == "array" and (.plugins.allow | length) > 0 then
+        (
+          .plugins.allow
+          + [$plugin_id]
+        )
+      else
+        (
+          object_keys(.plugins.entries)
+          + object_keys(.plugins.installs)
+          + [$plugin_id]
+        )
+      end
+      | unique
+    ) |
     if (.agents.defaults? | type) == "object" then
       .agents.defaults |= del(.tools)
     else
@@ -1050,6 +1235,8 @@ disable_plugin_if_possible() {
 }
 
 remove_plugin_entry_from_openclaw_json() {
+  local plugin_dir_real=""
+
   if [[ "$HAS_JQ" != "yes" ]]; then
     fail "卸载流程需要 jq 来安全修改 openclaw.json。"
   fi
@@ -1059,23 +1246,58 @@ remove_plugin_entry_from_openclaw_json() {
     return
   fi
 
+  plugin_dir_real=$(canonicalize_dir_path "$PLUGIN_DIR" || true)
   BACKUP_FILE="$OPENCLAW_JSON.backup.$(date +%Y%m%d_%H%M%S)"
   if $DRY_RUN; then
     dry "cp \"$OPENCLAW_JSON\" \"$BACKUP_FILE\""
-    dry "从 \"$OPENCLAW_JSON\" 删除 plugins.entries[\"$PLUGIN_ID\"]"
+    dry "从 \"$OPENCLAW_JSON\" 删除 plugins.entries / plugins.allow / plugins.installs / plugins.load.paths 中的 \"$PLUGIN_ID\" 相关配置"
     return
   fi
 
   cp "$OPENCLAW_JSON" "$BACKUP_FILE"
   TMP_OPENCLAW_JSON="$OPENCLAW_JSON.tmp"
-  jq '
+  jq --arg plugin_id "$PLUGIN_ID" --arg plugin_dir "$PLUGIN_DIR" --arg plugin_dir_real "$plugin_dir_real" '
+    def normalize_path:
+      tostring | sub("/+$"; "");
+
     if .plugins.entries? then
-      del(.plugins.entries["tickflow-assist"])
+      del(.plugins.entries[$plugin_id])
     else
       .
     end
+    | if (.plugins.allow? | type) == "array" then
+        .plugins.allow = (.plugins.allow | map(select(. != $plugin_id)))
+      else
+        .
+      end
+    | if .plugins.installs? then
+        del(.plugins.installs[$plugin_id])
+      else
+        .
+      end
+    | if (.plugins.load.paths? | type) == "array" then
+        .plugins.load.paths = (
+          .plugins.load.paths
+          | map(
+              select(
+                ((. | normalize_path) != ($plugin_dir | normalize_path))
+                and (
+                  ($plugin_dir_real | length) == 0
+                  or ((. | normalize_path) != ($plugin_dir_real | normalize_path))
+                )
+              )
+            )
+        )
+      else
+        .
+      end
     | if (.plugins.entries? | type) == "object" and (.plugins.entries | length) == 0 then
         .plugins |= del(.entries)
+      else
+        .
+      end
+    | if (.plugins.load.paths? | type) == "array" and (.plugins.load.paths | length) == 0 then
+        .plugins.load |= . + { paths: [] }
       else
         .
       end
@@ -1111,6 +1333,8 @@ remove_local_config_if_confirmed() {
 }
 
 remove_project_dir_if_confirmed() {
+  local plugin_dir_real=""
+
   if [[ ! -d "$PLUGIN_DIR" ]]; then
     info "未检测到项目目录，跳过目录清理。"
     return
@@ -1127,7 +1351,20 @@ remove_project_dir_if_confirmed() {
     return
   fi
 
+  plugin_dir_real=$(canonicalize_dir_path "$PLUGIN_DIR" || true)
+  cd "$HOME" >/dev/null 2>&1 || true
   rm -rf "$PLUGIN_DIR"
+
+  if [[ -e "$PLUGIN_DIR" ]]; then
+    warn "目录仍存在，请手动检查：$PLUGIN_DIR"
+    return
+  fi
+
+  if [[ -n "$plugin_dir_real" && -e "$plugin_dir_real" ]]; then
+    warn "目录真实路径仍存在，请手动检查：$plugin_dir_real"
+    return
+  fi
+
   success "已删除项目目录：$PLUGIN_DIR"
 }
 
@@ -1142,8 +1379,8 @@ run_install_flow() {
 
   collect_configuration
   write_local_config
-  write_openclaw_config
   register_plugin
+  write_openclaw_config
   restart_gateway
 
   echo ""
@@ -1174,8 +1411,8 @@ run_upgrade_flow() {
   fi
 
   write_local_config
-  write_openclaw_config
   register_plugin
+  write_openclaw_config
   restart_gateway
 
   echo ""
@@ -1187,7 +1424,8 @@ run_uninstall_flow() {
   refresh_state
 
   echo ""
-  warn "卸载流程只会自动清理插件配置与本地目录，不会自动回滚全局/Agent tools 合并结果。"
+  warn "卸载会清理插件配置、allowlist、installs、load.paths 和本地目录。"
+  warn "但不会自动回滚安装时写入的 .tools 或 agents.list[].tools，避免误删你原本的 Agent tools 配置。"
   read -r -p "确认开始卸载 tickflow-assist？(y/N): " CONFIRM_UNINSTALL
   if [[ ! "${CONFIRM_UNINSTALL:-n}" =~ ^[yY]$ ]]; then
     info "已取消卸载。"
