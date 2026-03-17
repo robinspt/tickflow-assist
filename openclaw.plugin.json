@@ -52,6 +52,7 @@
       },
       "alertChannel": {
         "type": "string",
+        "description": "Alert delivery channel, e.g. telegram, qqbot, wecom",
         "default": "telegram"
       },
       "openclawCliBin": {
@@ -64,6 +65,7 @@
       },
       "alertTarget": {
         "type": "string",
+        "description": "Channel target, e.g. Telegram chat ID, qqbot:c2c:OPENID, or WeCom chatId",
         "default": ""
       },
       "pythonBin": {

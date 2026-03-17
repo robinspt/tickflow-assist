@@ -68,7 +68,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 
 - 实时监控交易时段：`09:30-11:30`、`13:00-15:00`
 - 支持止损、突破、支撑、压力、止盈、涨跌幅、成交量等规则
-- 通过 OpenClaw CLI 投递 Telegram、QQBot 等通道
+- 通过 OpenClaw CLI 投递 Telegram、QQBot、WeCom 等通道
 
 ### 数据落库
 
@@ -106,6 +106,7 @@ tickflow-assist/
 - [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 提供行情数据服务与 API 支持
 - [OpenClaw](https://openclaw.ai) 提供插件运行、对话通道与工具编排能力
 - [sliverp/qqbot](https://github.com/sliverp/qqbot) 提供 QQ 机器人通道接入
+- [WecomTeam/wecom-openclaw-plugin](https://github.com/WecomTeam/wecom-openclaw-plugin) 提供企业微信通道接入
 - [CortexReach/memory-lancedb-pro](https://github.com/CortexReach/memory-lancedb-pro) 给你的 OpenClaw Agent 提供持久化、智能化的长期记忆
 
 ## 📄 License

@@ -110,6 +110,15 @@ read_json_compact() {
   fi
 }
 
+alert_target_hint() {
+  case "$1" in
+    telegram) printf '%s' "Telegram群组ID / 会话ID" ;;
+    qqbot) printf '%s' "qqbot:c2c:OPENID" ;;
+    wecom) printf '%s' "企业微信 chatId" ;;
+    *) printf '%s' "OpenClaw target" ;;
+  esac
+}
+
 # 3. 安装依赖与构建
 echo ""
 info "第 3 步：安装依赖并构建 / Install dependencies and build..."
@@ -248,32 +257,36 @@ echo ""
 echo -e "${BOLD}--- 告警投递配置 ---${NC}"
 echo "  1) telegram   (默认 / Default)"
 echo "  2) qqbot"
+echo "  3) wecom"
 DEFAULT_CHANNEL_CHOICE=1
 case "$DEFAULT_ALERT_CHANNEL" in
   qqbot) DEFAULT_CHANNEL_CHOICE=2 ;;
+  wecom) DEFAULT_CHANNEL_CHOICE=3 ;;
   *) DEFAULT_CHANNEL_CHOICE=1 ;;
 esac
 while true; do
-  read -p "  请选择推送通道 (1-2) [默认 ${DEFAULT_CHANNEL_CHOICE}]: " CH_CHOICE
+  read -p "  请选择推送通道 (1-3) [默认 ${DEFAULT_CHANNEL_CHOICE}]: " CH_CHOICE
   CH_CHOICE=${CH_CHOICE:-$DEFAULT_CHANNEL_CHOICE}
   case "$CH_CHOICE" in
     1) ALERT_CHANNEL="telegram"; break ;;
     2) ALERT_CHANNEL="qqbot"; break ;;
-    *) warn "无效选择，请输入 1-2 / Invalid, enter 1-2." ;;
+    3) ALERT_CHANNEL="wecom"; break ;;
+    *) warn "无效选择，请输入 1-3 / Invalid, enter 1-3." ;;
   esac
 done
 success "已选择通道: $ALERT_CHANNEL"
 
 ALERT_ACCOUNT="$DEFAULT_ALERT_ACCOUNT"
-if [[ "$ALERT_CHANNEL" == "qqbot" && -z "$ALERT_ACCOUNT" ]]; then
+if [[ ( "$ALERT_CHANNEL" == "qqbot" || "$ALERT_CHANNEL" == "wecom" ) && -z "$ALERT_ACCOUNT" ]]; then
   ALERT_ACCOUNT="default"
 fi
 
+TARGET_HINT=$(alert_target_hint "$ALERT_CHANNEL")
 if [[ -n "$DEFAULT_ALERT_TARGET" ]]; then
-  read -p "  告警投递目标 (Telegram群组ID / qqbot:c2c:OPENID，直接回车保持不变): " ALERT_TARGET
+  read -p "  告警投递目标 (${TARGET_HINT}，直接回车保持不变): " ALERT_TARGET
   ALERT_TARGET=${ALERT_TARGET:-$DEFAULT_ALERT_TARGET}
 else
-  read -p "  告警投递目标 (Telegram群组ID / qqbot:c2c:OPENID): " ALERT_TARGET
+  read -p "  告警投递目标 (${TARGET_HINT}): " ALERT_TARGET
   ALERT_TARGET=${ALERT_TARGET:-"YOUR_TARGET"}
 fi
 
@@ -374,7 +387,7 @@ if [[ -n "$AGENT_DISCOVERY" ]]; then
   echo "  0) 不配置 tools 限制 (跳过)"
   echo ""
 
-  read -p "  请选择要为哪个 Agent 配置 tools 以保障股票命令优先 (输入数字) [默认 1]: " AGENT_CHOICE
+  read -p "  请选择要为哪个 Agent 写入推荐 tools 配置 (输入数字) [默认 1]: " AGENT_CHOICE
   AGENT_CHOICE=${AGENT_CHOICE:-1}
 
   if [[ "$AGENT_CHOICE" =~ ^[0-9]+$ ]] && [[ "$AGENT_CHOICE" -ge 1 ]] && [[ "$AGENT_CHOICE" -le $local_n ]]; then
@@ -386,15 +399,7 @@ if [[ -n "$AGENT_DISCOVERY" ]]; then
     AGENT_TOOLS_JSON=$(cat <<EOF
 {
   "profile": "full",
-  "deny": [
-    "exec",
-    "bash",
-    "process",
-    "read",
-    "write",
-    "edit",
-    "apply_patch"
-  ]
+  "deny": []
 }
 EOF
 )
@@ -469,7 +474,9 @@ MERGED=$(jq \
       else
         .
       end
-    | if ($baseObj.deny? | type) == "array" or ($patchObj.deny? | type) == "array" then
+    | if ($patchObj | has("deny")) then
+        .deny = ($patchObj.deny // [])
+      elif ($baseObj.deny? | type) == "array" then
         .deny = ((($baseObj.deny // []) + ($patchObj.deny // [])) | unique)
       else
         .

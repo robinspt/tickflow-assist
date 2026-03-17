@@ -177,9 +177,9 @@ TickFlow Assist 目前有两条独立配置链路：
 - `tickflowApiKey`
 - `alertTarget`
 
-### 推荐：让股票 Agent 优先走已注册插件工具
+### 推荐：为股票 Agent 保持 `profile: "full"`
 
-如果你希望 OpenClaw 对话优先调用 TickFlow Assist 已注册的插件工具，而不是退回 `exec` 再试错 `npm run tool -- ...`，推荐对负责股票会话的 agent 显式禁用运行时命令工具：
+如果你希望给负责股票会话的 agent 显式写一份 `tools` 配置，推荐保留 `profile: "full"`，但不要再禁用 `exec`、`read`、`write` 等运行时工具，避免影响 OpenClaw 其他能力：
 
 ```json5
 {
@@ -189,15 +189,7 @@ TickFlow Assist 目前有两条独立配置链路：
         "id": "stock",
         "tools": {
           "profile": "full",
-          "deny": [
-            "exec",
-            "bash",
-            "process",
-            "read",
-            "write",
-            "edit",
-            "apply_patch"
-          ]
+          "deny": []
         }
       }
     ]
@@ -211,15 +203,7 @@ TickFlow Assist 目前有两条独立配置链路：
 {
   "tools": {
     "profile": "full",
-    "deny": [
-      "exec",
-      "bash",
-      "process",
-      "read",
-      "write",
-      "edit",
-      "apply_patch"
-    ]
+    "deny": []
   }
 }
 ```
@@ -242,7 +226,8 @@ TickFlow Assist 目前有两条独立配置链路：
 
 - 多 Agent 场景补到对应的 `agents.list[].tools`；单 Agent 默认模式补到顶层 `tools`
 - `profile: "full"` 可以避免插件工具在某些 OpenClaw 版本/配置组合下被一并裁掉
-- 显式禁用 `exec`、`bash`、`process`、`read`、`write`、`edit`、`apply_patch` 后，股票对话更容易稳定落到插件已注册的 `add_stock`、`remove_stock`、`monitor_status` 等工具
+- `deny: []` 表示不额外限制 `exec`、`bash`、`process`、`read`、`write`、`edit`、`apply_patch` 等能力，避免影响 OpenClaw 其他功能
+- 如果你之前已经按旧文档加入了那组 `deny`，建议手动删掉或改成空数组
 - 修改 `~/.openclaw/openclaw.json` 后需要重启 Gateway
 - 最好再执行一次 `/new`，避免旧 session 继续沿用之前的工具选择习
 
@@ -260,10 +245,10 @@ TickFlow Assist 目前有两条独立配置链路：
 | `calendarFile` | 是 | 交易日历文件路径，建议使用绝对路径 |
 | `requestInterval` | 否 | 实时监控轮询间隔，默认 `30` 秒 |
 | `dailyUpdateNotify` | 否 | 是否发送定时日更通知，默认 `false` |
-| `alertChannel` | 是 | 告警通道，例如 `telegram` |
+| `alertChannel` | 是 | 告警通道，例如 `telegram`、`qqbot`、`wecom` |
 | `openclawCliBin` | 否 | `openclaw` 可执行文件路径，默认 `openclaw` |
-| `alertAccount` | 否 | 多账号通道时指定账号，例如 QQBot 常用 `default` |
-| `alertTarget` | 是 | 告警投递目标，例如 Telegram 群组/会话 ID、QQBot OPENID |
+| `alertAccount` | 否 | 多账号通道时指定账号，例如 QQBot / WeCom 常用 `default` |
+| `alertTarget` | 是 | 告警投递目标，例如 Telegram 群组/会话 ID、QQBot OPENID、WeCom 会话 `chatId` |
 | `pythonBin` | 否 | Python 子模块启动命令，默认 `uv` |
 | `pythonArgs` | 否 | Python 子模块命令参数，默认 `["run", "python"]` |
 | `pythonWorkdir` | 是 | Python 子模块工作目录，建议使用绝对路径 |
@@ -273,6 +258,7 @@ TickFlow Assist 目前有两条独立配置链路：
 - 这是 OpenClaw 通道投递目标，不是 TickFlow 配置
 - 如果你用 Telegram，通常填写群组或会话 ID
 - 如果你用 QQBot，私聊通常填写 `qqbot:c2c:OPENID`
+- 如果你用 WeCom，通常填写目标会话的 `chatId`
 - 必须和当前 OpenClaw 通道配置匹配，否则 `test_alert` 虽然执行了，也可能无法投递到目标会话
 
 `tickflowApiKeyLevel` 说明：
@@ -341,13 +327,64 @@ POST https://api.sgroup.qq.com/v2/users/YOUR_OPENID/messages
 qqbot:c2c:YOUR_OPENID
 ```
 
-## 7. 重启 Gateway
+## 7. 配置 WeCom 通道（可选）
+
+如果你希望通过企业微信接收告警，需要先在 OpenClaw 中安装并配置官方 WeCom 通道插件。
+
+官方插件仓库：
+
+- [WecomTeam/wecom-openclaw-plugin](https://github.com/WecomTeam/wecom-openclaw-plugin)
+
+### 1. 安装 WeCom 插件
+
+```bash
+openclaw plugins install @wecom/wecom-openclaw-plugin@latest
+```
+
+官方 README 还提供了交互式安装器；如果你的 OpenClaw 版本较新，也可以按官方说明执行：
+
+```bash
+npx -y @wecom/wecom-openclaw-cli install
+```
+
+### 2. 配置 OpenClaw WeCom 通道
+
+推荐直接按官方插件 README 走交互式配置：
+
+```bash
+openclaw channels add
+```
+
+然后选择 `wecom`，填写企业微信应用对应的 `botId`、`secret` 等字段。
+
+### 3. 修改本插件配置
+
+如果你是通过 OpenClaw 对话正式运行插件，在 `~/.openclaw/openclaw.json` 的 `plugins.entries.tickflow-assist.config` 中设置：
+
+```json5
+{
+  "alertChannel": "wecom",
+  "openclawCliBin": "openclaw",
+  "alertAccount": "default",
+  "alertTarget": "YOUR_CHAT_ID"
+}
+```
+
+注意：
+
+- 当前实现通过 `openclaw message send --target ...` 发送消息
+- WeCom 官方插件支持主动消息投递，因此 `test_alert` 与监控告警可直接复用
+- 如果你的 WeCom 账号名不是 `default`，请把 `alertAccount` 改成实际账号名
+- `alertTarget` 应填写目标会话的 `chatId`
+- 如果你是用 `npm run tool -- test_alert` 做本地调试，需要把同样的字段填写到 `local.config.json.plugin`
+
+## 8. 重启 Gateway
 
 ```bash
 openclaw gateway restart
 ```
 
-## 8. 安装后验收
+## 9. 安装后验收
 
 建议按下面顺序做一次验收：
 
@@ -368,7 +405,7 @@ npm run tool -- test_alert
 
 如果 `test_alert` 成功，说明插件、配置和通道投递链路已基本就绪。
 
-## 9. 更新插件
+## 10. 更新插件
 
 如果你是通过本地链接方式安装的：
 
@@ -395,7 +432,7 @@ cd ..
 openclaw gateway restart
 ```
 
-## 10. 卸载 / 从头测试
+## 11. 卸载 / 从头测试
 
 ### 1. 禁用插件
 
