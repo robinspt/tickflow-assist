@@ -55,6 +55,27 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 
 如果项目目录里已经有 `local.config.json`，向导会优先沿用已有配置，避免重复安装时把本地调试参数覆盖回默认值。完整安装说明见 [docs/installation.md](docs/installation.md)。
 
+## 🔄 更新方式
+
+**项目仍在前期功能快速迭代中，请定期更新。**
+
+如果你已经完成安装，后续建议定期在项目目录执行以下命令，同步最新代码与构建结果：
+
+```bash
+git pull
+npm install
+npm run build
+openclaw gateway restart
+```
+
+如果本次更新涉及 Python 指标桥接依赖，也请额外执行：
+
+```bash
+cd python
+uv sync
+cd ..
+```
+
 ## 🚀 核心能力
 
 ### 行情与分析
@@ -82,6 +103,12 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 | `key_levels` | 关键价位与评分 |
 | `analysis_log` | 分析日志 |
 | `alert_log` | 告警日志 |
+
+## 📝 Changelog
+
+### 2026-03-17
+
+- 解决后台循环失败问题，统一由单一托管 service 并行管理日更与实时监控任务，避免部分循环未被正常启动。
 
 ## 🧩 支持的 Claw
 
