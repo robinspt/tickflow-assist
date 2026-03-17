@@ -68,6 +68,63 @@ command_installed() {
   command -v "$1" >/dev/null 2>&1
 }
 
+maybe_fix_openclaw_path() {
+  local npm_prefix=""
+  local npm_bin=""
+  local npm_candidate=""
+
+  if command_installed openclaw; then
+    return 0
+  fi
+
+  if ! command_installed npm; then
+    return 1
+  fi
+
+  npm_prefix=$(npm prefix -g 2>/dev/null || true)
+  [[ -z "$npm_prefix" ]] && return 1
+
+  npm_bin="$npm_prefix/bin"
+  npm_candidate="$npm_bin/openclaw"
+  [[ ! -x "$npm_candidate" ]] && return 1
+
+  case ":$PATH:" in
+    *":$npm_bin:"*)
+      return 0
+      ;;
+  esac
+
+  export PATH="$npm_bin:$PATH"
+  OPENCLAW_PATH_FIXED="yes"
+  OPENCLAW_PATH_HINT="$npm_candidate"
+  return 0
+}
+
+resolve_openclaw_command() {
+  local npm_prefix=""
+  local npm_candidate=""
+
+  maybe_fix_openclaw_path >/dev/null 2>&1 || true
+
+  if command_installed openclaw; then
+    command -v openclaw
+    return 0
+  fi
+
+  if command_installed npm; then
+    npm_prefix=$(npm prefix -g 2>/dev/null || true)
+    if [[ -n "$npm_prefix" ]]; then
+      npm_candidate="$npm_prefix/bin/openclaw"
+      if [[ -x "$npm_candidate" ]]; then
+        printf '%s\n' "$npm_candidate"
+        return 0
+      fi
+    fi
+  fi
+
+  return 1
+}
+
 is_plugin_source_dir() {
   local dir="$1"
   [[ -f "$dir/openclaw.plugin.json" && -d "$dir/src" ]]
@@ -194,12 +251,18 @@ detect_plugin_dir_from_openclaw_config() {
 detect_plugin_dir_from_openclaw_cli() {
   local info_output=""
   local candidate=""
+  local openclaw_cmd=""
 
-  if ! command_installed openclaw; then
+  openclaw_cmd="${OPENCLAW_CMD:-}"
+  if [[ -z "$openclaw_cmd" ]]; then
+    openclaw_cmd=$(resolve_openclaw_command || true)
+  fi
+
+  if [[ -z "$openclaw_cmd" ]]; then
     return 1
   fi
 
-  info_output=$(openclaw plugins info "$PLUGIN_ID" 2>/dev/null || true)
+  info_output=$("$openclaw_cmd" plugins info "$PLUGIN_ID" 2>/dev/null || true)
   [[ -z "$info_output" ]] && return 1
 
   while IFS= read -r candidate; do
@@ -246,13 +309,27 @@ refresh_state() {
   HAS_UV="no"
   HAS_JQ="no"
   HAS_OPENCLAW="no"
+  OPENCLAW_CMD=""
+  OPENCLAW_PATH_HINT=""
+  OPENCLAW_PATH_WARNING="no"
+  OPENCLAW_PATH_FIXED="no"
 
   command_installed git && HAS_GIT="yes"
   command_installed node && HAS_NODE="yes"
   command_installed npm && HAS_NPM="yes"
   command_installed uv && HAS_UV="yes"
   command_installed jq && HAS_JQ="yes"
-  command_installed openclaw && HAS_OPENCLAW="yes"
+  maybe_fix_openclaw_path >/dev/null 2>&1 || true
+  if OPENCLAW_CMD="$(resolve_openclaw_command)"; then
+    HAS_OPENCLAW="yes"
+    if [[ "$OPENCLAW_PATH_FIXED" == "yes" ]]; then
+      OPENCLAW_PATH_WARNING="yes"
+      OPENCLAW_PATH_HINT="$OPENCLAW_CMD"
+    elif [[ "$OPENCLAW_CMD" != "openclaw" && "$OPENCLAW_CMD" != "$(command -v openclaw 2>/dev/null || true)" ]]; then
+      OPENCLAW_PATH_WARNING="yes"
+      OPENCLAW_PATH_HINT="$OPENCLAW_CMD"
+    fi
+  fi
 
   PLUGIN_SOURCE_READY="no"
   PLUGIN_GIT_READY="no"
@@ -297,7 +374,7 @@ show_status_panel() {
   print_status_row "npm" "$HAS_NPM"
   print_status_row "uv" "$HAS_UV"
   print_status_row "jq" "$HAS_JQ"
-  print_status_row "openclaw" "$HAS_OPENCLAW"
+  print_status_row "openclaw" "$HAS_OPENCLAW" "${OPENCLAW_PATH_HINT:-}"
   echo ""
   echo -e "${BOLD}项目状态${NC}"
   print_status_row "项目目录" "$PLUGIN_SOURCE_READY" "$PLUGIN_DIR"
@@ -308,6 +385,16 @@ show_status_panel() {
   print_status_row "插件配置已写入" "$OPENCLAW_PLUGIN_CONFIGURED" "$PLUGIN_ID"
   print_status_row "插件已启用" "$OPENCLAW_PLUGIN_ENABLED" "$PLUGIN_ID"
   echo ""
+  if [[ "$OPENCLAW_PATH_WARNING" == "yes" ]]; then
+    if [[ "$OPENCLAW_PATH_FIXED" == "yes" ]]; then
+      warn "检测到 openclaw 已安装，但不在当前 PATH 中。脚本已临时加入 PATH，并将使用: $OPENCLAW_CMD"
+    else
+      warn "检测到 openclaw 已安装，但不在当前 PATH 中。脚本将改用: $OPENCLAW_CMD"
+    fi
+    warn "建议你在当前 shell 手动执行：export PATH=\"\$(npm prefix -g)/bin:\$PATH\""
+    warn "如需长期生效，请把这行加入 ~/.bashrc 或 ~/.zshrc。"
+    echo ""
+  fi
 }
 
 prompt_main_menu() {
@@ -349,8 +436,15 @@ ensure_required_commands() {
   local missing=()
   local cmd=""
   for cmd in "$@"; do
-    if ! command_installed "$cmd"; then
-      missing+=("$cmd")
+    if [[ "$cmd" == "openclaw" ]]; then
+      maybe_fix_openclaw_path >/dev/null 2>&1 || true
+      if ! OPENCLAW_CMD="$(resolve_openclaw_command)"; then
+        missing+=("$cmd")
+      fi
+    else
+      if ! command_installed "$cmd"; then
+        missing+=("$cmd")
+      fi
     fi
   done
 
@@ -902,8 +996,8 @@ register_plugin() {
     return
   fi
 
-  openclaw plugins install -l "$PLUGIN_DIR"
-  openclaw plugins enable "$PLUGIN_ID"
+  "$OPENCLAW_CMD" plugins install -l "$PLUGIN_DIR"
+  "$OPENCLAW_CMD" plugins enable "$PLUGIN_ID"
   success "插件已注册并启用"
 }
 
@@ -915,7 +1009,7 @@ restart_gateway() {
     return
   fi
 
-  if openclaw gateway restart 2>&1; then
+  if "$OPENCLAW_CMD" gateway restart 2>&1; then
     success "Gateway 重启成功"
   else
     warn "重启 Gateway 失败，可手动执行：openclaw gateway restart"
@@ -948,7 +1042,7 @@ disable_plugin_if_possible() {
     return
   fi
 
-  if openclaw plugins disable "$PLUGIN_ID" 2>&1; then
+  if "$OPENCLAW_CMD" plugins disable "$PLUGIN_ID" 2>&1; then
     success "插件已禁用"
   else
     warn "插件 disable 失败，可稍后手动执行：openclaw plugins disable $PLUGIN_ID"
