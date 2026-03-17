@@ -248,7 +248,7 @@ TickFlow Assist 目前有两条独立配置链路：
 | `alertChannel` | 是 | 告警通道，例如 `telegram`、`qqbot`、`wecom` |
 | `openclawCliBin` | 否 | `openclaw` 可执行文件路径，默认 `openclaw` |
 | `alertAccount` | 否 | 多账号通道时指定账号，例如 QQBot / WeCom 常用 `default` |
-| `alertTarget` | 是 | 告警投递目标，例如 Telegram 群组/会话 ID、QQBot OPENID、WeCom 会话 `chatId` |
+| `alertTarget` | 是 | 告警投递目标，例如 Telegram 群组/会话 ID、QQBot OPENID、WeCom 的 `userId` 或 `chatId` |
 | `pythonBin` | 否 | Python 子模块启动命令，默认 `uv` |
 | `pythonArgs` | 否 | Python 子模块命令参数，默认 `["run", "python"]` |
 | `pythonWorkdir` | 是 | Python 子模块工作目录，建议使用绝对路径 |
@@ -258,7 +258,8 @@ TickFlow Assist 目前有两条独立配置链路：
 - 这是 OpenClaw 通道投递目标，不是 TickFlow 配置
 - 如果你用 Telegram，通常填写群组或会话 ID
 - 如果你用 QQBot，私聊通常填写 `qqbot:c2c:OPENID`
-- 如果你用 WeCom，通常填写目标会话的 `chatId`
+- 如果你用 WeCom，单聊填写 `userId`；群聊填写 `chatId`
+- WeCom 群聊场景下，直接填写群 ID 也可被识别
 - 必须和当前 OpenClaw 通道配置匹配，否则 `test_alert` 虽然执行了，也可能无法投递到目标会话
 
 `tickflowApiKeyLevel` 说明：
@@ -366,7 +367,7 @@ openclaw channels add
   "alertChannel": "wecom",
   "openclawCliBin": "openclaw",
   "alertAccount": "default",
-  "alertTarget": "YOUR_CHAT_ID"
+  "alertTarget": "YOUR_USER_ID_OR_CHAT_ID"
 }
 ```
 
@@ -375,7 +376,8 @@ openclaw channels add
 - 当前实现通过 `openclaw message send --target ...` 发送消息
 - WeCom 官方插件支持主动消息投递，因此 `test_alert` 与监控告警可直接复用
 - 如果你的 WeCom 账号名不是 `default`，请把 `alertAccount` 改成实际账号名
-- `alertTarget` 应填写目标会话的 `chatId`
+- `alertTarget` 单聊应填写 `userId`；群聊应填写 `chatId`
+- 群聊场景下，直接填写群 ID 也可识别
 - 如果你是用 `npm run tool -- test_alert` 做本地调试，需要把同样的字段填写到 `local.config.json.plugin`
 
 ## 8. 重启 Gateway

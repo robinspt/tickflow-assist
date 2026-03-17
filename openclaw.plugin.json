@@ -65,7 +65,7 @@
       },
       "alertTarget": {
         "type": "string",
-        "description": "Channel target, e.g. Telegram chat ID, qqbot:c2c:OPENID, or WeCom chatId",
+        "description": "Channel target, e.g. Telegram chat ID, qqbot:c2c:OPENID, or WeCom userId/chatId",
         "default": ""
       },
       "pythonBin": {

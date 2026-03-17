@@ -114,7 +114,7 @@ alert_target_hint() {
   case "$1" in
     telegram) printf '%s' "Telegram群组ID / 会话ID" ;;
     qqbot) printf '%s' "qqbot:c2c:OPENID" ;;
-    wecom) printf '%s' "企业微信 chatId" ;;
+    wecom) printf '%s' "企业微信 userId（单聊）/ chatId 或群 ID（群聊）" ;;
     *) printf '%s' "OpenClaw target" ;;
   esac
 }

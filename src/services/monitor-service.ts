@@ -12,6 +12,7 @@ import { KeyLevelsRepository } from "../storage/repositories/key-levels-repo.js"
 import { AlertLogRepository } from "../storage/repositories/alert-log-repo.js";
 import { KlinesRepository } from "../storage/repositories/klines-repo.js";
 import { AlertService } from "./alert-service.js";
+import type { TradingPhase } from "./trading-calendar-service.js";
 
 const DEFAULT_STATE: MonitorState = {
   running: false,
@@ -22,6 +23,10 @@ const DEFAULT_STATE: MonitorState = {
   expectedStop: false,
   runtimeHost: null,
   runtimeObservedAt: null,
+  lastObservedPhase: null,
+  lastObservedPhaseDate: null,
+  sessionNotificationsDate: null,
+  sessionNotificationsSent: [],
 };
 
 export class MonitorService {
@@ -47,6 +52,7 @@ export class MonitorService {
     const state = await this.readState();
     if (!state.running) {
       await this.writeState({
+        ...state,
         running: true,
         startedAt: formatChinaDateTime(),
         lastStoppedAt: state.lastStoppedAt,
@@ -81,6 +87,7 @@ export class MonitorService {
     }
 
     await this.writeState({
+      ...state,
       running: false,
       startedAt: null,
       lastStoppedAt: formatChinaDateTime(),
@@ -133,18 +140,18 @@ export class MonitorService {
 
   async runMonitorOnce(): Promise<number> {
     const phase = await this.tradingCalendarService.getTradingPhase();
+    let alertCount = await this.maybeSendSessionNotification(phase);
     if (phase !== "trading") {
-      return 0;
+      return alertCount;
     }
 
     const watchlist = await this.watchlistService.list();
     if (watchlist.length === 0) {
-      return 0;
+      return alertCount;
     }
 
     const quotes = await this.quoteService.fetchQuotes(watchlist.map((item) => item.symbol));
     const quoteMap = new Map(quotes.map((quote) => [quote.symbol, quote]));
-    let alertCount = 0;
 
     for (const item of watchlist) {
       const quote = quoteMap.get(item.symbol);
@@ -173,6 +180,44 @@ export class MonitorService {
     }
 
     return alertCount;
+  }
+
+  private async maybeSendSessionNotification(phase: TradingPhase): Promise<number> {
+    const now = formatChinaDateTime();
+    const today = now.slice(0, 10);
+    const hhmm = now.slice(11, 16);
+    const state = await this.readState();
+    const previousPhase = state.lastObservedPhaseDate === today ? state.lastObservedPhase : null;
+    const sent = state.sessionNotificationsDate === today ? state.sessionNotificationsSent : [];
+    const nextState: MonitorState = {
+      ...state,
+      lastObservedPhase: phase,
+      lastObservedPhaseDate: today,
+      sessionNotificationsDate: today,
+      sessionNotificationsSent: [...sent],
+    };
+
+    const event = resolveSessionNotification(previousPhase, phase, hhmm, nextState.sessionNotificationsSent);
+    if (!event) {
+      await this.writeState(nextState);
+      return 0;
+    }
+
+    const watchlistCount = (await this.watchlistService.list()).length;
+    const ok = await this.alertService.send(
+      this.alertService.formatSystemNotification(event.title, [
+        `时间: ${now}`,
+        `阶段: ${event.phaseText}`,
+        `关注列表: ${watchlistCount}只`,
+      ]),
+    );
+
+    if (ok) {
+      nextState.sessionNotificationsSent.push(event.id);
+    }
+
+    await this.writeState(nextState);
+    return ok ? 1 : 0;
   }
 
   private async buildQuoteLines(watchlist: WatchlistItem[]): Promise<string[]> {
@@ -407,6 +452,83 @@ function getSessionKey(): string {
   const date = current.slice(0, 10);
   const hhmm = current.slice(11, 16);
   return hhmm < "13:00" ? `${date}_AM` : `${date}_PM`;
+}
+
+type SessionNotificationId =
+  | "morning_start"
+  | "morning_end"
+  | "afternoon_start"
+  | "day_end";
+
+interface SessionNotification {
+  id: SessionNotificationId;
+  title: string;
+  phaseText: string;
+}
+
+function resolveSessionNotification(
+  previousPhase: TradingPhase | null,
+  currentPhase: TradingPhase,
+  hhmm: string,
+  sent: string[],
+): SessionNotification | null {
+  const hasSent = (id: SessionNotificationId) => sent.includes(id);
+
+  if (
+    !hasSent("morning_start")
+    && currentPhase === "trading"
+    && hhmm <= "11:30"
+    && ((previousPhase === "pre_market") || isWithinWindow(hhmm, "09:30", "09:40"))
+  ) {
+    return {
+      id: "morning_start",
+      title: "🔔 开始上午盯盘",
+      phaseText: "上午盘开盘",
+    };
+  }
+
+  if (
+    !hasSent("morning_end")
+    && currentPhase === "lunch_break"
+    && ((previousPhase === "trading") || isWithinWindow(hhmm, "11:30", "11:40"))
+  ) {
+    return {
+      id: "morning_end",
+      title: "🔔 上午盯盘结束",
+      phaseText: "上午盘收盘",
+    };
+  }
+
+  if (
+    !hasSent("afternoon_start")
+    && currentPhase === "trading"
+    && hhmm >= "13:00"
+    && ((previousPhase === "lunch_break") || isWithinWindow(hhmm, "13:00", "13:10"))
+  ) {
+    return {
+      id: "afternoon_start",
+      title: "🔔 开始下午盯盘",
+      phaseText: "下午盘开盘",
+    };
+  }
+
+  if (
+    !hasSent("day_end")
+    && currentPhase === "closed"
+    && ((previousPhase === "trading") || isWithinWindow(hhmm, "15:00", "15:10"))
+  ) {
+    return {
+      id: "day_end",
+      title: "🔔 今日盯盘结束",
+      phaseText: "今日收盘",
+    };
+  }
+
+  return null;
+}
+
+function isWithinWindow(value: string, start: string, end: string): boolean {
+  return value >= start && value <= end;
 }
 
 function buildPriceAlerts(

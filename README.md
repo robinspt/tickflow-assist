@@ -68,6 +68,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 
 - 实时监控交易时段：`09:30-11:30`、`13:00-15:00`
 - 支持止损、突破、支撑、压力、止盈、涨跌幅、成交量等规则
+- 盯盘阶段通知：上午开盘、上午结束、下午开盘、当日收盘自动推送
 - 通过 OpenClaw CLI 投递 Telegram、QQBot、WeCom 等通道
 
 ### 数据落库
