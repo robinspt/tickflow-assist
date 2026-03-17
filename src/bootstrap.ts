@@ -197,9 +197,7 @@ export function createAppContext(
         id: "tickflow-assist.realtime-monitor",
         description: "Run realtime market checks on the configured interval while monitor state is enabled.",
         start: async ({ signal }) => {
-          await monitorService.markRuntimeHost("plugin_service");
-          await monitorService.setWorkerPid(null);
-          await monitorService.setExpectedStop(false);
+          await monitorService.bindManagedServiceRuntime();
           await realtimeMonitorWorker.runLoop(signal, "plugin_service");
         },
       },

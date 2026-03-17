@@ -10,19 +10,32 @@ export function startMonitorTool(
     name: "start_monitor",
     description: "Start logical monitor state and return startup summary.",
     async run(): Promise<string> {
+      if (runtime.pluginManagedServices) {
+        const result = await monitorService.enableManagedLoop();
+        if (!result.started) {
+          return await monitorService.getStatusReport();
+        }
+
+        return [
+          "✅ TickFlow 实时监控已启动",
+          "运行方式: plugin_service",
+          `轮询间隔: 由后台服务管理`,
+          "说明: 后台服务按配置间隔轮询，交易时段自动执行监控",
+        ].join("\n");
+      }
+
       const currentState = await monitorService.getState();
       if (
         currentState.running
-        && (runtime.pluginManagedServices || (currentState.workerPid != null && isPidAlive(currentState.workerPid)))
+        && currentState.workerPid != null
+        && isPidAlive(currentState.workerPid)
       ) {
         return await monitorService.getStatusReport();
       }
 
       const summary = await monitorService.start();
-      if (!runtime.pluginManagedServices) {
-        const workerPid = spawnMonitorLoop();
-        await monitorService.setWorkerPid(workerPid);
-      }
+      const workerPid = spawnMonitorLoop();
+      await monitorService.setWorkerPid(workerPid);
       return summary;
     },
   };

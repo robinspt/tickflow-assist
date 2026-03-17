@@ -108,6 +108,50 @@ export class MonitorService {
     ].join("\n");
   }
 
+  async enableManagedLoop(): Promise<{ started: boolean }> {
+    const state = await this.readState();
+    const watchlist = await this.watchlistService.list();
+    if (watchlist.length === 0) {
+      throw new Error("关注列表为空，无法启动监控");
+    }
+
+    const now = formatChinaDateTime();
+    await this.writeState({
+      ...state,
+      running: true,
+      startedAt: state.startedAt ?? now,
+      workerPid: null,
+      expectedStop: false,
+      runtimeHost: "plugin_service",
+      runtimeObservedAt: now,
+    });
+    return { started: !state.running };
+  }
+
+  async bindManagedServiceRuntime(): Promise<void> {
+    const state = await this.readState();
+    const now = formatChinaDateTime();
+    await this.writeState({
+      ...state,
+      workerPid: null,
+      expectedStop: false,
+      runtimeHost: "plugin_service",
+      runtimeObservedAt: now,
+    });
+  }
+
+  async markStopped(): Promise<void> {
+    const state = await this.readState();
+    await this.writeState({
+      ...state,
+      running: false,
+      startedAt: null,
+      lastStoppedAt: formatChinaDateTime(),
+      workerPid: null,
+      expectedStop: false,
+    });
+  }
+
   async getStatusReport(): Promise<string> {
     const [state, watchlist, phase] = await Promise.all([
       this.readState(),
@@ -327,16 +371,16 @@ export class MonitorService {
     });
   }
 
-  async markRuntimeHost(runtimeHost: "plugin_service" | "fallback_process"): Promise<void> {
+  async recordHeartbeat(
+    runtimeHost?: "plugin_service" | "fallback_process",
+  ): Promise<void> {
     const state = await this.readState();
     const now = formatChinaDateTime();
     await this.writeState({
       ...state,
-      runtimeHost,
-      runtimeObservedAt: now,
       lastHeartbeatAt: now,
-      lastLoopError: null,
-      lastLoopErrorAt: null,
+      runtimeHost: runtimeHost ?? state.runtimeHost,
+      runtimeObservedAt: now,
     });
   }
 

@@ -8,8 +8,20 @@ export function stopMonitorTool(
     name: "stop_monitor",
     description: "Stop logical monitor state and return stop summary.",
     async run(): Promise<string> {
+      if (runtime.pluginManagedServices) {
+        const wasRunning = (await monitorService.getState()).running;
+        await monitorService.markStopped();
+        if (!wasRunning) {
+          return "✅ TickFlow 实时监控已停止";
+        }
+        return [
+          "🛑 TickFlow 实时监控已停止",
+          "运行方式: plugin_service（后台服务循环仍在，但不再执行监控）",
+        ].join("\n");
+      }
+
       const state = await monitorService.getState();
-      const shouldSignalWorker = !runtime.pluginManagedServices && state.workerPid && isPidAlive(state.workerPid);
+      const shouldSignalWorker = state.workerPid != null && isPidAlive(state.workerPid);
       if (shouldSignalWorker) {
         await monitorService.setExpectedStop(true);
       }

@@ -15,7 +15,7 @@ async function main(): Promise<void> {
   const alertService = app.services.alertService;
   const monitorService = app.services.monitorService;
 
-  await monitorService.markRuntimeHost("fallback_process");
+  await monitorService.recordHeartbeat("fallback_process");
   await monitorService.setWorkerPid(process.pid);
 
   process.stdout.write(`TickFlow monitor loop started, interval=${config.requestInterval}s\n`);
