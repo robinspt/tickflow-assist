@@ -8,6 +8,14 @@
 - JS/TS 负责主业务流程
 - Python 仅保留技术指标计算
 
+## 📝 更新日志
+
+**项目仍在前期功能快速迭代中，请定期更新。**
+
+### 2026-03-17
+
+- 解决后台循环失败问题，统一由单一托管 service 并行管理日更与实时监控任务，避免部分循环未被正常启动。
+
 ## ✨ 功能特点
 
 - 自选股管理：添加、删除、查看、刷新名称
@@ -38,17 +46,23 @@
 
 ## ⚡ 一键安装
 
-如果你已经安装了 `git`、`node`、`npm`、`uv`、`openclaw` 与 `jq`，可以直接运行一键安装向导：
+如果你已经安装了 `git`、`node`、`npm`、`uv`、`openclaw` 与 `jq`，可以直接运行安装管理脚本：
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist/main/setup-tickflow.sh)"
 ```
 
-安装向导会自动：
+脚本启动后会先展示当前依赖与项目状态，然后可按菜单选择：
+
+- 新安装
+- 升级
+- 卸载
+
+其中新安装与升级流程会自动：
 
 - 拉取或更新源码
 - 安装依赖并构建
-- 收集 TickFlow / LLM / 告警通道配置
+- 收集或复用 TickFlow / LLM / 告警通道配置
 - 写入 `local.config.json` 与 `~/.openclaw/openclaw.json`
 - 安装并启用 OpenClaw 插件
 - 重启 OpenClaw Gateway
@@ -56,8 +70,6 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 如果项目目录里已经有 `local.config.json`，向导会优先沿用已有配置，避免重复安装时把本地调试参数覆盖回默认值。完整安装说明见 [docs/installation.md](docs/installation.md)。
 
 ## 🔄 更新方式
-
-**项目仍在前期功能快速迭代中，请定期更新。**
 
 如果你已经完成安装，后续建议定期在项目目录执行以下命令，同步最新代码与构建结果：
 
@@ -103,12 +115,6 @@ cd ..
 | `key_levels` | 关键价位与评分 |
 | `analysis_log` | 分析日志 |
 | `alert_log` | 告警日志 |
-
-## 📝 Changelog
-
-### 2026-03-17
-
-- 解决后台循环失败问题，统一由单一托管 service 并行管理日更与实时监控任务，避免部分循环未被正常启动。
 
 ## 🧩 支持的 Claw
 
