@@ -114,11 +114,12 @@ export class MonitorService {
 
     const lines = [
       "📊 监控状态",
-      `状态: ${state.running ? formatRunningState(state) : "⭕ 未启动"}`,
+      `状态: ${state.running ? formatRunningState(state, this.requestInterval) : "⭕ 未启动"}`,
       `运行方式: ${formatRuntimeHost(state)}`,
       `交易时段: ${formatTradingPhase(phase)}`,
       `轮询间隔: ${this.requestInterval} 秒`,
       `告警通道: ${this.alertChannel}`,
+      `最近心跳: ${formatMonitorHeartbeat(state, this.requestInterval)}`,
       await this.buildAlertLine(),
     ];
 
@@ -380,13 +381,72 @@ interface AlertCandidate {
   message: string;
 }
 
-function formatRunningState(state: MonitorState): string {
-  if (!state.startedAt) {
-    return state.workerPid ? `✅ 运行中 (PID=${state.workerPid})` : "✅ 运行中";
+function formatRunningState(state: MonitorState, requestInterval: number): string {
+  const heartbeat = getHeartbeatStatus(state, requestInterval);
+  const base = !state.startedAt
+    ? state.workerPid ? `✅ 运行中 (PID=${state.workerPid})` : "✅ 运行中"
+    : state.workerPid
+      ? `✅ 运行中 (PID=${state.workerPid}, 启动于 ${state.startedAt})`
+      : `✅ 运行中 (启动于 ${state.startedAt})`;
+
+  if (heartbeat.isStale) {
+    return `${base} ⚠️ 心跳超时`;
   }
-  return state.workerPid
-    ? `✅ 运行中 (PID=${state.workerPid}, 启动于 ${state.startedAt})`
-    : `✅ 运行中 (启动于 ${state.startedAt})`;
+
+  return base;
+}
+
+function formatMonitorHeartbeat(state: MonitorState, requestInterval: number): string {
+  const heartbeat = getHeartbeatStatus(state, requestInterval);
+  if (!heartbeat.observedAt) {
+    return "暂无";
+  }
+  if (heartbeat.isStale) {
+    return `${heartbeat.observedAt}（已超时 ${heartbeat.staleSeconds} 秒）`;
+  }
+  return heartbeat.observedAt;
+}
+
+function getHeartbeatStatus(
+  state: MonitorState,
+  requestInterval: number,
+): { observedAt: string | null; isStale: boolean; staleSeconds: number } {
+  const observedAt = state.runtimeObservedAt;
+  if (!observedAt || !state.running) {
+    return { observedAt, isStale: false, staleSeconds: 0 };
+  }
+
+  const observedMs = parseChinaDateTime(observedAt);
+  if (observedMs == null) {
+    return { observedAt, isStale: false, staleSeconds: 0 };
+  }
+
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - observedMs) / 1000));
+  const staleThresholdSeconds = Math.max(requestInterval * 3, 90);
+  return {
+    observedAt,
+    isStale: diffSeconds > staleThresholdSeconds,
+    staleSeconds: diffSeconds,
+  };
+}
+
+function parseChinaDateTime(value: string): number | null {
+  const match = value.match(
+    /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/,
+  );
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day, hour, minute, second] = match;
+  return Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour) - 8,
+    Number(minute),
+    Number(second),
+  );
 }
 
 function formatRuntimeHost(state: MonitorState): string {
