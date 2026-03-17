@@ -23,6 +23,9 @@ const DEFAULT_STATE: MonitorState = {
   expectedStop: false,
   runtimeHost: null,
   runtimeObservedAt: null,
+  lastHeartbeatAt: null,
+  lastLoopError: null,
+  lastLoopErrorAt: null,
   lastObservedPhase: null,
   lastObservedPhaseDate: null,
   sessionNotificationsDate: null,
@@ -122,6 +125,10 @@ export class MonitorService {
       `最近心跳: ${formatMonitorHeartbeat(state, this.requestInterval)}`,
       await this.buildAlertLine(),
     ];
+
+    if (state.lastLoopError) {
+      lines.push(`最近异常: ${state.lastLoopErrorAt ?? "未知时间"} | ${state.lastLoopError}`);
+    }
 
     lines.push("", `关注列表（${watchlist.length}只）:`);
     if (watchlist.length === 0) {
@@ -322,10 +329,24 @@ export class MonitorService {
 
   async markRuntimeHost(runtimeHost: "plugin_service" | "fallback_process"): Promise<void> {
     const state = await this.readState();
+    const now = formatChinaDateTime();
     await this.writeState({
       ...state,
       runtimeHost,
-      runtimeObservedAt: formatChinaDateTime(),
+      runtimeObservedAt: now,
+      lastHeartbeatAt: now,
+      lastLoopError: null,
+      lastLoopErrorAt: null,
+    });
+  }
+
+  async recordLoopError(error: unknown): Promise<void> {
+    const state = await this.readState();
+    const message = error instanceof Error ? error.message : String(error);
+    await this.writeState({
+      ...state,
+      lastLoopError: message,
+      lastLoopErrorAt: formatChinaDateTime(),
     });
   }
 
@@ -398,33 +419,35 @@ function formatRunningState(state: MonitorState, requestInterval: number): strin
 
 function formatMonitorHeartbeat(state: MonitorState, requestInterval: number): string {
   const heartbeat = getHeartbeatStatus(state, requestInterval);
-  if (!heartbeat.observedAt) {
+  if (!heartbeat.heartbeatAt) {
     return "暂无";
   }
   if (heartbeat.isStale) {
-    return `${heartbeat.observedAt}（已超时 ${heartbeat.staleSeconds} 秒）`;
+    return `${heartbeat.heartbeatAt}（已超时 ${heartbeat.staleSeconds} 秒）`;
   }
-  return heartbeat.observedAt;
+  return heartbeat.heartbeatAt;
 }
 
 function getHeartbeatStatus(
   state: MonitorState,
   requestInterval: number,
-): { observedAt: string | null; isStale: boolean; staleSeconds: number } {
+): { observedAt: string | null; heartbeatAt: string | null; isStale: boolean; staleSeconds: number } {
   const observedAt = state.runtimeObservedAt;
-  if (!observedAt || !state.running) {
-    return { observedAt, isStale: false, staleSeconds: 0 };
+  const heartbeatAt = state.lastHeartbeatAt ?? observedAt;
+  if (!heartbeatAt || !state.running) {
+    return { observedAt, heartbeatAt, isStale: false, staleSeconds: 0 };
   }
 
-  const observedMs = parseChinaDateTime(observedAt);
+  const observedMs = parseChinaDateTime(heartbeatAt);
   if (observedMs == null) {
-    return { observedAt, isStale: false, staleSeconds: 0 };
+    return { observedAt, heartbeatAt, isStale: false, staleSeconds: 0 };
   }
 
   const diffSeconds = Math.max(0, Math.floor((Date.now() - observedMs) / 1000));
   const staleThresholdSeconds = Math.max(requestInterval * 3, 90);
   return {
     observedAt,
+    heartbeatAt,
     isStale: diffSeconds > staleThresholdSeconds,
     staleSeconds: diffSeconds,
   };

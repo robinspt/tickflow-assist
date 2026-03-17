@@ -19,10 +19,14 @@ export class RealtimeMonitorWorker {
     runtimeHost?: "plugin_service" | "fallback_process",
   ): Promise<void> {
     while (!signal?.aborted) {
-      if (runtimeHost) {
-        await this.monitorService.markRuntimeHost(runtimeHost);
+      try {
+        if (runtimeHost) {
+          await this.monitorService.markRuntimeHost(runtimeHost);
+        }
+        await this.runOnce();
+      } catch (error) {
+        await this.monitorService.recordLoopError(error);
       }
-      await this.runOnce();
       await new Promise((resolve) => setTimeout(resolve, this.intervalMs));
     }
   }
