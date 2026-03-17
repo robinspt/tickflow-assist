@@ -58,6 +58,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 - 升级
 - 卸载
 
+如果脚本检测到已有 OpenClaw 插件配置，会优先复用现有项目目录，而不是要求你重新按固定目录安装。
+
 其中新安装与升级流程会自动：
 
 - 拉取或更新源码
@@ -140,7 +142,6 @@ tickflow-assist/
 - [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 提供行情数据服务与 API 支持
 - [OpenClaw](https://openclaw.ai) 提供插件运行、对话通道与工具编排能力
 - [sliverp/qqbot](https://github.com/sliverp/qqbot) 提供 QQ 机器人通道接入
-- [WecomTeam/wecom-openclaw-plugin](https://github.com/WecomTeam/wecom-openclaw-plugin) 提供企业微信通道接入
 - [CortexReach/memory-lancedb-pro](https://github.com/CortexReach/memory-lancedb-pro) 给你的 OpenClaw Agent 提供持久化、智能化的长期记忆
 
 ## 📄 License

@@ -133,6 +133,89 @@ alert_target_hint() {
   esac
 }
 
+parent_dir() {
+  local path="$1"
+  dirname "$path"
+}
+
+candidate_dir_from_config_path() {
+  local raw_path="$1"
+  local parent=""
+  local grandparent=""
+
+  [[ -z "$raw_path" ]] && return 1
+
+  case "$raw_path" in
+    */data/lancedb)
+      parent=$(parent_dir "$raw_path")
+      grandparent=$(parent_dir "$parent")
+      printf '%s\n' "$grandparent"
+      return 0
+      ;;
+    */day_future.txt)
+      parent=$(parent_dir "$raw_path")
+      printf '%s\n' "$parent"
+      return 0
+      ;;
+    */python)
+      parent=$(parent_dir "$raw_path")
+      printf '%s\n' "$parent"
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+detect_plugin_dir_from_openclaw_config() {
+  local candidate=""
+  local value=""
+
+  if [[ ! -f "$OPENCLAW_JSON" ]] || ! command_installed jq; then
+    return 1
+  fi
+
+  for query in \
+    '.plugins.entries["tickflow-assist"].config.databasePath' \
+    '.plugins.entries["tickflow-assist"].config.calendarFile' \
+    '.plugins.entries["tickflow-assist"].config.pythonWorkdir'
+  do
+    value=$(read_json_value "$OPENCLAW_JSON" "$query")
+    candidate=$(candidate_dir_from_config_path "$value" || true)
+    if [[ -n "$candidate" ]] && is_plugin_source_dir "$candidate"; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+detect_plugin_dir_from_openclaw_cli() {
+  local info_output=""
+  local candidate=""
+
+  if ! command_installed openclaw; then
+    return 1
+  fi
+
+  info_output=$(openclaw plugins info "$PLUGIN_ID" 2>/dev/null || true)
+  [[ -z "$info_output" ]] && return 1
+
+  while IFS= read -r candidate; do
+    [[ -z "$candidate" ]] && continue
+    if [[ -f "$candidate" ]] && [[ "$(basename "$candidate")" == "openclaw.plugin.json" ]]; then
+      candidate=$(parent_dir "$candidate")
+    fi
+    if is_plugin_source_dir "$candidate"; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done < <(printf '%s\n' "$info_output" | grep -Eo '/[^[:space:]"]+' | sed 's/[),:]$//' | awk '!seen[$0]++')
+
+  return 1
+}
+
 if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 else
@@ -141,8 +224,12 @@ fi
 
 if is_plugin_source_dir "$SCRIPT_DIR"; then
   DEFAULT_PLUGIN_DIR="$SCRIPT_DIR"
+elif DETECTED_PLUGIN_DIR="$(detect_plugin_dir_from_openclaw_config)"; then
+  DEFAULT_PLUGIN_DIR="$DETECTED_PLUGIN_DIR"
+elif DETECTED_PLUGIN_DIR="$(detect_plugin_dir_from_openclaw_cli)"; then
+  DEFAULT_PLUGIN_DIR="$DETECTED_PLUGIN_DIR"
 else
-  DEFAULT_PLUGIN_DIR="$HOME/projects/tickflow-assist"
+  DEFAULT_PLUGIN_DIR="$HOME/tickflow-assist"
 fi
 
 PLUGIN_DIR="$DEFAULT_PLUGIN_DIR"

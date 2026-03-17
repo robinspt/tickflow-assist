@@ -42,7 +42,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 正式使用时，推荐把项目源码放在普通项目目录，例如：
 
 ```bash
-~/projects/tickflow-assist
+~/tickflow-assist
 ```
 
 不建议把源码放到 `~/.openclaw/workspace/...` 下面，原因是：
@@ -54,8 +54,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 首次部署建议：
 
 ```bash
-mkdir -p ~/projects
-cd ~/projects
+cd ~
 git clone https://github.com/robinspt/tickflow-assist.git
 cd tickflow-assist
 ```
