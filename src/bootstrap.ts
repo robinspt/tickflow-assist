@@ -4,6 +4,7 @@ import { InstrumentService } from "./services/instrument-service.js";
 import { KlineService } from "./services/kline-service.js";
 import { IndicatorService } from "./services/indicator-service.js";
 import { FinancialService } from "./services/financial-service.js";
+import { FinancialLiteService } from "./services/financial-lite-service.js";
 import { MxApiService } from "./services/mx-search-service.js";
 import { Database } from "./storage/db.js";
 import { WatchlistRepository } from "./storage/repositories/watchlist-repo.js";
@@ -31,6 +32,7 @@ import { FinancialAnalysisProvider } from "./analysis/providers/financial-analys
 import { NewsAnalysisProvider } from "./analysis/providers/news-analysis.provider.js";
 import { KlineTechnicalSignalTask } from "./analysis/tasks/kline-technical-signal.task.js";
 import { FinancialFundamentalTask } from "./analysis/tasks/financial-fundamental.task.js";
+import { FinancialFundamentalLiteTask } from "./analysis/tasks/financial-fundamental-lite.task.js";
 import { NewsCatalystTask } from "./analysis/tasks/news-catalyst.task.js";
 import { CompositeStockAnalysisTask } from "./analysis/tasks/composite-stock-analysis.task.js";
 import { addStockTool } from "./tools/add-stock.tool.js";
@@ -105,6 +107,7 @@ export function createAppContext(
   const quoteService = new QuoteService(tickflowClient);
   const financialService = new FinancialService(tickflowClient);
   const mxApiService = new MxApiService(config.mxSearchApiUrl, config.mxSearchApiKey);
+  const financialLiteService = new FinancialLiteService(mxApiService);
   const tradingCalendarService = new TradingCalendarService(config.calendarFile);
   const alertService = new AlertService(
     config.openclawCliBin,
@@ -143,10 +146,15 @@ export function createAppContext(
     intradayKlinesRepository,
     indicatorsRepository,
   );
-  const financialAnalysisProvider = new FinancialAnalysisProvider(financialService);
+  const financialAnalysisProvider = new FinancialAnalysisProvider(
+    config.tickflowApiKeyLevel,
+    financialService,
+    financialLiteService,
+  );
   const newsAnalysisProvider = new NewsAnalysisProvider(mxApiService);
   const klineTechnicalSignalTask = new KlineTechnicalSignalTask();
   const financialFundamentalTask = new FinancialFundamentalTask();
+  const financialFundamentalLiteTask = new FinancialFundamentalLiteTask();
   const newsCatalystTask = new NewsCatalystTask();
   const compositeStockAnalysisTask = new CompositeStockAnalysisTask(
     keyLevelsRepository,
@@ -159,6 +167,7 @@ export function createAppContext(
     newsAnalysisProvider,
     klineTechnicalSignalTask,
     financialFundamentalTask,
+    financialFundamentalLiteTask,
     newsCatalystTask,
     compositeStockAnalysisTask,
     technicalAnalysisRepository,

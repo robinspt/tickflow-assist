@@ -150,7 +150,7 @@ npm run daily-update-loop
 - `update_all` 在收盘后执行时，会同时更新日K、日线指标和当日 `1m` 分钟K
 - `start_daily_update` 启动的是项目自管 detached 进程，如果运行环境未托管插件服务，则不再依赖 OpenClaw 的 `tickflow-assist.managed-loop` 后台服务
 - `npm run daily-update-loop` 可用于手工前台运行日更轮询，便于配合 `tmux`、`systemd --user` 或其它进程管理器排查
-- `analyze` 会读取本地日K和日线指标，临时拉取当日全部分钟K、计算分钟指标、获取实时行情，并补充最新财务数据与资讯检索结果，再走固定流水线综合分析
+- `analyze` 会读取本地日K和日线指标，临时拉取当日全部分钟K、计算分钟指标、获取实时行情，并补充最新财务数据与资讯检索结果，再走固定流水线综合分析；其中基本面部分在 `Expert` 级别下使用 TickFlow 完整财务数据，在非 `Expert` 级别下会回退到 `mx_select_stock` 的 lite 指标拖底模式
 - `view_analysis` 默认返回最近一次综合分析；可通过 `profile=technical|financial|news|all` 查看各维度结果，并可通过 `limit` / `count` 查看最近 N 次
 - `mx_search` 与 `mx_select_stock` 默认读取 `plugin.mxSearchApiUrl` 作为妙想接口基础地址，默认值为 `https://mkapi2.dfcfs.com/finskillshub/api/claw`
 - `mx_search` 与 `mx_select_stock` 默认读取 `plugin.mxSearchApiKey`；如果未配置，则会回退读取环境变量 `MX_APIKEY`

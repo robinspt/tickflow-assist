@@ -3,6 +3,9 @@ import type { IndicatorRow } from "../../types/indicator.js";
 import type { FinancialSnapshot } from "../../services/financial-service.js";
 import type { MxSearchDocument } from "../../types/mx-search.js";
 import type { TickFlowIntradayKlineRow, TickFlowKlineRow, TickFlowQuote } from "../../types/tickflow.js";
+import type { FinancialLiteSnapshot } from "../../services/financial-lite-service.js";
+
+export type FinancialAnalysisMode = "full" | "lite" | "none";
 
 export interface MarketAnalysisContext {
   symbol: string;
@@ -18,8 +21,12 @@ export interface MarketAnalysisContext {
 export interface FinancialAnalysisContext {
   symbol: string;
   companyName: string;
+  mode: FinancialAnalysisMode;
+  source: "tickflow" | "mx_select_stock" | "none";
   snapshot: FinancialSnapshot | null;
+  liteSnapshot: FinancialLiteSnapshot | null;
   available: boolean;
+  note: string | null;
 }
 
 export interface NewsAnalysisContext {

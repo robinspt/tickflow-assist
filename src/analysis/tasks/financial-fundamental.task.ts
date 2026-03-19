@@ -20,7 +20,7 @@ export class FinancialFundamentalTask
   readonly taskName = "financial_fundamental";
 
   prepare(input: FinancialAnalysisContext): { systemPrompt: string; userPrompt: string } {
-    if (!input.snapshot) {
+    if (input.mode !== "full" || !input.snapshot) {
       throw new Error(`没有找到 ${input.symbol} 的财务数据`);
     }
 
@@ -35,15 +35,7 @@ export class FinancialFundamentalTask
   }
 
   parseResult(analysisText: string): FinancialInsightResult {
-    const parsed = parseJsonBlock<FinancialInsightJson>(analysisText);
-    return {
-      analysisText: analysisText.trim(),
-      score: normalizeScore(parsed?.score),
-      bias: normalizeBias(parsed?.bias),
-      strengths: normalizeStringList(parsed?.strengths),
-      risks: normalizeStringList(parsed?.risks),
-      watchItems: normalizeStringList(parsed?.watch_items),
-    };
+    return parseFinancialInsightResult(analysisText);
   }
 }
 
@@ -55,6 +47,18 @@ export function buildFinancialFallbackResult(): FinancialInsightResult {
     strengths: [],
     risks: [],
     watchItems: [],
+  };
+}
+
+export function parseFinancialInsightResult(analysisText: string): FinancialInsightResult {
+  const parsed = parseJsonBlock<FinancialInsightJson>(analysisText);
+  return {
+    analysisText: analysisText.trim(),
+    score: normalizeScore(parsed?.score),
+    bias: normalizeBias(parsed?.bias),
+    strengths: normalizeStringList(parsed?.strengths),
+    risks: normalizeStringList(parsed?.risks),
+    watchItems: normalizeStringList(parsed?.watch_items),
   };
 }
 

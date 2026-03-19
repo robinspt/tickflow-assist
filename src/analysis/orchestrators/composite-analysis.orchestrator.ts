@@ -1,4 +1,5 @@
 import { AnalysisService } from "../../services/analysis-service.js";
+import type { FinancialLiteSnapshot } from "../../services/financial-lite-service.js";
 import {
   type AnalysisLevelsSnapshot,
   type CompositeAnalysisEntry,
@@ -20,11 +21,13 @@ import {
   FinancialFundamentalTask,
   buildFinancialFallbackResult,
 } from "../tasks/financial-fundamental.task.js";
+import { FinancialFundamentalLiteTask } from "../tasks/financial-fundamental-lite.task.js";
 import { KlineTechnicalSignalTask } from "../tasks/kline-technical-signal.task.js";
 import { NewsCatalystTask, buildNewsFallbackResult } from "../tasks/news-catalyst.task.js";
 import type { AnalysisStepTask } from "../tasks/analysis-step-task.js";
 import type {
   CompositeAnalysisResult,
+  FinancialAnalysisContext,
   FinancialInsightResult,
   NewsInsightResult,
   TechnicalSignalResult,
@@ -38,6 +41,7 @@ export class CompositeAnalysisOrchestrator {
     private readonly newsProvider: NewsAnalysisProvider,
     private readonly technicalTask: KlineTechnicalSignalTask,
     private readonly financialTask: FinancialFundamentalTask,
+    private readonly financialLiteTask: FinancialFundamentalLiteTask,
     private readonly newsTask: NewsCatalystTask,
     private readonly compositeTask: CompositeStockAnalysisTask,
     private readonly technicalAnalysisRepository: TechnicalAnalysisRepository,
@@ -55,7 +59,9 @@ export class CompositeAnalysisOrchestrator {
 
     const technicalPromise = this.runStep(this.technicalTask, market);
     const financialPromise = financial.available
-      ? this.runStep(this.financialTask, financial)
+      ? financial.mode === "lite"
+        ? this.runStep(this.financialLiteTask, financial)
+        : this.runStep(this.financialTask, financial)
       : Promise.resolve(buildFinancialFallbackResult());
     const newsPromise = news.available
       ? this.runStep(this.newsTask, news)
@@ -128,10 +134,10 @@ function buildTechnicalAnalysisEntry(
 
 function buildFinancialAnalysisEntry(
   analysisDate: string,
-  context: import("../types/composite-analysis.js").FinancialAnalysisContext,
+  context: FinancialAnalysisContext,
   result: FinancialInsightResult,
 ): FinancialAnalysisEntry {
-  const evidence = buildFinancialEvidence(context.snapshot, context.available);
+  const evidence = buildFinancialEvidence(context);
   return {
     symbol: context.symbol,
     analysis_date: analysisDate,
@@ -195,7 +201,10 @@ function buildCompositeAnalysisEntry(
     evidence: {
       technical_structured: input.technicalResult.levels != null,
       financial_available: input.financial.available,
+      financial_mode: input.financial.mode,
+      financial_source: input.financial.source,
       financial_latest_period_end: getLatestFinancialPeriodEnd(input.financial.snapshot),
+      financial_lite_as_of: input.financial.liteSnapshot?.asOf ?? null,
       news_available: input.news.available,
       news_query: input.news.query,
       news_source_count: input.news.documents.length,
@@ -203,16 +212,23 @@ function buildCompositeAnalysisEntry(
   };
 }
 
-function buildFinancialEvidence(snapshot: FinancialSnapshot | null, available: boolean) {
-  const latest = getLatestFinancialMeta(snapshot);
+function buildFinancialEvidence(context: FinancialAnalysisContext) {
+  const latest = getLatestFinancialMeta(context.snapshot);
   return {
-    available,
+    available: context.available,
+    mode: context.mode,
+    source: context.source,
+    note: context.note,
     latest_period_end: latest.periodEnd,
     latest_announce_date: latest.announceDate,
-    income_count: snapshot?.income.length ?? 0,
-    metrics_count: snapshot?.metrics.length ?? 0,
-    cash_flow_count: snapshot?.cashFlow.length ?? 0,
-    balance_sheet_count: snapshot?.balanceSheet.length ?? 0,
+    income_count: context.snapshot?.income.length ?? 0,
+    metrics_count: context.snapshot?.metrics.length ?? 0,
+    cash_flow_count: context.snapshot?.cashFlow.length ?? 0,
+    balance_sheet_count: context.snapshot?.balanceSheet.length ?? 0,
+    lite_as_of: context.liteSnapshot?.asOf ?? null,
+    lite_query: context.liteSnapshot?.query ?? null,
+    lite_metric_count: context.liteSnapshot?.metrics.length ?? 0,
+    lite_metric_labels: buildLiteMetricLabels(context.liteSnapshot),
   };
 }
 
@@ -245,6 +261,13 @@ function getLatestFinancialMeta(snapshot: FinancialSnapshot | null): {
 
 function getLatestFinancialPeriodEnd(snapshot: FinancialSnapshot | null): string | null {
   return getLatestFinancialMeta(snapshot).periodEnd;
+}
+
+function buildLiteMetricLabels(snapshot: FinancialLiteSnapshot | null): string[] {
+  if (!snapshot) {
+    return [];
+  }
+  return snapshot.metrics.map((metric) => metric.label).slice(0, 8);
 }
 
 function toLevelsSnapshot(

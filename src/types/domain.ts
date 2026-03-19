@@ -62,12 +62,19 @@ export interface TechnicalAnalysisEntry extends AnalysisLevelsSnapshot {
 
 export interface FinancialAnalysisEvidence {
   available: boolean;
+  mode?: "full" | "lite" | "none";
+  source?: "tickflow" | "mx_select_stock" | "none";
+  note?: string | null;
   latest_period_end: string | null;
   latest_announce_date: string | null;
   income_count: number;
   metrics_count: number;
   cash_flow_count: number;
   balance_sheet_count: number;
+  lite_as_of?: string | null;
+  lite_query?: string | null;
+  lite_metric_count?: number;
+  lite_metric_labels?: string[];
 }
 
 export interface FinancialAnalysisEntry {
@@ -112,7 +119,10 @@ export interface NewsAnalysisEntry {
 export interface CompositeAnalysisEvidence {
   technical_structured: boolean;
   financial_available: boolean;
+  financial_mode?: "full" | "lite" | "none";
+  financial_source?: "tickflow" | "mx_select_stock" | "none";
   financial_latest_period_end: string | null;
+  financial_lite_as_of?: string | null;
   news_available: boolean;
   news_query: string;
   news_source_count: number;

@@ -169,8 +169,15 @@ function formatCompositeEntry(symbol: string, entry: CompositeAnalysisEntry): st
     `财务倾向: ${renderBias(entry.financial_bias)}`,
     `资讯倾向: ${renderBias(entry.news_bias)}`,
   ];
+  if (entry.evidence.financial_mode && entry.evidence.financial_mode !== "none") {
+    lines.push(
+      `基本面模式: ${entry.evidence.financial_mode}${entry.evidence.financial_source ? ` | 来源=${entry.evidence.financial_source}` : ""}`,
+    );
+  }
   if (entry.evidence.financial_latest_period_end) {
     lines.push(`最新财报期: ${entry.evidence.financial_latest_period_end}`);
+  } else if (entry.evidence.financial_lite_as_of) {
+    lines.push(`指标日期: ${entry.evidence.financial_lite_as_of}`);
   }
   if (entry.evidence.news_query) {
     lines.push(`资讯检索: ${entry.evidence.news_query}`);
@@ -201,15 +208,34 @@ function formatFinancialEntry(symbol: string, entry: FinancialAnalysisEntry): st
     renderScoreLine("基本面评分", entry.score),
     `基本面倾向: ${renderBias(entry.bias)}`,
   ];
+  if (entry.evidence.mode && entry.evidence.mode !== "none") {
+    lines.push(
+      `分析模式: ${entry.evidence.mode}${entry.evidence.source ? ` | 来源=${entry.evidence.source}` : ""}`,
+    );
+  }
   if (entry.evidence.latest_period_end) {
     lines.push(`最新财报期: ${entry.evidence.latest_period_end}`);
+  } else if (entry.evidence.lite_as_of) {
+    lines.push(`指标日期: ${entry.evidence.lite_as_of}`);
   }
   if (entry.evidence.latest_announce_date) {
     lines.push(`公告日期: ${entry.evidence.latest_announce_date}`);
   }
-  lines.push(
-    `数据覆盖: income=${entry.evidence.income_count}, metrics=${entry.evidence.metrics_count}, cash_flow=${entry.evidence.cash_flow_count}, balance_sheet=${entry.evidence.balance_sheet_count}`,
-  );
+  if (entry.evidence.mode === "lite") {
+    lines.push(
+      `指标覆盖: ${entry.evidence.lite_metric_count ?? 0}${entry.evidence.lite_metric_labels && entry.evidence.lite_metric_labels.length > 0 ? ` | ${entry.evidence.lite_metric_labels.join(" / ")}` : ""}`,
+    );
+    if (entry.evidence.lite_query) {
+      lines.push(`拖底检索: ${entry.evidence.lite_query}`);
+    }
+  } else {
+    lines.push(
+      `数据覆盖: income=${entry.evidence.income_count}, metrics=${entry.evidence.metrics_count}, cash_flow=${entry.evidence.cash_flow_count}, balance_sheet=${entry.evidence.balance_sheet_count}`,
+    );
+  }
+  if (entry.evidence.note) {
+    lines.push(`备注: ${entry.evidence.note}`);
+  }
   lines.push(...renderStringSection("优势", entry.strengths));
   lines.push(...renderStringSection("风险", entry.risks));
   lines.push(...renderStringSection("关注点", entry.watch_items));

@@ -64,7 +64,7 @@ metadata:
 - 股票代码按用户原始输入提取，例如 `002261`。
 - 成本价对应 `costPrice`。
 - `add_stock` 默认会在添加成功后自动拉取日K并计算指标。
-- `analyze` 会读取本地日K和日线指标，临时补充当日分钟K、分钟指标、实时行情、最新财务数据与资讯检索结果，再走固定流水线综合分析。
+- `analyze` 会读取本地日K和日线指标，临时补充当日分钟K、分钟指标、实时行情、最新财务数据与资讯检索结果，再走固定流水线综合分析；其中基本面部分在 `Expert` 级别下优先使用 TickFlow 完整财报，在非 `Expert` 级别下回退为 `mx_select_stock` 的 lite 指标拖底模式。
 - `view_analysis` 默认查看最近一次综合分析；如用户明确提到“技术面 / 基本面 / 资讯面 / 全部分析”，应传入 `profile=technical|financial|news|all`；如用户提到“最近 N 次”或“历史”，应同时传入 `limit=N`（或 `count=N`）。
 - `update_all` 除了更新日K和日线指标，也会同步更新当日分钟K；本地分钟K默认仅保留近 10 个交易日。
 - `update_all` 是立即执行一次日更；`start_daily_update` / `stop_daily_update` 控制的是后台定时日更进程，两者不要混淆。
