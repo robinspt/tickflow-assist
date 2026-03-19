@@ -3,6 +3,8 @@
     "tickflowApiUrl": "https://api.tickflow.org",
     "tickflowApiKey": "your-tickflow-key",
     "tickflowApiKeyLevel": "Free",
+    "mxSearchApiUrl": "https://mkapi2.dfcfs.com/finskillshub/api/claw",
+    "mxSearchApiKey": "mkt_xxx",
     "llmBaseUrl": "https://api.openai.com/v1",
     "llmApiKey": "sk-xxx",
     "llmModel": "gpt-4o",

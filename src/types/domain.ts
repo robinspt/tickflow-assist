@@ -36,3 +36,97 @@ export interface AnalysisLogEntry {
   analysis_text: string;
   structured_ok: boolean;
 }
+
+export type AnalysisBias = "positive" | "neutral" | "negative";
+
+export interface AnalysisLevelsSnapshot {
+  current_price: number | null;
+  stop_loss: number | null;
+  breakthrough: number | null;
+  support: number | null;
+  cost_level: number | null;
+  resistance: number | null;
+  take_profit: number | null;
+  gap: number | null;
+  target: number | null;
+  round_number: number | null;
+  score: number | null;
+}
+
+export interface TechnicalAnalysisEntry extends AnalysisLevelsSnapshot {
+  symbol: string;
+  analysis_date: string;
+  analysis_text: string;
+  structured_ok: boolean;
+}
+
+export interface FinancialAnalysisEvidence {
+  available: boolean;
+  latest_period_end: string | null;
+  latest_announce_date: string | null;
+  income_count: number;
+  metrics_count: number;
+  cash_flow_count: number;
+  balance_sheet_count: number;
+}
+
+export interface FinancialAnalysisEntry {
+  symbol: string;
+  analysis_date: string;
+  analysis_text: string;
+  score: number | null;
+  bias: AnalysisBias;
+  strengths: string[];
+  risks: string[];
+  watch_items: string[];
+  evidence: FinancialAnalysisEvidence;
+}
+
+export interface NewsAnalysisEvidenceItem {
+  title: string;
+  source: string | null;
+  published_at: string | null;
+  securities: string[];
+}
+
+export interface NewsAnalysisEvidence {
+  available: boolean;
+  source_count: number;
+  documents: NewsAnalysisEvidenceItem[];
+}
+
+export interface NewsAnalysisEntry {
+  symbol: string;
+  analysis_date: string;
+  query: string;
+  analysis_text: string;
+  score: number | null;
+  bias: AnalysisBias;
+  catalysts: string[];
+  risks: string[];
+  watch_items: string[];
+  source_count: number;
+  evidence: NewsAnalysisEvidence;
+}
+
+export interface CompositeAnalysisEvidence {
+  technical_structured: boolean;
+  financial_available: boolean;
+  financial_latest_period_end: string | null;
+  news_available: boolean;
+  news_query: string;
+  news_source_count: number;
+}
+
+export interface CompositeAnalysisEntry extends AnalysisLevelsSnapshot {
+  symbol: string;
+  analysis_date: string;
+  analysis_text: string;
+  structured_ok: boolean;
+  technical_score: number | null;
+  financial_score: number | null;
+  news_score: number | null;
+  financial_bias: AnalysisBias;
+  news_bias: AnalysisBias;
+  evidence: CompositeAnalysisEvidence;
+}

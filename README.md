@@ -17,6 +17,12 @@
 - 解决后台循环失败问题，统一由单一托管 service 并行管理日更与实时监控任务，避免部分循环未被正常启动。
 - 优化一键安装脚本，增加菜单式安装/升级/卸载入口。
 
+### 2026-03-19
+
+- 新增工具，支持通过 TickFlow 获取利润表、资产负债表、现金流量表与核心财务指标。
+- 集成东方财富妙想 Skills 接入：`mx_search` 用于资讯/公告/研报检索，`mx_select_stock` 用于自然语言智能选股。
+- 股票分析升级为固定流水线综合分析，分析时会结合技术面、财务面与资讯面统一生成结论，分析结果持久化写入数据库。
+
 ## ✨ 功能特点
 
 - 自选股管理：添加、删除、查看、刷新名称
@@ -24,7 +30,7 @@
 - 技术指标：日线指标持久化，分钟指标按分析任务实时计算
 - 智能分析：结合日线、分钟线、实时行情输出关键价位与日内走势判断
 - 实时监控：按交易时段轮询报价并触发告警
-- 定时日更：OpenClaw 插件模式下由后台 service 托管，本地调试模式保留 detached 进程回退；交易日 15:25 后执行
+- 定时日更：交易日 15:25 后执行，更新自选股票日K、分钟K
 - 本地数据库：使用 LanceDB 保存行情、指标、分析日志和告警留痕
 - OpenClaw 内置 Skills：
   - `stock_analysis`
@@ -44,6 +50,9 @@
 - TickFlow数据获取：[TickFlow官网](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 
   - TickFlow 是为量化开发者打造的**专业金融数据 API**
   - Free 套餐即可使用稳定的**日线K线、实时行情**，具体详见官网介绍。
+- 东方财富妙想 Skills（可选，用于 `mx_search` / `mx_select_stock`）：
+  - API Key 获取地址：[https://marketing.dfcfs.com/views/finskillshub/](https://marketing.dfcfs.com/views/finskillshub/)
+  - 当前每个技能每日限额 **50 次**
 
 ## ⚡ 一键安装
 
@@ -142,7 +151,6 @@ tickflow-assist/
 
 - [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 提供行情数据服务与 API 支持
 - [OpenClaw](https://openclaw.ai) 提供插件运行、对话通道与工具编排能力
-- [sliverp/qqbot](https://github.com/sliverp/qqbot) 提供 QQ 机器人通道接入
 - [CortexReach/memory-lancedb-pro](https://github.com/CortexReach/memory-lancedb-pro) 给你的 OpenClaw Agent 提供持久化、智能化的长期记忆
 
 ## 📄 License

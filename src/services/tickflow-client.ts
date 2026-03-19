@@ -1,4 +1,12 @@
-import type { TickFlowInstrument, TickFlowQuote } from "../types/tickflow.js";
+import type {
+  TickFlowBalanceSheetRecord,
+  TickFlowCashFlowRecord,
+  TickFlowFinancialMetricsRecord,
+  TickFlowFinancialQueryOptions,
+  TickFlowIncomeRecord,
+  TickFlowInstrument,
+  TickFlowQuote,
+} from "../types/tickflow.js";
 
 export class TickFlowClientError extends Error {
   constructor(message: string) {
@@ -94,6 +102,76 @@ export class TickFlowClient {
     }
 
     return this.requestJson<{ data?: Record<string, T> }>(url.toString(), {
+      method: "GET",
+    });
+  }
+
+  async fetchBalanceSheet(
+    symbols: string[],
+    params: TickFlowFinancialQueryOptions = {},
+  ): Promise<{ data?: Record<string, TickFlowBalanceSheetRecord[]> }> {
+    return this.fetchFinancialRecords<TickFlowBalanceSheetRecord>(
+      "/v1/financials/balance-sheet",
+      symbols,
+      params,
+    );
+  }
+
+  async fetchCashFlow(
+    symbols: string[],
+    params: TickFlowFinancialQueryOptions = {},
+  ): Promise<{ data?: Record<string, TickFlowCashFlowRecord[]> }> {
+    return this.fetchFinancialRecords<TickFlowCashFlowRecord>(
+      "/v1/financials/cash-flow",
+      symbols,
+      params,
+    );
+  }
+
+  async fetchIncome(
+    symbols: string[],
+    params: TickFlowFinancialQueryOptions = {},
+  ): Promise<{ data?: Record<string, TickFlowIncomeRecord[]> }> {
+    return this.fetchFinancialRecords<TickFlowIncomeRecord>(
+      "/v1/financials/income",
+      symbols,
+      params,
+    );
+  }
+
+  async fetchFinancialMetrics(
+    symbols: string[],
+    params: TickFlowFinancialQueryOptions = {},
+  ): Promise<{ data?: Record<string, TickFlowFinancialMetricsRecord[]> }> {
+    return this.fetchFinancialRecords<TickFlowFinancialMetricsRecord>(
+      "/v1/financials/metrics",
+      symbols,
+      params,
+    );
+  }
+
+  private async fetchFinancialRecords<T>(
+    endpoint: string,
+    symbols: string[],
+    params: TickFlowFinancialQueryOptions = {},
+  ): Promise<{ data?: Record<string, T[]> }> {
+    if (symbols.length === 0) {
+      return { data: {} };
+    }
+
+    const url = new URL(endpoint, this.baseUrl);
+    url.searchParams.set("symbols", symbols.join(","));
+    if (params.start_date) {
+      url.searchParams.set("start_date", params.start_date);
+    }
+    if (params.end_date) {
+      url.searchParams.set("end_date", params.end_date);
+    }
+    if (params.latest != null) {
+      url.searchParams.set("latest", String(params.latest));
+    }
+
+    return this.requestJson<{ data?: Record<string, T[]> }>(url.toString(), {
       method: "GET",
     });
   }

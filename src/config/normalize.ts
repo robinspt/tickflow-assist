@@ -48,6 +48,8 @@ function normalizeBoolean(value: unknown, fallback: boolean): boolean {
 
 export function normalizePluginConfig(input: unknown): PluginConfig {
   const raw = (input ?? {}) as RawConfig;
+  const envMxSearchApiUrl = normalizeString(process.env.MX_SEARCH_API_URL);
+  const envMxSearchApiKey = normalizeString(process.env.MX_APIKEY);
 
   return {
     tickflowApiUrl: normalizeString(raw.tickflowApiUrl, DEFAULT_PLUGIN_CONFIG.tickflowApiUrl),
@@ -56,6 +58,11 @@ export function normalizePluginConfig(input: unknown): PluginConfig {
       raw.tickflowApiKeyLevel,
       DEFAULT_PLUGIN_CONFIG.tickflowApiKeyLevel,
     ),
+    mxSearchApiUrl: normalizeString(
+      raw.mxSearchApiUrl,
+      envMxSearchApiUrl || DEFAULT_PLUGIN_CONFIG.mxSearchApiUrl,
+    ),
+    mxSearchApiKey: normalizeString(raw.mxSearchApiKey, envMxSearchApiKey || DEFAULT_PLUGIN_CONFIG.mxSearchApiKey),
     llmBaseUrl: normalizeString(raw.llmBaseUrl, DEFAULT_PLUGIN_CONFIG.llmBaseUrl),
     llmApiKey: normalizeString(raw.llmApiKey),
     llmModel: normalizeString(raw.llmModel, DEFAULT_PLUGIN_CONFIG.llmModel),

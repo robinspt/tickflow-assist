@@ -12,10 +12,14 @@ export class AnalysisService {
 
   async runTask<TInput, TResult>(task: AnalysisTask<TInput, TResult>, input: TInput): Promise<TResult> {
     const prepared = await task.prepare(input);
-    const analysisText = await this.callLlm(prepared.systemPrompt, prepared.userPrompt);
+    const analysisText = await this.generateText(prepared.systemPrompt, prepared.userPrompt);
     const result = await task.parseResult(analysisText, input);
     await task.persistResult(result, input);
     return result;
+  }
+
+  async generateText(systemPrompt: string, userPrompt: string): Promise<string> {
+    return this.callLlm(systemPrompt, userPrompt);
   }
 
   async getLatestAnalysis(symbol: string): Promise<AnalysisLogEntry | null> {

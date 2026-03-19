@@ -21,6 +21,8 @@ metadata:
 - 刷新自选股名称
 - 拉取单只股票的 K 线数据
 - 拉取单只股票的分钟 K 线数据
+- 搜索个股 / 板块 / 宏观相关资讯、公告、研报、政策、事件解读
+- 按自然语言条件做智能选股
 - 执行全部日更
 - 分析单只股票
 - 查看最近一次已保存的分析结果
@@ -35,12 +37,16 @@ metadata:
 - “刷新股票名称”、“刷新名称” -> `refresh_watchlist_names`
 - “拉 K 线”、“更新 K 线”、“获取日线” -> `fetch_klines`
 - “获取分钟K”、“拉取分钟线”、“抓分时K” -> `fetch_intraday_klines`
+- “搜资讯”、“查公告”、“看研报”、“政策解读”、“事件解读” -> `mx_search`
+- “选股”、“筛股票”、“找满足条件的股票”、“推荐板块成分股” -> `mx_select_stock`
 - “全部更新”、“执行日更”、“更新全部股票” -> `update_all`
 - “启动定时日更”、“开始定时日更”、“开启 TickFlow 日更计划” -> `start_daily_update`
 - “停止定时日更”、“关闭 TickFlow 日更计划” -> `stop_daily_update`
 - “TickFlow日更状态”、“自选股日更状态”、“TickFlow定时更新状态”、“TickFlow定时日更状态” -> `daily_update_status`
 - “分析一下某只股票”、“分析 002261” -> `analyze`
 - “查看分析结果”、“看上次分析” -> `view_analysis`
+- “看技术面分析”、“看基本面分析”、“看资讯面分析” -> `view_analysis`
+- “看最近3次分析”、“回看历史分析”、“看最近几次技术面/基本面/资讯面分析” -> `view_analysis`
 - “开始盯盘”、“开启监控”、“启动监控” -> `start_monitor`
 - “停止盯盘”、“关闭监控”、“停止监控” -> `stop_monitor`
 - “监控状态”、“现在监控在跑吗” -> `monitor_status`
@@ -52,14 +58,19 @@ metadata:
   - “添加自选 601872 成本 5.32” -> 直接调用 `add_stock`
   - “删除自选 601872” -> 直接调用 `remove_stock`
   - “自选列表” -> 直接调用 `list_watchlist`
+  - “查立讯精密最新研报” -> 直接调用 `mx_search`
+  - “找今天涨幅 2% 的股票” -> 直接调用 `mx_select_stock`
 - 如果工具必需参数缺失，只能补充缺失项本身；不要以“我需要摸索当前环境里的工具”“我需要确认执行方式”为由拒绝或拖延。
 - 股票代码按用户原始输入提取，例如 `002261`。
 - 成本价对应 `costPrice`。
 - `add_stock` 默认会在添加成功后自动拉取日K并计算指标。
-- `analyze` 除了读取本地日K和日线指标，还会临时获取当日分钟K、分钟指标与实时行情一起分析。
+- `analyze` 会读取本地日K和日线指标，临时补充当日分钟K、分钟指标、实时行情、最新财务数据与资讯检索结果，再走固定流水线综合分析。
+- `view_analysis` 默认查看最近一次综合分析；如用户明确提到“技术面 / 基本面 / 资讯面 / 全部分析”，应传入 `profile=technical|financial|news|all`；如用户提到“最近 N 次”或“历史”，应同时传入 `limit=N`（或 `count=N`）。
 - `update_all` 除了更新日K和日线指标，也会同步更新当日分钟K；本地分钟K默认仅保留近 10 个交易日。
 - `update_all` 是立即执行一次日更；`start_daily_update` / `stop_daily_update` 控制的是后台定时日更进程，两者不要混淆。
 - 若配置中的 `tickflowApiKeyLevel` 为 `Free` 或 `Start`，则应自动跳过分钟K获取；若分钟K接口失败，也不要让 `analyze` 或 `update_all` 因此整体失败。
+- 对新闻、公告、研报、政策、交易规则、具体事件、时效性影响分析等外部检索类问题，优先使用 `mx_search`，不要直接凭常识回答，也不要先读仓库文件再决定是否搜索。
+- 对自然语言选股、板块成分股、条件筛选、候选池推荐等任务，优先使用 `mx_select_stock`；若问题本质是“找哪些标的符合条件”，不要误用 `mx_search`。
 - 用户在“添加自选”意图中提到的“`N`天”对应 `add_stock.count`（或 `klineCount`），例如“添加 002261 成本 34.15 并获取 120 天日K”应调用 `add_stock`，其中 `count=120`。
 - 用户询问 TickFlow / 自选股 的日更状态时，必须调用 `daily_update_status`，不要把它解释成其他 crontab、系统任务或无关插件的定时更新。
 - 对 `daily_update_status`、`monitor_status`、`list_watchlist` 这类轻量状态查询，禁止使用 `sessions_spawn`、子代理、并行子任务、`query_database`、文件读取或任何“先分析再回答”的编排；必须在当前回合直接调用对应插件工具并返回结果。
@@ -74,7 +85,7 @@ metadata:
 - 不要臆造股票代码、成本价、日期、阈值、分析结果或监控状态。
 
 输出规则：
-- 对 `add_stock`、`list_watchlist`、`start_monitor`、`stop_monitor`、`monitor_status`、`start_daily_update`、`stop_daily_update`、`daily_update_status`、`analyze`、`view_analysis`、`fetch_klines`、`fetch_intraday_klines` 和 `update_all`，调用工具后尽量原样输出返回文本。
+- 对 `add_stock`、`list_watchlist`、`start_monitor`、`stop_monitor`、`monitor_status`、`start_daily_update`、`stop_daily_update`、`daily_update_status`、`analyze`、`view_analysis`、`fetch_klines`、`fetch_intraday_klines`、`mx_search`、`mx_select_stock` 和 `update_all`，调用工具后尽量原样输出返回文本。
 - 对 `daily_update_status` 必须完整原样输出，尤其不要省略 `状态`、`运行方式`、`配置来源`、`调度`、`执行情况` 与 `最近摘要`。
 - 不要改写、总结、翻译、重排、美化，也不要加表格、额外标题或解释性包装。
 - 除非工具明确返回错误，否则不要在工具结果前后添加追问、评论或推断字段。

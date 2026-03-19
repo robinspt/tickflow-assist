@@ -89,6 +89,74 @@ export const analysisLogSchema = new Schema([
   new Field("structured_ok", new Int64(), false),
 ]);
 
+export const technicalAnalysisSchema = new Schema([
+  new Field("symbol", new Utf8(), false),
+  new Field("analysis_date", new Utf8(), false),
+  new Field("analysis_text", new Utf8(), false),
+  new Field("structured_ok", new Int64(), false),
+  new Field("current_price", new Float64(), true),
+  new Field("stop_loss", new Float64(), true),
+  new Field("breakthrough", new Float64(), true),
+  new Field("support", new Float64(), true),
+  new Field("cost_level", new Float64(), true),
+  new Field("resistance", new Float64(), true),
+  new Field("take_profit", new Float64(), true),
+  new Field("gap", new Float64(), true),
+  new Field("target", new Float64(), true),
+  new Field("round_number", new Float64(), true),
+  new Field("score", new Int64(), true),
+]);
+
+export const financialAnalysisSchema = new Schema([
+  new Field("symbol", new Utf8(), false),
+  new Field("analysis_date", new Utf8(), false),
+  new Field("analysis_text", new Utf8(), false),
+  new Field("score", new Int64(), true),
+  new Field("bias", new Utf8(), false),
+  new Field("strengths_json", new Utf8(), false),
+  new Field("risks_json", new Utf8(), false),
+  new Field("watch_items_json", new Utf8(), false),
+  new Field("evidence_json", new Utf8(), false),
+]);
+
+export const newsAnalysisSchema = new Schema([
+  new Field("symbol", new Utf8(), false),
+  new Field("analysis_date", new Utf8(), false),
+  new Field("query", new Utf8(), false),
+  new Field("analysis_text", new Utf8(), false),
+  new Field("score", new Int64(), true),
+  new Field("bias", new Utf8(), false),
+  new Field("catalysts_json", new Utf8(), false),
+  new Field("risks_json", new Utf8(), false),
+  new Field("watch_items_json", new Utf8(), false),
+  new Field("source_count", new Int64(), false),
+  new Field("evidence_json", new Utf8(), false),
+]);
+
+export const compositeAnalysisSchema = new Schema([
+  new Field("symbol", new Utf8(), false),
+  new Field("analysis_date", new Utf8(), false),
+  new Field("analysis_text", new Utf8(), false),
+  new Field("structured_ok", new Int64(), false),
+  new Field("current_price", new Float64(), true),
+  new Field("stop_loss", new Float64(), true),
+  new Field("breakthrough", new Float64(), true),
+  new Field("support", new Float64(), true),
+  new Field("cost_level", new Float64(), true),
+  new Field("resistance", new Float64(), true),
+  new Field("take_profit", new Float64(), true),
+  new Field("gap", new Float64(), true),
+  new Field("target", new Float64(), true),
+  new Field("round_number", new Float64(), true),
+  new Field("score", new Int64(), true),
+  new Field("technical_score", new Int64(), true),
+  new Field("financial_score", new Int64(), true),
+  new Field("news_score", new Int64(), true),
+  new Field("financial_bias", new Utf8(), false),
+  new Field("news_bias", new Utf8(), false),
+  new Field("evidence_json", new Utf8(), false),
+]);
+
 export const alertLogSchema = new Schema([
   new Field("symbol", new Utf8(), false),
   new Field("alert_date", new Utf8(), false),

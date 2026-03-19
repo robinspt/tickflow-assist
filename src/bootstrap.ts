@@ -3,6 +3,8 @@ import { TickFlowClient } from "./services/tickflow-client.js";
 import { InstrumentService } from "./services/instrument-service.js";
 import { KlineService } from "./services/kline-service.js";
 import { IndicatorService } from "./services/indicator-service.js";
+import { FinancialService } from "./services/financial-service.js";
+import { MxApiService } from "./services/mx-search-service.js";
 import { Database } from "./storage/db.js";
 import { WatchlistRepository } from "./storage/repositories/watchlist-repo.js";
 import { KlinesRepository } from "./storage/repositories/klines-repo.js";
@@ -11,18 +13,33 @@ import { IndicatorsRepository } from "./storage/repositories/indicators-repo.js"
 import { KeyLevelsRepository } from "./storage/repositories/key-levels-repo.js";
 import { AnalysisLogRepository } from "./storage/repositories/analysis-log-repo.js";
 import { AlertLogRepository } from "./storage/repositories/alert-log-repo.js";
+import { TechnicalAnalysisRepository } from "./storage/repositories/technical-analysis-repo.js";
+import { FinancialAnalysisRepository } from "./storage/repositories/financial-analysis-repo.js";
+import { NewsAnalysisRepository } from "./storage/repositories/news-analysis-repo.js";
+import { CompositeAnalysisRepository } from "./storage/repositories/composite-analysis-repo.js";
 import { WatchlistService } from "./services/watchlist-service.js";
 import { AnalysisService } from "./services/analysis-service.js";
-import { KlineTechnicalAnalysisTask } from "./analysis/tasks/kline-technical.task.js";
+import { AnalysisViewService } from "./services/analysis-view-service.js";
 import { QuoteService } from "./services/quote-service.js";
 import { TradingCalendarService } from "./services/trading-calendar-service.js";
 import { MonitorService } from "./services/monitor-service.js";
 import { AlertService } from "./services/alert-service.js";
 import { UpdateService } from "./services/update-service.js";
+import { CompositeAnalysisOrchestrator } from "./analysis/orchestrators/composite-analysis.orchestrator.js";
+import { MarketAnalysisProvider } from "./analysis/providers/market-analysis.provider.js";
+import { FinancialAnalysisProvider } from "./analysis/providers/financial-analysis.provider.js";
+import { NewsAnalysisProvider } from "./analysis/providers/news-analysis.provider.js";
+import { KlineTechnicalSignalTask } from "./analysis/tasks/kline-technical-signal.task.js";
+import { FinancialFundamentalTask } from "./analysis/tasks/financial-fundamental.task.js";
+import { NewsCatalystTask } from "./analysis/tasks/news-catalyst.task.js";
+import { CompositeStockAnalysisTask } from "./analysis/tasks/composite-stock-analysis.task.js";
 import { addStockTool } from "./tools/add-stock.tool.js";
 import { analyzeTool } from "./tools/analyze.tool.js";
 import { fetchKlinesTool } from "./tools/fetch-klines.tool.js";
 import { fetchIntradayKlinesTool } from "./tools/fetch-intraday-klines.tool.js";
+import { fetchFinancialsTool } from "./tools/fetch-financials.tool.js";
+import { mxSearchTool } from "./tools/mx-search.tool.js";
+import { mxSelectStockTool } from "./tools/mx-select-stock.tool.js";
 import { listWatchlistTool } from "./tools/list-watchlist.tool.js";
 import { dailyUpdateStatusTool } from "./tools/daily-update-status.tool.js";
 import { monitorStatusTool } from "./tools/monitor-status.tool.js";
@@ -79,9 +96,15 @@ export function createAppContext(
   const keyLevelsRepository = new KeyLevelsRepository(database);
   const analysisLogRepository = new AnalysisLogRepository(database);
   const alertLogRepository = new AlertLogRepository(database);
+  const technicalAnalysisRepository = new TechnicalAnalysisRepository(database);
+  const financialAnalysisRepository = new FinancialAnalysisRepository(database);
+  const newsAnalysisRepository = new NewsAnalysisRepository(database);
+  const compositeAnalysisRepository = new CompositeAnalysisRepository(database);
   const instrumentService = new InstrumentService(tickflowClient);
   const klineService = new KlineService(tickflowClient);
   const quoteService = new QuoteService(tickflowClient);
+  const financialService = new FinancialService(tickflowClient);
+  const mxApiService = new MxApiService(config.mxSearchApiUrl, config.mxSearchApiKey);
   const tradingCalendarService = new TradingCalendarService(config.calendarFile);
   const alertService = new AlertService(
     config.openclawCliBin,
@@ -101,9 +124,47 @@ export function createAppContext(
     config.llmModel,
     analysisLogRepository,
   );
-  const klineTechnicalAnalysisTask = new KlineTechnicalAnalysisTask(
+  const analysisViewService = new AnalysisViewService(
+    analysisLogRepository,
+    keyLevelsRepository,
+    technicalAnalysisRepository,
+    financialAnalysisRepository,
+    newsAnalysisRepository,
+    compositeAnalysisRepository,
+  );
+  const marketAnalysisProvider = new MarketAnalysisProvider(
+    config.tickflowApiKeyLevel,
+    watchlistService,
+    klineService,
+    quoteService,
+    indicatorService,
+    tradingCalendarService,
+    klinesRepository,
+    intradayKlinesRepository,
+    indicatorsRepository,
+  );
+  const financialAnalysisProvider = new FinancialAnalysisProvider(financialService);
+  const newsAnalysisProvider = new NewsAnalysisProvider(mxApiService);
+  const klineTechnicalSignalTask = new KlineTechnicalSignalTask();
+  const financialFundamentalTask = new FinancialFundamentalTask();
+  const newsCatalystTask = new NewsCatalystTask();
+  const compositeStockAnalysisTask = new CompositeStockAnalysisTask(
     keyLevelsRepository,
     analysisLogRepository,
+  );
+  const compositeAnalysisOrchestrator = new CompositeAnalysisOrchestrator(
+    analysisService,
+    marketAnalysisProvider,
+    financialAnalysisProvider,
+    newsAnalysisProvider,
+    klineTechnicalSignalTask,
+    financialFundamentalTask,
+    newsCatalystTask,
+    compositeStockAnalysisTask,
+    technicalAnalysisRepository,
+    financialAnalysisRepository,
+    newsAnalysisRepository,
+    compositeAnalysisRepository,
   );
   const monitorService = new MonitorService(
     config.databasePath,
@@ -150,19 +211,7 @@ export function createAppContext(
         indicatorService,
         indicatorsRepository,
       ),
-      analyzeTool(
-        analysisService,
-        klineTechnicalAnalysisTask,
-        config.tickflowApiKeyLevel,
-        watchlistService,
-        klineService,
-        quoteService,
-        indicatorService,
-        tradingCalendarService,
-        klinesRepository,
-        intradayKlinesRepository,
-        indicatorsRepository,
-      ),
+      analyzeTool(compositeAnalysisOrchestrator),
       dailyUpdateStatusTool(dailyUpdateWorker, runtime.configSource),
       fetchIntradayKlinesTool(
         config.tickflowApiKeyLevel,
@@ -170,9 +219,12 @@ export function createAppContext(
         intradayKlinesRepository,
         tradingCalendarService,
       ),
+      fetchFinancialsTool(financialService),
       fetchKlinesTool(klineService, klinesRepository, indicatorService, indicatorsRepository),
       listWatchlistTool(watchlistService),
       monitorStatusTool(monitorService),
+      mxSearchTool(mxApiService),
+      mxSelectStockTool(mxApiService),
       queryDatabaseTool(database),
       refreshWatchlistNamesTool(watchlistService),
       removeStockTool(watchlistService),
@@ -182,7 +234,7 @@ export function createAppContext(
       stopMonitorTool(monitorService, runtime),
       testAlertTool(alertService),
       updateAllTool(dailyUpdateWorker),
-      viewAnalysisTool(analysisService),
+      viewAnalysisTool(analysisViewService),
     ],
     backgroundServices: [
       {

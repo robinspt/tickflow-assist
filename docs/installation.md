@@ -12,6 +12,7 @@
 - `openclaw`
 - 可用的 `TickFlow API Key` [TickFlow获取地址](https://tickflow.org/auth/register?ref=BUJ54JEDGE) Free套餐即可支持`日线K线`、`实时行情`
 - 可用的 OpenAI 兼容 `LLM API Key`
+- 可选的东方财富妙想 Skills `API Key` [获取地址](https://marketing.dfcfs.com/views/finskillshub/) ，用于 `mx_search` / `mx_select_stock`；当前每个技能每日限额 `50` 次
 
 如果目标机器还没安装 `uv`，先执行：
 
@@ -105,6 +106,8 @@ openclaw plugins enable tickflow-assist
           "tickflowApiUrl": "https://api.tickflow.org",
           "tickflowApiKey": "your-tickflow-key",
           "tickflowApiKeyLevel": "Free",
+          "mxSearchApiUrl": "https://mkapi2.dfcfs.com/finskillshub/api/claw",
+          "mxSearchApiKey": "mkt_xxx",
           "llmBaseUrl": "https://api.openai.com/v1",
           "llmApiKey": "sk-xxx",
           "llmModel": "gpt-4o",
@@ -129,6 +132,7 @@ openclaw plugins enable tickflow-assist
 说明：
 
 - `tickflowApiKey`、`llmApiKey`、`alertTarget` 正式使用时必须填写（注意：使用 Ollama、vLLM 等本地部署模型时，`llmApiKey` 字段也不能为空缺，配置校验要求该字段必须存在。可填入任意占位字符，例如 `sk-xxx` 或 `ollama`）
+- `mxSearchApiKey` 为可选项；如果需要使用 `mx_search` / `mx_select_stock`，请到东方财富妙想 Skills 页面获取并填写。当前每个技能每日限额 `50` 次
 - 插件允许先安装后填配置，所以安装阶段不会因为缺少这些值而失败
 - `tickflowApiKeyLevel` 用于声明当前 TickFlow Key 权限档位，影响是否尝试分钟K接口
 - 这份配置只供 OpenClaw 插件正式运行使用，不会自动同步到 `local.config.json`
@@ -237,6 +241,8 @@ TickFlow Assist 目前有两条独立配置链路：
 | `tickflowApiUrl` | 否 | TickFlow API 地址，默认 `https://api.tickflow.org` |
 | `tickflowApiKey` | 是 | TickFlow API Key |
 | `tickflowApiKeyLevel` | 否 | TickFlow API Key 档位：`Free`、`Start`、`Pro`、`Expert`，默认 `Free` |
+| `mxSearchApiUrl` | 否 | 东方财富妙想 Skills 接口基础地址，默认 `https://mkapi2.dfcfs.com/finskillshub/api/claw` |
+| `mxSearchApiKey` | 否 | 东方财富妙想 Skills API Key；用于 `mx_search` / `mx_select_stock`，当前每个技能每日限额 `50` 次 |
 | `llmBaseUrl` | 否 | OpenAI 兼容接口地址 |
 | `llmApiKey` | 是 | 大模型 API Key（使用Ollama/vLLM等本地模型时不能留空，请填入任意占位字符如 `sk-xxx`） |
 | `llmModel` | 是 | 分析使用的模型名 |
@@ -326,6 +332,18 @@ POST https://api.sgroup.qq.com/v2/users/YOUR_OPENID/messages
 ```text
 qqbot:c2c:YOUR_OPENID
 ```
+
+5. 一键获取方式
+在QQ上给机器人发送一条消息 `/whoami` 会返回：
+
+```
+🧭 Identity
+Channel: qqbot
+User id: **********************
+AllowFrom: **********************
+```
+`**********************` 即所需YOUR_OPENID，拼成 `qqbot:c2c:**********************` 即可
+
 
 ## 7. 配置 WeCom 通道（可选）
 

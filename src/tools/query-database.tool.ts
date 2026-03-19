@@ -44,6 +44,22 @@ const TABLE_ALIASES: Record<string, string> = {
   analysis_log: "analysis_log",
   analysis: "analysis_log",
   分析日志: "analysis_log",
+  technical_analysis: "technical_analysis",
+  technical: "technical_analysis",
+  technicals: "technical_analysis",
+  技术分析: "technical_analysis",
+  financial_analysis: "financial_analysis",
+  financial: "financial_analysis",
+  fundamentals: "financial_analysis",
+  基本面分析: "financial_analysis",
+  财务分析: "financial_analysis",
+  news_analysis: "news_analysis",
+  news: "news_analysis",
+  research: "news_analysis",
+  资讯分析: "news_analysis",
+  composite_analysis: "composite_analysis",
+  composite: "composite_analysis",
+  综合分析: "composite_analysis",
   alert_log: "alert_log",
   alert: "alert_log",
   告警日志: "alert_log",
@@ -181,7 +197,7 @@ function filterRows(rows: Record<string, unknown>[], input: QueryDatabaseInput):
       return false;
     }
     if (input.contains) {
-      const haystack = JSON.stringify(row).toLowerCase();
+      const haystack = JSON.stringify(normalizeForDisplay(row)).toLowerCase();
       if (!haystack.includes(input.contains.toLowerCase())) {
         return false;
       }
@@ -236,7 +252,12 @@ function compareValues(left: unknown, right: unknown): number {
   if (right == null) {
     return 1;
   }
-  if (typeof left === "number" || typeof right === "number") {
+  if (
+    typeof left === "number" ||
+    typeof right === "number" ||
+    typeof left === "bigint" ||
+    typeof right === "bigint"
+  ) {
     return Number(left) - Number(right);
   }
   return String(left).localeCompare(String(right));
@@ -285,7 +306,7 @@ function renderQueryResult(
   }
 
   rows.forEach((row, index) => {
-    lines.push(`${index + 1}. ${JSON.stringify(selectFields(row, fields), null, 0)}`);
+    lines.push(`${index + 1}. ${JSON.stringify(normalizeForDisplay(selectFields(row, fields)), null, 0)}`);
   });
   return lines.join("\n");
 }
@@ -299,4 +320,22 @@ function selectFields(row: Record<string, unknown>, fields?: string[]): Record<s
     selected[field] = row[field];
   }
   return selected;
+}
+
+function normalizeForDisplay(value: unknown): unknown {
+  if (typeof value === "bigint") {
+    return Number(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeForDisplay(item));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+        key,
+        normalizeForDisplay(item),
+      ]),
+    );
+  }
+  return value;
 }

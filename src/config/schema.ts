@@ -4,6 +4,8 @@ export interface PluginConfig {
   tickflowApiUrl: string;
   tickflowApiKey: string;
   tickflowApiKeyLevel: TickflowApiKeyLevel;
+  mxSearchApiUrl: string;
+  mxSearchApiKey: string;
   llmBaseUrl: string;
   llmApiKey: string;
   llmModel: string;
@@ -26,6 +28,8 @@ export const DEFAULT_PLUGIN_CONFIG: Omit<
 > = {
   tickflowApiUrl: "https://api.tickflow.org",
   tickflowApiKeyLevel: "free",
+  mxSearchApiUrl: "https://mkapi2.dfcfs.com/finskillshub/api/claw",
+  mxSearchApiKey: "",
   llmBaseUrl: "https://api.openai.com/v1",
   llmModel: "gpt-4o",
   databasePath: "./data/lancedb",
