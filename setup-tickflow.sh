@@ -749,6 +749,8 @@ load_existing_config_defaults() {
   EXISTING_LOCAL_TICKFLOW_API_URL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.tickflowApiUrl')
   EXISTING_LOCAL_TICKFLOW_KEY=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.tickflowApiKey')
   EXISTING_LOCAL_TICKFLOW_LEVEL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.tickflowApiKeyLevel')
+  EXISTING_LOCAL_MX_SEARCH_API_URL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.mxSearchApiUrl')
+  EXISTING_LOCAL_MX_SEARCH_API_KEY=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.mxSearchApiKey')
   EXISTING_LOCAL_LLM_BASE_URL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.llmBaseUrl')
   EXISTING_LOCAL_LLM_KEY=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.llmApiKey')
   EXISTING_LOCAL_LLM_MODEL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.llmModel')
@@ -767,6 +769,8 @@ load_existing_config_defaults() {
   EXISTING_OPENCLAW_TICKFLOW_API_URL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.tickflowApiUrl')
   EXISTING_OPENCLAW_TICKFLOW_KEY=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.tickflowApiKey')
   EXISTING_OPENCLAW_TICKFLOW_LEVEL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.tickflowApiKeyLevel')
+  EXISTING_OPENCLAW_MX_SEARCH_API_URL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.mxSearchApiUrl')
+  EXISTING_OPENCLAW_MX_SEARCH_API_KEY=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.mxSearchApiKey')
   EXISTING_OPENCLAW_LLM_BASE_URL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.llmBaseUrl')
   EXISTING_OPENCLAW_LLM_KEY=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.llmApiKey')
   EXISTING_OPENCLAW_LLM_MODEL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.llmModel')
@@ -782,6 +786,8 @@ load_existing_config_defaults() {
   DEFAULT_TICKFLOW_API_URL=${EXISTING_LOCAL_TICKFLOW_API_URL:-${EXISTING_OPENCLAW_TICKFLOW_API_URL:-https://api.tickflow.org}}
   DEFAULT_TICKFLOW_KEY=${EXISTING_LOCAL_TICKFLOW_KEY:-$EXISTING_OPENCLAW_TICKFLOW_KEY}
   DEFAULT_TICKFLOW_LEVEL=${EXISTING_LOCAL_TICKFLOW_LEVEL:-${EXISTING_OPENCLAW_TICKFLOW_LEVEL:-Free}}
+  DEFAULT_MX_SEARCH_API_URL=${EXISTING_LOCAL_MX_SEARCH_API_URL:-${EXISTING_OPENCLAW_MX_SEARCH_API_URL:-https://mkapi2.dfcfs.com/finskillshub/api/claw}}
+  DEFAULT_MX_SEARCH_API_KEY=${EXISTING_LOCAL_MX_SEARCH_API_KEY:-$EXISTING_OPENCLAW_MX_SEARCH_API_KEY}
   DEFAULT_LLM_BASE_URL=${EXISTING_LOCAL_LLM_BASE_URL:-${EXISTING_OPENCLAW_LLM_BASE_URL:-https://api.openai.com/v1}}
   DEFAULT_LLM_KEY=${EXISTING_LOCAL_LLM_KEY:-$EXISTING_OPENCLAW_LLM_KEY}
   DEFAULT_LLM_MODEL=${EXISTING_LOCAL_LLM_MODEL:-${EXISTING_OPENCLAW_LLM_MODEL:-gpt-4o}}
@@ -801,6 +807,8 @@ load_existing_config_defaults() {
 apply_default_config_values() {
   TICKFLOW_KEY="$DEFAULT_TICKFLOW_KEY"
   TICKFLOW_LEVEL="$DEFAULT_TICKFLOW_LEVEL"
+  MX_SEARCH_API_URL="$DEFAULT_MX_SEARCH_API_URL"
+  MX_SEARCH_API_KEY="$DEFAULT_MX_SEARCH_API_KEY"
   LLM_BASE_URL="$DEFAULT_LLM_BASE_URL"
   LLM_API_KEY="$DEFAULT_LLM_KEY"
   LLM_MODEL="$DEFAULT_LLM_MODEL"
@@ -854,6 +862,22 @@ collect_configuration() {
   success "已选择等级: $TICKFLOW_LEVEL"
 
   echo ""
+  echo -e "${BOLD}--- 东方财富妙想 Skills 配置（可选） ---${NC}"
+  echo "获取 API Key：https://marketing.dfcfs.com/views/finskillshub/"
+  echo "用于 mx_search / mx_select_stock；当前每个技能每日限额 50 次。"
+  read -r -p "  妙想 Skills 接口基础地址 [默认 ${DEFAULT_MX_SEARCH_API_URL}]: " MX_SEARCH_API_URL
+  MX_SEARCH_API_URL=${MX_SEARCH_API_URL:-$DEFAULT_MX_SEARCH_API_URL}
+
+  if [[ -n "$DEFAULT_MX_SEARCH_API_KEY" ]]; then
+    echo "当前妙想 Skills API Key：[已保存过]"
+    read -r -p "  输入新的妙想 Skills API Key (直接回车保持不变): " MX_SEARCH_API_KEY
+    MX_SEARCH_API_KEY=${MX_SEARCH_API_KEY:-$DEFAULT_MX_SEARCH_API_KEY}
+  else
+    read -r -p "  妙想 Skills API Key（可选，直接回车跳过）: " MX_SEARCH_API_KEY
+    MX_SEARCH_API_KEY=${MX_SEARCH_API_KEY:-}
+  fi
+
+  echo ""
   echo -e "${BOLD}--- LLM 配置 ---${NC}"
   read -r -p "  LLM API Base URL [默认 ${DEFAULT_LLM_BASE_URL}]: " LLM_BASE_URL
   LLM_BASE_URL=${LLM_BASE_URL:-$DEFAULT_LLM_BASE_URL}
@@ -892,6 +916,8 @@ write_local_config() {
     --arg url "$DEFAULT_TICKFLOW_API_URL" \
     --arg key "$TICKFLOW_KEY" \
     --arg level "$TICKFLOW_LEVEL" \
+    --arg mxUrl "$MX_SEARCH_API_URL" \
+    --arg mxKey "$MX_SEARCH_API_KEY" \
     --arg llmUrl "$LLM_BASE_URL" \
     --arg llmKey "$LLM_API_KEY" \
     --arg model "$LLM_MODEL" \
@@ -911,6 +937,8 @@ write_local_config() {
         tickflowApiUrl: $url,
         tickflowApiKey: $key,
         tickflowApiKeyLevel: $level,
+        mxSearchApiUrl: $mxUrl,
+        mxSearchApiKey: $mxKey,
         llmBaseUrl: $llmUrl,
         llmApiKey: $llmKey,
         llmModel: $model,
@@ -1030,6 +1058,8 @@ write_openclaw_config() {
     --arg url "$DEFAULT_TICKFLOW_API_URL" \
     --arg key "$TICKFLOW_KEY" \
     --arg level "$TICKFLOW_LEVEL" \
+    --arg mxUrl "$MX_SEARCH_API_URL" \
+    --arg mxKey "$MX_SEARCH_API_KEY" \
     --arg llmUrl "$LLM_BASE_URL" \
     --arg llmKey "$LLM_API_KEY" \
     --arg model "$LLM_MODEL" \
@@ -1050,6 +1080,8 @@ write_openclaw_config() {
         tickflowApiUrl: $url,
         tickflowApiKey: $key,
         tickflowApiKeyLevel: $level,
+        mxSearchApiUrl: $mxUrl,
+        mxSearchApiKey: $mxKey,
         llmBaseUrl: $llmUrl,
         llmApiKey: $llmKey,
         llmModel: $model,

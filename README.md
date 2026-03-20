@@ -78,7 +78,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 
 - 拉取或更新源码
 - 安装依赖并构建
-- 收集或复用 TickFlow / LLM / 告警通道配置
+- 收集或复用 TickFlow / 妙想 Skills / LLM / 告警通道配置
 - 写入 `local.config.json` 与 `~/.openclaw/openclaw.json`
 - 安装并启用 OpenClaw 插件
 - 重启 OpenClaw Gateway

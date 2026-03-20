@@ -30,7 +30,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist/main/setup-tickflow.sh)"
 ```
 
-向导会提示您输入 API Key 和消息通道目标等信息，生成配置并自动重启 OpenClaw Gateway。
+向导会提示您输入 TickFlow / 妙想 Skills / LLM 的 API Key，以及消息通道目标等信息，生成配置并自动重启 OpenClaw Gateway。
 如果目标目录里已经存在 `local.config.json`，向导会优先沿用其中已有的本地调试配置，避免重复安装时把现有参数覆盖回默认值。
 如果完成向导，你可以跳至 **第 8 步 安装后验收**。
 
