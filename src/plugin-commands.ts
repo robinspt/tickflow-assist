@@ -70,6 +70,7 @@ async function renderWatchlistDebug(app: AppContext): Promise<string> {
 export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: AppContext): void {
   const addStock = getTool(tools, "add_stock");
   const analyze = getTool(tools, "analyze");
+  const backtestKeyLevels = getTool(tools, "backtest_key_levels");
   const viewAnalysis = getTool(tools, "view_analysis");
   const removeStock = getTool(tools, "remove_stock");
   const listWatchlist = getTool(tools, "list_watchlist");
@@ -116,6 +117,16 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
         text: await runToolText(analyze, {
           symbol: parseRequiredSymbol(args, "/ta_analyze <symbol>"),
         }),
+      }),
+    },
+    {
+      name: "ta_backtest",
+      description:
+        "回测活动价位，不经过 AI 对话。用法: /ta_backtest [symbol] [recentLimit]",
+      acceptsArgs: true,
+      requireAuth: true,
+      handler: async ({ args }) => ({
+        text: await runToolText(backtestKeyLevels, args?.trim() || undefined),
       }),
     },
     {

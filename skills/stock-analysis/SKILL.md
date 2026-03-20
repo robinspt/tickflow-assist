@@ -9,7 +9,7 @@ metadata:
 ---
 # 股票分析与监控
 
-这是 TickFlow Assist 插件内置的技能，用于通过插件工具完成 A 股自选股管理、日线更新、分钟K抓取、技术分析、实时监控、定时日更、结果查看与告警测试。
+这是 TickFlow Assist 插件内置的技能，用于通过插件工具完成 A 股自选股管理、日线更新、分钟K抓取、技术分析、关键价位回测、实时监控、定时日更、结果查看与告警测试。
 
 此技能随插件加载，不需要手动复制到 workspace。
 
@@ -25,6 +25,7 @@ metadata:
 - 按自然语言条件做智能选股
 - 执行全部日更
 - 分析单只股票
+- 回测活动价位 / 回测股票
 - 查看最近一次已保存的分析结果
 - 开启或停止实时监控
 - 查询监控状态
@@ -44,6 +45,7 @@ metadata:
 - “停止定时日更”、“关闭 TickFlow 日更计划” -> `stop_daily_update`
 - “TickFlow日更状态”、“自选股日更状态”、“TickFlow定时更新状态”、“TickFlow定时日更状态” -> `daily_update_status`
 - “分析一下某只股票”、“分析 002261” -> `analyze`
+- “回测股票”、“开始回测”、“回测关键价位”、“回测 002261”、“看回测结果” -> `backtest_key_levels`
 - “查看分析结果”、“看上次分析” -> `view_analysis`
 - “看技术面分析”、“看基本面分析”、“看资讯面分析” -> `view_analysis`
 - “看最近3次分析”、“回看历史分析”、“看最近几次技术面/基本面/资讯面分析” -> `view_analysis`
@@ -66,8 +68,9 @@ metadata:
 - `add_stock` 默认会在添加成功后自动拉取日K并计算指标。
 - `analyze` 会读取本地日K和日线指标，临时补充当日分钟K、分钟指标、实时行情、最新财务数据与资讯检索结果，再走固定流水线综合分析；其中基本面部分在 `Expert` 级别下优先使用 TickFlow 完整财报，在非 `Expert` 级别下回退为 `mx_select_stock` 的 lite 指标拖底模式。
 - `view_analysis` 默认查看最近一次综合分析；如用户明确提到“技术面 / 基本面 / 资讯面 / 全部分析”，应传入 `profile=technical|financial|news|all`；如用户提到“最近 N 次”或“历史”，应同时传入 `limit=N`（或 `count=N`）。
-- `update_all` 除了更新日K和日线指标，也会同步更新当日分钟K；本地分钟K默认仅保留近 10 个交易日。
+- `update_all` 除了更新日K和日线指标，也会同步更新当日分钟K；本地分钟K默认仅保留近 30 个交易日。
 - `update_all` 是立即执行一次日更；`start_daily_update` / `stop_daily_update` 控制的是后台定时日更进程，两者不要混淆。
+- `backtest_key_levels` 默认回测全部关注股的活动价位；如果用户提到股票代码，应传入 `symbol`；如果用户提到“最近 N 次”，应传入 `recentLimit=N`。
 - 若配置中的 `tickflowApiKeyLevel` 为 `Free` 或 `Start`，则应自动跳过分钟K获取；若分钟K接口失败，也不要让 `analyze` 或 `update_all` 因此整体失败。
 - 对新闻、公告、研报、政策、交易规则、具体事件、时效性影响分析等外部检索类问题，优先使用 `mx_search`，不要直接凭常识回答，也不要先读仓库文件再决定是否搜索。
 - 对自然语言选股、板块成分股、条件筛选、候选池推荐等任务，优先使用 `mx_select_stock`；若问题本质是“找哪些标的符合条件”，不要误用 `mx_search`。
@@ -85,7 +88,7 @@ metadata:
 - 不要臆造股票代码、成本价、日期、阈值、分析结果或监控状态。
 
 输出规则：
-- 对 `add_stock`、`list_watchlist`、`start_monitor`、`stop_monitor`、`monitor_status`、`start_daily_update`、`stop_daily_update`、`daily_update_status`、`analyze`、`view_analysis`、`fetch_klines`、`fetch_intraday_klines`、`mx_search`、`mx_select_stock` 和 `update_all`，调用工具后尽量原样输出返回文本。
+- 对 `add_stock`、`list_watchlist`、`start_monitor`、`stop_monitor`、`monitor_status`、`start_daily_update`、`stop_daily_update`、`daily_update_status`、`analyze`、`backtest_key_levels`、`view_analysis`、`fetch_klines`、`fetch_intraday_klines`、`mx_search`、`mx_select_stock` 和 `update_all`，调用工具后尽量原样输出返回文本。
 - 对 `daily_update_status` 必须完整原样输出，尤其不要省略 `状态`、`运行方式`、`配置来源`、`调度`、`执行情况` 与 `最近摘要`。
 - 不要改写、总结、翻译、重排、美化，也不要加表格、额外标题或解释性包装。
 - 除非工具明确返回错误，否则不要在工具结果前后添加追问、评论或推断字段。
