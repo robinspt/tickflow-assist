@@ -87,7 +87,9 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 
 ## 🔄 更新方式
 
-如果你已经完成安装，后续建议定期在项目目录执行以下命令，同步最新代码与构建结果：
+如果你已经完成安装，后续升级优先建议继续使用上文的一键安装脚本，进入菜单后选择“升级”即可。
+
+如果你更希望手动更新，也可以在项目目录执行以下命令，同步最新代码与构建结果：
 
 ```bash
 git pull
