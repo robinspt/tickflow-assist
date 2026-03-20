@@ -20,23 +20,48 @@ export function buildKlineAnalysisUserPrompt(params: {
   const klineLines = [
     "## 日K线数据（最近30个交易日）",
     "",
-    "| 日期 | 开盘 | 最高 | 最低 | 收盘 | 成交量 | 成交额 |",
-    "| --- | --- | --- | --- | --- | --- | --- |",
+    "```csv",
+    "日期,开盘,最高,最低,收盘,成交量,成交额",
     ...recentK.map(
       (row) =>
-        `| ${row.trade_date} | ${row.open.toFixed(2)} | ${row.high.toFixed(2)} | ${row.low.toFixed(2)} | ${row.close.toFixed(2)} | ${Math.trunc(row.volume)} | ${Math.trunc(row.amount)} |`,
+        [
+          row.trade_date,
+          fmt(row.open),
+          fmt(row.high),
+          fmt(row.low),
+          fmt(row.close),
+          fmtInteger(row.volume),
+          fmtInteger(row.amount),
+        ].join(","),
     ),
+    "```",
   ];
 
   const indicatorLines = [
     "## 技术指标（最近10个交易日）",
     "",
-    "| 日期 | MA5 | MA10 | MA20 | MA60 | MACD | Signal | RSI6 | RSI12 | KDJ_K | KDJ_D | KDJ_J | CCI | ADX |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    "```csv",
+    "日期,MA5,MA10,MA20,MA60,MACD,Signal,RSI6,RSI12,KDJ_K,KDJ_D,KDJ_J,CCI,ADX",
     ...recentIndicators.map(
       (row) =>
-        `| ${row.trade_date} | ${fmt(row.ma5)} | ${fmt(row.ma10)} | ${fmt(row.ma20)} | ${fmt(row.ma60)} | ${fmt(row.macd, 4)} | ${fmt(row.macd_signal, 4)} | ${fmt(row.rsi_6)} | ${fmt(row.rsi_12)} | ${fmt(row.kdj_k)} | ${fmt(row.kdj_d)} | ${fmt(row.kdj_j)} | ${fmt(row.cci)} | ${fmt(row.adx)} |`,
+        [
+          row.trade_date,
+          fmt(row.ma5),
+          fmt(row.ma10),
+          fmt(row.ma20),
+          fmt(row.ma60),
+          fmt(row.macd, 4),
+          fmt(row.macd_signal, 4),
+          fmt(row.rsi_6),
+          fmt(row.rsi_12),
+          fmt(row.kdj_k),
+          fmt(row.kdj_d),
+          fmt(row.kdj_j),
+          fmt(row.cci),
+          fmt(row.adx),
+        ].join(","),
     ),
+    "```",
   ];
 
   const latestLines = latest
@@ -92,11 +117,18 @@ function fmt(value: number | null | undefined, digits = 2): string {
   if (value == null || Number.isNaN(value)) {
     return "-";
   }
-  return value.toFixed(digits);
+  return stripTrailingZeros(value.toFixed(digits));
 }
 
 function fmtPercent(value: number | null | undefined, digits = 2): string {
-  return value == null || Number.isNaN(value) ? "-" : `${value.toFixed(digits)}%`;
+  return value == null || Number.isNaN(value) ? "-" : `${fmt(value, digits)}%`;
+}
+
+function fmtInteger(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) {
+    return "-";
+  }
+  return String(Math.trunc(value));
 }
 
 function buildRealtimeLines(quote: TickFlowQuote | null): string[] {
@@ -160,12 +192,21 @@ function buildIntradayKlineLines(rows: TickFlowIntradayKlineRow[]): string[] {
   return [
     `## 今日分钟K线（全部 ${rows.length} 根）`,
     "",
-    "| 时间 | 开盘 | 最高 | 最低 | 收盘 | 成交量 | 成交额 |",
-    "| --- | --- | --- | --- | --- | --- | --- |",
+    "```csv",
+    "时间,开盘,最高,最低,收盘,成交量,成交额",
     ...rows.map(
       (row) =>
-        `| ${row.trade_time} | ${row.open.toFixed(2)} | ${row.high.toFixed(2)} | ${row.low.toFixed(2)} | ${row.close.toFixed(2)} | ${Math.trunc(row.volume)} | ${Math.trunc(row.amount)} |`,
+        [
+          row.trade_time,
+          fmt(row.open),
+          fmt(row.high),
+          fmt(row.low),
+          fmt(row.close),
+          fmtInteger(row.volume),
+          fmtInteger(row.amount),
+        ].join(","),
     ),
+    "```",
   ];
 }
 
@@ -177,13 +218,29 @@ function buildIntradayIndicatorLines(rows: IndicatorRow[]): string[] {
   return [
     `## 今日分钟指标（全部 ${rows.length} 条）`,
     "",
-    "| 时间 | MA5 | MA10 | MA20 | MACD | Signal | RSI6 | KDJ_K | KDJ_D | KDJ_J |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    "```csv",
+    "时间,MA5,MA10,MA20,MACD,Signal,RSI6,KDJ_K,KDJ_D,KDJ_J",
     ...rows.map(
       (row) =>
-        `| ${row.trade_time ?? "-"} | ${fmt(row.ma5)} | ${fmt(row.ma10)} | ${fmt(row.ma20)} | ${fmt(row.macd, 4)} | ${fmt(row.macd_signal, 4)} | ${fmt(row.rsi_6)} | ${fmt(row.kdj_k)} | ${fmt(row.kdj_d)} | ${fmt(row.kdj_j)} |`,
+        [
+          row.trade_time ?? "-",
+          fmt(row.ma5),
+          fmt(row.ma10),
+          fmt(row.ma20),
+          fmt(row.macd, 4),
+          fmt(row.macd_signal, 4),
+          fmt(row.rsi_6),
+          fmt(row.kdj_k),
+          fmt(row.kdj_d),
+          fmt(row.kdj_j),
+        ].join(","),
     ),
+    "```",
   ];
+}
+
+function stripTrailingZeros(value: string): string {
+  return value.replace(/(?:\.0+|(\.\d*?[1-9])0+)$/, "$1");
 }
 
 function formatTimestamp(timestamp: number): string {
