@@ -82,6 +82,25 @@ export const keyLevelsSchema = new Schema([
   new Field("score", new Int64(), false),
 ]);
 
+export const keyLevelsHistorySchema = new Schema([
+  new Field("symbol", new Utf8(), false),
+  new Field("analysis_date", new Utf8(), false),
+  new Field("activated_at", new Utf8(), false),
+  new Field("profile", new Utf8(), false),
+  new Field("current_price", new Float64(), false),
+  new Field("stop_loss", new Float64(), true),
+  new Field("breakthrough", new Float64(), true),
+  new Field("support", new Float64(), true),
+  new Field("cost_level", new Float64(), true),
+  new Field("resistance", new Float64(), true),
+  new Field("take_profit", new Float64(), true),
+  new Field("gap", new Float64(), true),
+  new Field("target", new Float64(), true),
+  new Field("round_number", new Float64(), true),
+  new Field("analysis_text", new Utf8(), false),
+  new Field("score", new Int64(), true),
+]);
+
 export const analysisLogSchema = new Schema([
   new Field("symbol", new Utf8(), false),
   new Field("analysis_date", new Utf8(), false),

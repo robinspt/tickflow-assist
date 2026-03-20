@@ -8,7 +8,7 @@ import { WatchlistService } from "./watchlist-service.js";
 import { TradingCalendarService } from "./trading-calendar-service.js";
 
 const INTRADAY_PERIOD = "1m";
-const INTRADAY_RETENTION_DAYS = 10;
+const INTRADAY_RETENTION_DAYS = 30;
 
 export class UpdateService {
   constructor(

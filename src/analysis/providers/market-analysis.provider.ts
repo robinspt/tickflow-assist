@@ -16,7 +16,7 @@ import { IndicatorsRepository } from "../../storage/repositories/indicators-repo
 import type { MarketAnalysisContext } from "../types/composite-analysis.js";
 
 const ANALYZE_INTRADAY_PERIOD = "1m";
-const ANALYZE_INTRADAY_RETENTION_DAYS = 10;
+const ANALYZE_INTRADAY_RETENTION_DAYS = 30;
 
 export class MarketAnalysisProvider {
   constructor(

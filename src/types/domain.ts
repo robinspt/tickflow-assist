@@ -53,6 +53,14 @@ export interface AnalysisLevelsSnapshot {
   score: number | null;
 }
 
+export interface KeyLevelsHistoryEntry extends AnalysisLevelsSnapshot {
+  symbol: string;
+  analysis_date: string;
+  activated_at: string;
+  profile: "composite";
+  analysis_text: string;
+}
+
 export interface TechnicalAnalysisEntry extends AnalysisLevelsSnapshot {
   symbol: string;
   analysis_date: string;

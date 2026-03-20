@@ -12,6 +12,7 @@ import { KlinesRepository } from "./storage/repositories/klines-repo.js";
 import { IntradayKlinesRepository } from "./storage/repositories/intraday-klines-repo.js";
 import { IndicatorsRepository } from "./storage/repositories/indicators-repo.js";
 import { KeyLevelsRepository } from "./storage/repositories/key-levels-repo.js";
+import { KeyLevelsHistoryRepository } from "./storage/repositories/key-levels-history-repo.js";
 import { AnalysisLogRepository } from "./storage/repositories/analysis-log-repo.js";
 import { AlertLogRepository } from "./storage/repositories/alert-log-repo.js";
 import { TechnicalAnalysisRepository } from "./storage/repositories/technical-analysis-repo.js";
@@ -26,6 +27,8 @@ import { TradingCalendarService } from "./services/trading-calendar-service.js";
 import { MonitorService } from "./services/monitor-service.js";
 import { AlertService } from "./services/alert-service.js";
 import { UpdateService } from "./services/update-service.js";
+import { KeyLevelsBacktestService } from "./services/key-levels-backtest-service.js";
+import { PostCloseReviewService } from "./services/post-close-review-service.js";
 import { CompositeAnalysisOrchestrator } from "./analysis/orchestrators/composite-analysis.orchestrator.js";
 import { MarketAnalysisProvider } from "./analysis/providers/market-analysis.provider.js";
 import { FinancialAnalysisProvider } from "./analysis/providers/financial-analysis.provider.js";
@@ -55,6 +58,7 @@ import { stopMonitorTool } from "./tools/stop-monitor.tool.js";
 import { testAlertTool } from "./tools/test-alert.tool.js";
 import { updateAllTool } from "./tools/update-all.tool.js";
 import { viewAnalysisTool } from "./tools/view-analysis.tool.js";
+import { backtestKeyLevelsTool } from "./tools/backtest-key-levels.tool.js";
 import type { LocalTool, RegisteredService } from "./runtime/plugin-api.js";
 import { RealtimeMonitorWorker } from "./background/realtime-monitor.worker.js";
 import { DailyUpdateWorker } from "./background/daily-update.worker.js";
@@ -96,6 +100,7 @@ export function createAppContext(
   const intradayKlinesRepository = new IntradayKlinesRepository(database);
   const indicatorsRepository = new IndicatorsRepository(database);
   const keyLevelsRepository = new KeyLevelsRepository(database);
+  const keyLevelsHistoryRepository = new KeyLevelsHistoryRepository(database);
   const analysisLogRepository = new AnalysisLogRepository(database);
   const alertLogRepository = new AlertLogRepository(database);
   const technicalAnalysisRepository = new TechnicalAnalysisRepository(database);
@@ -121,6 +126,12 @@ export function createAppContext(
     config.pythonWorkdir,
   );
   const watchlistService = new WatchlistService(watchlistRepository, instrumentService);
+  const keyLevelsBacktestService = new KeyLevelsBacktestService(
+    keyLevelsHistoryRepository,
+    klinesRepository,
+    intradayKlinesRepository,
+    watchlistService,
+  );
   const analysisService = new AnalysisService(
     config.llmBaseUrl,
     config.llmApiKey,
@@ -197,12 +208,19 @@ export function createAppContext(
     watchlistService,
     tradingCalendarService,
   );
+  const postCloseReviewService = new PostCloseReviewService(
+    watchlistService,
+    compositeAnalysisOrchestrator,
+    keyLevelsHistoryRepository,
+    keyLevelsBacktestService,
+  );
   const realtimeMonitorWorker = new RealtimeMonitorWorker(
     monitorService,
     config.requestInterval * 1000,
   );
   const dailyUpdateWorker = new DailyUpdateWorker(
     updateService,
+    postCloseReviewService,
     config.databasePath,
     alertService,
     config.dailyUpdateNotify,
@@ -221,6 +239,7 @@ export function createAppContext(
         indicatorsRepository,
       ),
       analyzeTool(compositeAnalysisOrchestrator),
+      backtestKeyLevelsTool(keyLevelsBacktestService),
       dailyUpdateStatusTool(dailyUpdateWorker, runtime.configSource),
       fetchIntradayKlinesTool(
         config.tickflowApiKeyLevel,

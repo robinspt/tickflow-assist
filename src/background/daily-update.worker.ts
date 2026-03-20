@@ -4,6 +4,7 @@ import path from "node:path";
 import type { PluginConfig } from "../config/schema.js";
 import { UpdateService } from "../services/update-service.js";
 import { AlertService } from "../services/alert-service.js";
+import { PostCloseReviewService } from "../services/post-close-review-service.js";
 import type { DailyUpdateResultType, DailyUpdateState } from "../types/daily-update.js";
 import { chinaToday, formatChinaDateTime } from "../utils/china-time.js";
 import { isPidAlive, spawnDailyUpdateLoop } from "../runtime/daily-update-process.js";
@@ -30,6 +31,7 @@ const DEFAULT_STATE: DailyUpdateState = {
 export class DailyUpdateWorker {
   constructor(
     private readonly updateService: UpdateService,
+    private readonly postCloseReviewService: PostCloseReviewService | null,
     private readonly baseDir: string,
     private readonly alertService: AlertService,
     private readonly notifyEnabled: boolean,
@@ -219,8 +221,19 @@ export class DailyUpdateWorker {
     const attemptedAt = formatChinaDateTime();
 
     try {
-      const result = await this.updateService.updateAll(force);
-      const resultType = classifyResult(result);
+      const updateResult = await this.updateService.updateAll(force);
+      let result = updateResult;
+      const resultType = classifyResult(updateResult);
+      if (resultType === "success" && this.postCloseReviewService) {
+        try {
+          const reviewResult = await this.postCloseReviewService.run();
+          result = [updateResult, "", reviewResult].join("\n");
+        } catch (reviewError) {
+          const message = reviewError instanceof Error ? reviewError.message : String(reviewError);
+          result = [updateResult, "", `⚠️ 收盘分析/回测失败: ${message}`].join("\n");
+        }
+      }
+
       const nextState: DailyUpdateState = {
         ...state,
         lastAttemptAt: attemptedAt,
@@ -305,11 +318,7 @@ export class DailyUpdateWorker {
     }
 
     const title = resultType === "success" ? "📊 定时日更完成" : "❌ 定时日更失败";
-    const lines = result
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .slice(0, 8);
+    const lines = selectNotificationLines(result);
     const message = this.alertService.formatSystemNotification(title, lines);
     await this.alertService.send(message);
   }
@@ -353,11 +362,32 @@ function classifyResult(result: string): DailyUpdateResultType {
 }
 
 function summarizeResult(result: string): string {
-  const lines = result
+  return selectSummaryLines(result).join(" | ");
+}
+
+function selectSummaryLines(result: string): string[] {
+  const lines = normalizeResultLines(result);
+  const head = lines.slice(0, 2);
+  const highlights = lines.filter((line) => /^(🏁|🤖|🧪|💡|⚠️ 收盘分析\/回测失败)/.test(line));
+  return dedupeLines([...head, ...highlights]).slice(0, 5);
+}
+
+function selectNotificationLines(result: string): string[] {
+  const lines = normalizeResultLines(result);
+  const head = lines.slice(0, 4);
+  const highlights = lines.filter((line) => /^(🏁|🤖|🧪|💡|⚠️ 收盘分析\/回测失败)/.test(line));
+  return dedupeLines([...head, ...highlights]).slice(0, 12);
+}
+
+function normalizeResultLines(result: string): string[] {
+  return result
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
-  return lines.slice(0, 3).join(" | ");
+}
+
+function dedupeLines(lines: string[]): string[] {
+  return [...new Set(lines)];
 }
 
 function formatResultType(type: DailyUpdateResultType | null): string {
