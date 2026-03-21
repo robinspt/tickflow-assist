@@ -60,9 +60,24 @@ export function addStockTool(
     name: "add_stock",
     description: "Add a symbol to the watchlist, then fetch daily K-lines and indicators.",
     async run({ rawInput }: { rawInput?: unknown }): Promise<string> {
-      const { symbol, costPrice, count } = parseInput(rawInput);
-      const item = await watchlistService.add(symbol, costPrice);
+      let input: AddStockInput;
+      try {
+        input = parseInput(rawInput);
+      } catch (error) {
+        return formatAddStockFailure(null, error);
+      }
+
+      const { symbol, costPrice, count } = input;
       const klineCount = count ?? DEFAULT_ADD_STOCK_KLINE_COUNT;
+
+      let addResult: Awaited<ReturnType<WatchlistService["add"]>>;
+      try {
+        addResult = await watchlistService.add(symbol, costPrice);
+      } catch (error) {
+        return formatAddStockFailure(symbol, error);
+      }
+
+      const { item, profileError } = addResult;
 
       try {
         const rows = await klineService.fetchKlines(item.symbol, {
@@ -72,8 +87,7 @@ export function addStockTool(
 
         if (rows.length === 0) {
           return [
-            `✅ 已添加: ${item.name}（${item.symbol}），成本价: ${item.costPrice.toFixed(2)}`,
-            formatWatchlistProfile(item),
+            ...buildAddStockPrefix(item, profileError),
             `⚠️ 已尝试拉取 ${klineCount} 天日K，但返回数据为空`,
           ].filter(Boolean).join("\n");
         }
@@ -85,8 +99,7 @@ export function addStockTool(
         const first = rows[0];
         const last = rows[rows.length - 1];
         return [
-          `✅ 已添加: ${item.name}（${item.symbol}），成本价: ${item.costPrice.toFixed(2)}`,
-          formatWatchlistProfile(item),
+          ...buildAddStockPrefix(item, profileError),
           `📊 已自动获取日K: ${rows.length} 根`,
           `区间: ${first.trade_date} ~ ${last.trade_date}`,
           `最新收盘: ${last.close.toFixed(2)}`,
@@ -95,13 +108,20 @@ export function addStockTool(
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return [
-          `✅ 已添加: ${item.name}（${item.symbol}），成本价: ${item.costPrice.toFixed(2)}`,
-          formatWatchlistProfile(item),
+          ...buildAddStockPrefix(item, profileError),
           `⚠️ 自动拉取 ${klineCount} 天日K失败: ${message}`,
         ].filter(Boolean).join("\n");
       }
     },
   };
+}
+
+function buildAddStockPrefix(item: WatchlistItem, profileError: string | null): string[] {
+  return [
+    `✅ 已添加: ${item.name}（${item.symbol}），成本价: ${item.costPrice.toFixed(2)}`,
+    formatWatchlistProfile(item),
+    formatWatchlistProfileWarning(profileError),
+  ].filter((value): value is string => Boolean(value));
 }
 
 function formatWatchlistProfile(item: WatchlistItem): string | null {
@@ -115,4 +135,19 @@ function formatWatchlistProfile(item: WatchlistItem): string | null {
   }
 
   return `🏷️ ${parts.join(" | ")}`;
+}
+
+function formatWatchlistProfileWarning(profileError: string | null): string | null {
+  if (!profileError) {
+    return null;
+  }
+  return `⚠️ 行业分类/概念板块获取失败: ${profileError}`;
+}
+
+function formatAddStockFailure(symbol: string | null, error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (!symbol) {
+    return `添加失败😔 请求参数无效：${message}`;
+  }
+  return `添加失败😔 ${symbol} 暂时无法添加：${message}`;
 }

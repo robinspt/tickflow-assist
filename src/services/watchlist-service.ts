@@ -12,6 +12,11 @@ interface GetWatchlistItemOptions {
   refreshConceptBoards?: boolean;
 }
 
+export interface AddWatchlistResult {
+  item: WatchlistItem;
+  profileError: string | null;
+}
+
 export interface RefreshWatchlistProfilesOptions {
   symbol?: string;
   force?: boolean;
@@ -44,32 +49,47 @@ export class WatchlistService {
     private readonly watchlistProfileService: WatchlistProfileService | null = null,
   ) {}
 
-  async add(symbolInput: string, costPrice: number): Promise<WatchlistItem> {
+  async add(symbolInput: string, costPrice: number): Promise<AddWatchlistResult> {
     const symbol = normalizeSymbol(symbolInput);
     const existing = await this.getBySymbol(symbol);
     const name = await this.instrumentService.resolveName(symbol);
     const addedAt = formatChinaDateTime();
-    const profile = this.watchlistProfileService
-      ? await this.watchlistProfileService.resolve(symbol, name, addedAt)
-      : {
-        sector: null,
-        themes: [],
-        themeQuery: null,
-        themeUpdatedAt: null,
-      };
+    const fallbackProfile = {
+      sector: existing?.sector ?? null,
+      themes: existing?.themes ?? [],
+      themeQuery: existing?.themeQuery ?? null,
+      themeUpdatedAt: existing?.themeUpdatedAt ?? null,
+    };
+
+    let profile = fallbackProfile;
+    let profileError: string | null = null;
+
+    if (this.watchlistProfileService) {
+      try {
+        const resolved = await this.watchlistProfileService.resolve(symbol, name, addedAt);
+        profile = {
+          sector: resolved.sector ?? fallbackProfile.sector,
+          themes: resolved.themes.length > 0 ? resolved.themes : fallbackProfile.themes,
+          themeQuery: resolved.themeQuery ?? fallbackProfile.themeQuery,
+          themeUpdatedAt: resolved.themeUpdatedAt ?? fallbackProfile.themeUpdatedAt,
+        };
+      } catch (error) {
+        profileError = toErrorMessage(error);
+      }
+    }
 
     const item: WatchlistItem = {
       symbol,
       name,
       costPrice,
       addedAt,
-      sector: profile.sector ?? existing?.sector ?? null,
-      themes: profile.themes.length > 0 ? profile.themes : (existing?.themes ?? []),
-      themeQuery: profile.themeQuery ?? existing?.themeQuery ?? null,
-      themeUpdatedAt: profile.themeUpdatedAt ?? existing?.themeUpdatedAt ?? null,
+      sector: profile.sector,
+      themes: profile.themes,
+      themeQuery: profile.themeQuery,
+      themeUpdatedAt: profile.themeUpdatedAt,
     };
     await this.repository.upsert(item);
-    return item;
+    return { item, profileError };
   }
 
   async list(): Promise<WatchlistItem[]> {
@@ -137,7 +157,7 @@ export class WatchlistService {
         result.failed.push({
           symbol: item.symbol,
           name: item.name,
-          error: error instanceof Error ? error.message : String(error),
+          error: toErrorMessage(error),
         });
       }
     }
@@ -247,4 +267,8 @@ function sanitizeName(name: string, symbol: string): string {
     return symbol;
   }
   return trimmed;
+}
+
+function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
