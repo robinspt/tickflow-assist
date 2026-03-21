@@ -2,13 +2,25 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { Database } from "../storage/db.js";
-import { WatchlistRepository } from "../storage/repositories/watchlist-repo.js";
+import { parseWatchlistProfileExtraction } from "../analysis/parsers/watchlist-profile.parser.js";
+import { normalizePluginConfig } from "../config/normalize.js";
+import {
+  buildWatchlistProfileExtractionUserPrompt,
+} from "../prompts/analysis/index.js";
+import { AnalysisService } from "../services/analysis-service.js";
 import { MxApiService, normalizeMxSearchDocuments } from "../services/mx-search-service.js";
 import {
   buildBoardNewsQuery,
-  extractWatchlistProfile,
+  formatWatchlistProfileDocuments,
+  WatchlistProfileService,
 } from "../services/watchlist-profile-service.js";
+import { Database } from "../storage/db.js";
+import { AnalysisLogRepository } from "../storage/repositories/analysis-log-repo.js";
+import { WatchlistRepository } from "../storage/repositories/watchlist-repo.js";
+
+interface LocalConfigShape {
+  plugin?: Record<string, unknown>;
+}
 
 interface LiveSample {
   symbol: string;
@@ -74,53 +86,64 @@ function runFixtureValidation(): void {
   assert.equal(flatDocs[0]?.title, "机器人概念板块震荡走强");
   assert.equal(flatDocs[0]?.trunk, "机器人概念、AI概念热度提升。");
 
-  const extracted = extractWatchlistProfile(nestedDocs, "宁德时代", "300750.SZ");
-  assert.equal(extracted.sector, "电池行业");
-  assert.ok(extracted.themes.includes("储能"));
-  assert.ok(extracted.themes.includes("锂电池"));
-  assert.equal(extracted.confidence, "high");
-
-  const blockDocs = normalizeMxSearchDocuments({
-    data: {
-      list: [
-        {
-          title: "拓维信息概念板块梳理",
-          summary: [
-            "概念板块：",
-            "• OpenClaw概念",
-            "• 华为昇腾 / 华为昇思",
-            "• 鲲鹏概念",
-            "• 开源鸿蒙（OpenHarmony）",
-            "• AI算力 / 数据中心 / 一体机",
-            "• 信创",
-            "• 在线教育（K-12考试测评）",
-            "• 托育概念",
-            "所属行业：计算机-软件开发-垂直应用软件",
-          ].join("\n"),
-          mediaName: "测试媒体",
-          date: "2026-03-21",
-        },
-      ],
-    },
+  const prompt = buildWatchlistProfileExtractionUserPrompt({
+    symbol: "002261.SZ",
+    companyName: "拓维信息",
+    documents: nestedDocs,
   });
-  const blockProfile = extractWatchlistProfile(blockDocs, "拓维信息", "002261.SZ");
-  assert.equal(blockProfile.sector, "计算机-软件开发-垂直应用软件");
-  for (const theme of [
+  assert.match(prompt, /股票名称: 拓维信息/);
+  assert.match(prompt, /1\. 标题: 宁德时代所属行业信息/);
+
+  const formattedDocs = formatWatchlistProfileDocuments(nestedDocs);
+  assert.match(formattedDocs, /1\. 宁德时代所属行业信息/);
+  assert.match(formattedDocs, /来源: 测试源A/);
+
+  const extracted = parseWatchlistProfileExtraction(
+    JSON.stringify({
+      sector: "电池行业",
+      themes: ["储能", "锂电池", "储能", "公司新闻"],
+      confidence: "high",
+    }),
+  );
+  assert.ok(extracted);
+  assert.equal(extracted?.sector, "电池行业");
+  assert.deepEqual(extracted?.themes, ["储能", "锂电池"]);
+  assert.equal(extracted?.confidence, "high");
+
+  const fencedExtraction = parseWatchlistProfileExtraction([
+    "```json",
+    "{",
+    '  "sector": "计算机-软件开发-垂直应用软件",',
+    '  "themes": [',
+    '    "OpenClaw概念",',
+    '    "华为昇腾 / 华为昇思",',
+    '    "AI算力 / 数据中心 / 一体机",',
+    '    "在线教育（K-12考试测评）",',
+    '    "信创",',
+    '    "托育概念",',
+    '    "公司公告"',
+    "  ],",
+    '  "confidence": "medium"',
+    "}",
+    "```",
+  ].join("\n"));
+  assert.ok(fencedExtraction);
+  assert.equal(fencedExtraction?.sector, "计算机-软件开发-垂直应用软件");
+  assert.deepEqual(fencedExtraction?.themes, [
     "OpenClaw概念",
     "华为昇腾",
     "华为昇思",
-    "鲲鹏概念",
-    "开源鸿蒙",
     "AI算力",
     "数据中心",
     "一体机",
-    "信创",
     "在线教育",
+    "信创",
     "托育概念",
-  ]) {
-    assert.ok(blockProfile.themes.includes(theme), `missing theme: ${theme}`);
-  }
-  assert.ok(blockProfile.themes.length >= 11);
+  ]);
+  assert.equal(fencedExtraction?.confidence, "medium");
+
+  const invalidExtraction = parseWatchlistProfileExtraction("not-json");
+  assert.equal(invalidExtraction, null);
 
   const boardQuery = buildBoardNewsQuery({
     sector: "计算机-软件开发-垂直应用软件",
@@ -131,64 +154,65 @@ function runFixtureValidation(): void {
     "计算机-软件开发-垂直应用软件 OpenClaw概念 托育概念 一体机概念 板块 题材 最新新闻 政策 资金",
   );
 
-  const noisyDocs = normalizeMxSearchDocuments({
-    data: {
-      list: [
-        {
-          title: "公司新闻",
-          summary: "最新新闻，公司公告，板块动态，龙虎榜。",
-        },
-        {
-          title: "市场快讯",
-          summary: "今日市场消息较多，但未出现明确所属行业或题材信息。",
-        },
-      ],
-    },
+  const emptyBoardQuery = buildBoardNewsQuery({
+    sector: null,
+    themes: [],
   });
-  const noisyProfile = extractWatchlistProfile(noisyDocs, "测试股份", "000001.SZ");
-  assert.equal(noisyProfile.sector, null);
-  assert.equal(noisyProfile.themes.length, 0);
-  assert.equal(noisyProfile.confidence, "low");
+  assert.equal(emptyBoardQuery, null);
 }
 
 async function runLiveValidation(limit: number): Promise<void> {
   const config = await loadLocalConfig();
-  const pluginConfig = (config?.plugin ?? {}) as Record<string, unknown>;
-  const apiUrl = String(pluginConfig.mxSearchApiUrl ?? "").trim();
-  const apiKey = String(pluginConfig.mxSearchApiKey ?? "").trim();
-  if (!apiUrl || !apiKey) {
-    console.log("[validate:mx-search] live validation skipped: mx_search is not configured");
+  if (!config) {
+    console.log("[validate:mx-search] live validation skipped: local.config.json is not available");
     return;
   }
 
-  const samples = await loadLiveSamples(pluginConfig.databasePath, limit);
+  const database = new Database(config.databasePath);
+  const watchlistRepository = new WatchlistRepository(database);
+  const analysisLogRepository = new AnalysisLogRepository(database);
+  const mxApiService = new MxApiService(config.mxSearchApiUrl, config.mxSearchApiKey);
+  const analysisService = new AnalysisService(
+    config.llmBaseUrl,
+    config.llmApiKey,
+    config.llmModel,
+    analysisLogRepository,
+  );
+
+  const mxConfigError = mxApiService.getConfigurationError();
+  if (mxConfigError) {
+    console.log(`[validate:mx-search] live validation skipped: ${mxConfigError}`);
+    return;
+  }
+
+  const llmConfigError = analysisService.getConfigurationError();
+  if (llmConfigError) {
+    console.log(`[validate:mx-search] live validation skipped: ${llmConfigError}`);
+    return;
+  }
+
+  const samples = await loadLiveSamples(watchlistRepository, limit);
   if (samples.length === 0) {
     console.log("[validate:mx-search] live validation skipped: no samples available");
     return;
   }
 
-  const service = new MxApiService(apiUrl, apiKey);
+  const watchlistProfileService = new WatchlistProfileService(mxApiService, analysisService);
   console.log(`[validate:mx-search] live validation start: ${samples.length} samples`);
 
   for (const sample of samples) {
-    const profileQuery = `${sample.name} ${sample.symbol} 所属行业 板块 题材 概念`;
-    const documents = (await service.search(profileQuery)).slice(0, 8);
-    const profile = extractWatchlistProfile(documents, sample.name, sample.symbol);
-    const boardQuery = buildBoardNewsQuery({
-      sector: profile.sector,
-      themes: profile.themes,
-    });
+    const profile = await watchlistProfileService.resolve(sample.symbol, sample.name, currentTimestamp());
+    const boardQuery = buildBoardNewsQuery(profile);
 
     console.log(
       JSON.stringify(
         {
           symbol: sample.symbol,
           name: sample.name,
-          documentCount: documents.length,
           sector: profile.sector,
           themes: profile.themes,
-          confidence: profile.confidence,
-          evidenceCount: profile.evidenceCount,
+          themeCount: profile.themes.length,
+          themeQuery: profile.themeQuery,
           boardQuery,
         },
         null,
@@ -198,33 +222,37 @@ async function runLiveValidation(limit: number): Promise<void> {
   }
 }
 
-async function loadLocalConfig(): Promise<Record<string, unknown> | null> {
+async function loadLocalConfig() {
   const file = path.join(process.cwd(), "local.config.json");
   try {
-    return JSON.parse(await readFile(file, "utf8")) as Record<string, unknown>;
+    const parsed = JSON.parse(await readFile(file, "utf8")) as LocalConfigShape;
+    return normalizePluginConfig(parsed.plugin ?? {});
   } catch {
     return null;
   }
 }
 
-async function loadLiveSamples(databasePath: unknown, limit: number): Promise<LiveSample[]> {
-  if (typeof databasePath === "string" && databasePath.trim()) {
-    try {
-      const db = new Database(databasePath);
-      const repo = new WatchlistRepository(db);
-      const items = await repo.list();
-      if (items.length > 0) {
-        return items.slice(0, limit).map((item) => ({ symbol: item.symbol, name: item.name }));
-      }
-    } catch {
-      // fall through to default samples
+async function loadLiveSamples(
+  watchlistRepository: WatchlistRepository,
+  limit: number,
+): Promise<LiveSample[]> {
+  try {
+    const items = await watchlistRepository.list();
+    if (items.length > 0) {
+      return items.slice(0, limit).map((item) => ({ symbol: item.symbol, name: item.name }));
     }
+  } catch {
+    // fall through to default samples
   }
 
   return [
     { symbol: "002261.SZ", name: "拓维信息" },
     { symbol: "002202.SZ", name: "金风科技" },
   ].slice(0, limit);
+}
+
+function currentTimestamp(): string {
+  return new Date().toISOString().slice(0, 19).replace("T", " ");
 }
 
 function parseLimitArg(prefix: string, fallback: number): number {

@@ -117,7 +117,13 @@ export function createAppContext(
   const financialService = new FinancialService(tickflowClient);
   const mxApiService = new MxApiService(config.mxSearchApiUrl, config.mxSearchApiKey);
   const financialLiteService = new FinancialLiteService(mxApiService);
-  const watchlistProfileService = new WatchlistProfileService(mxApiService);
+  const analysisService = new AnalysisService(
+    config.llmBaseUrl,
+    config.llmApiKey,
+    config.llmModel,
+    analysisLogRepository,
+  );
+  const watchlistProfileService = new WatchlistProfileService(mxApiService, analysisService);
   const tradingCalendarService = new TradingCalendarService(config.calendarFile);
   const alertService = new AlertService(
     config.openclawCliBin,
@@ -142,12 +148,6 @@ export function createAppContext(
     watchlistService,
   );
   const reviewMemoryService = new ReviewMemoryService(keyLevelsBacktestService);
-  const analysisService = new AnalysisService(
-    config.llmBaseUrl,
-    config.llmApiKey,
-    config.llmModel,
-    analysisLogRepository,
-  );
   const analysisViewService = new AnalysisViewService(
     analysisLogRepository,
     keyLevelsRepository,

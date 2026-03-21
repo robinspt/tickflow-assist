@@ -20,3 +20,7 @@ export {
   POST_CLOSE_REVIEW_SYSTEM_PROMPT,
   buildPostCloseReviewUserPrompt,
 } from "./post-close-review-user-prompt.js";
+export {
+  WATCHLIST_PROFILE_EXTRACTION_SYSTEM_PROMPT,
+  buildWatchlistProfileExtractionUserPrompt,
+} from "./watchlist-profile-extraction-prompt.js";

@@ -2,6 +2,11 @@ import { AnalysisTask } from "../analysis/tasks/analysis-task.js";
 import { AnalysisLogRepository } from "../storage/repositories/analysis-log-repo.js";
 import type { AnalysisLogEntry } from "../types/domain.js";
 
+export interface GenerateTextOptions {
+  maxTokens?: number;
+  temperature?: number;
+}
+
 export class AnalysisService {
   constructor(
     private readonly llmBaseUrl: string,
@@ -9,6 +14,23 @@ export class AnalysisService {
     private readonly llmModel: string,
     private readonly analysisLogRepository: AnalysisLogRepository,
   ) {}
+
+  isConfigured(): boolean {
+    return Boolean(this.llmBaseUrl.trim() && this.llmApiKey.trim() && this.llmModel.trim());
+  }
+
+  getConfigurationError(): string | null {
+    if (!this.llmBaseUrl.trim()) {
+      return "LLM 未配置接口地址，请设置 llmBaseUrl";
+    }
+    if (!this.llmApiKey.trim()) {
+      return "LLM 未配置 API Key，请设置 llmApiKey";
+    }
+    if (!this.llmModel.trim()) {
+      return "LLM 未配置模型，请设置 llmModel";
+    }
+    return null;
+  }
 
   async runTask<TInput, TResult>(task: AnalysisTask<TInput, TResult>, input: TInput): Promise<TResult> {
     const prepared = await task.prepare(input);
@@ -18,15 +40,28 @@ export class AnalysisService {
     return result;
   }
 
-  async generateText(systemPrompt: string, userPrompt: string): Promise<string> {
-    return this.callLlm(systemPrompt, userPrompt);
+  async generateText(
+    systemPrompt: string,
+    userPrompt: string,
+    options: GenerateTextOptions = {},
+  ): Promise<string> {
+    return this.callLlm(systemPrompt, userPrompt, options);
   }
 
   async getLatestAnalysis(symbol: string): Promise<AnalysisLogEntry | null> {
     return this.analysisLogRepository.getLatest(symbol);
   }
 
-  private async callLlm(systemPrompt: string, userPrompt: string): Promise<string> {
+  private async callLlm(
+    systemPrompt: string,
+    userPrompt: string,
+    options: GenerateTextOptions,
+  ): Promise<string> {
+    const configError = this.getConfigurationError();
+    if (configError) {
+      throw new Error(configError);
+    }
+
     const url = new URL("/chat/completions", this.llmBaseUrl).toString();
     const response = await fetch(url, {
       method: "POST",
@@ -40,8 +75,8 @@ export class AnalysisService {
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        max_tokens: 4096,
-        temperature: 0.3,
+        max_tokens: options.maxTokens ?? 4096,
+        temperature: options.temperature ?? 0.3,
       }),
     });
 
