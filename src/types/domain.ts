@@ -3,6 +3,10 @@ export interface WatchlistItem {
   name: string;
   costPrice: number;
   addedAt: string;
+  sector: string | null;
+  themes: string[];
+  themeQuery: string | null;
+  themeUpdatedAt: string | null;
 }
 
 export interface QuoteSnapshot {

@@ -1,4 +1,4 @@
-import type { WatchlistItem, KeyLevels } from "../../types/domain.js";
+import type { WatchlistItem, KeyLevels, KeyLevelsHistoryEntry } from "../../types/domain.js";
 import type { IndicatorRow } from "../../types/indicator.js";
 import type { FinancialSnapshot } from "../../services/financial-service.js";
 import type { MxSearchDocument } from "../../types/mx-search.js";
@@ -6,11 +6,34 @@ import type { TickFlowIntradayKlineRow, TickFlowKlineRow, TickFlowQuote } from "
 import type { FinancialLiteSnapshot } from "../../services/financial-lite-service.js";
 
 export type FinancialAnalysisMode = "full" | "lite" | "none";
+export type MarketBias = "tailwind" | "neutral" | "headwind";
+export type NewsImpact = "supportive" | "neutral" | "disruptive";
+export type ReviewDecision = "keep" | "adjust" | "recompute" | "invalidate";
+export type ValidationVerdict = "validated" | "mixed" | "invalidated" | "unavailable";
 
 export interface ReviewMemoryContext {
   available: boolean;
   summary: string;
   asOf: string | null;
+}
+
+export interface MarketIndexSnapshot {
+  symbol: string;
+  name: string;
+  latestClose: number | null;
+  prevClose: number | null;
+  changePct: number | null;
+  intradayClose: number | null;
+  aboveMa5: boolean | null;
+  aboveMa10: boolean | null;
+  summary: string;
+}
+
+export interface MarketOverviewContext {
+  available: boolean;
+  bias: MarketBias;
+  summary: string;
+  indices: MarketIndexSnapshot[];
 }
 
 export interface MarketAnalysisContext {
@@ -23,6 +46,7 @@ export interface MarketAnalysisContext {
   intradayIndicators: IndicatorRow[];
   realtimeQuote: TickFlowQuote | null;
   reviewMemory: ReviewMemoryContext;
+  marketOverview: MarketOverviewContext;
 }
 
 export interface FinancialAnalysisContext {
@@ -42,6 +66,9 @@ export interface NewsAnalysisContext {
   query: string;
   documents: MxSearchDocument[];
   available: boolean;
+  boardQuery: string | null;
+  boardDocuments: MxSearchDocument[];
+  boardAvailable: boolean;
 }
 
 export interface TechnicalSignalResult {
@@ -78,5 +105,34 @@ export interface CompositeAnalysisInput {
 
 export interface CompositeAnalysisResult {
   analysisText: string;
+  levels: KeyLevels | null;
+}
+
+export interface PriorKeyLevelValidationContext {
+  available: boolean;
+  snapshotDate: string | null;
+  evaluatedTradeDate: string | null;
+  verdict: ValidationVerdict;
+  snapshot: KeyLevelsHistoryEntry | null;
+  summary: string;
+  lines: string[];
+}
+
+export interface PostCloseReviewInput extends CompositeAnalysisInput {
+  compositeResult: CompositeAnalysisResult;
+  validation: PriorKeyLevelValidationContext;
+}
+
+export interface PostCloseReviewResult {
+  analysisText: string;
+  decision: ReviewDecision;
+  decisionReason: string;
+  sessionSummary: string;
+  marketSectorSummary: string;
+  newsSummary: string;
+  actionAdvice: string;
+  marketBias: MarketBias;
+  sectorBias: MarketBias;
+  newsImpact: NewsImpact;
   levels: KeyLevels | null;
 }

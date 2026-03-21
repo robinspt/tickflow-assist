@@ -132,7 +132,7 @@ function extractApiError(value: unknown): MxSearchResponseError | null {
   return { code, message };
 }
 
-function normalizeMxSearchDocuments(value: unknown): MxSearchDocument[] {
+export function normalizeMxSearchDocuments(value: unknown): MxSearchDocument[] {
   const root = asRecord(value);
   const nestedData = asRecord(asRecord(root.data).data);
   const llmSearchResponse = asRecord(nestedData.llmSearchResponse);
@@ -190,9 +190,15 @@ function collectCandidateItems(value: unknown, depth = 0): Record<string, unknow
 
 function looksLikeDocument(value: Record<string, unknown>): boolean {
   return (
-    typeof value.title === "string" ||
-    typeof value.trunk === "string" ||
-    Array.isArray(value.secuList)
+    typeof value.title === "string"
+    || typeof value.name === "string"
+    || typeof value.headline === "string"
+    || typeof value.trunk === "string"
+    || typeof value.content === "string"
+    || typeof value.summary === "string"
+    || typeof value.abstract === "string"
+    || typeof value.text === "string"
+    || Array.isArray(value.secuList)
   );
 }
 

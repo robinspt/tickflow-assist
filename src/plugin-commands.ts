@@ -75,6 +75,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
   const removeStock = getTool(tools, "remove_stock");
   const listWatchlist = getTool(tools, "list_watchlist");
   const refreshWatchlistNames = getTool(tools, "refresh_watchlist_names");
+  const refreshWatchlistProfiles = getTool(tools, "refresh_watchlist_profiles");
   const startMonitor = getTool(tools, "start_monitor");
   const stopMonitor = getTool(tools, "stop_monitor");
   const monitorStatus = getTool(tools, "monitor_status");
@@ -155,6 +156,15 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       requireAuth: true,
       handler: async () => ({
         text: await runToolText(refreshWatchlistNames),
+      }),
+    },
+    {
+      name: "ta_refreshprofiles",
+      description: "刷新自选股行业分类与概念板块，不经过 AI 对话。用法: /ta_refreshprofiles [symbol]",
+      acceptsArgs: true,
+      requireAuth: true,
+      handler: async ({ args }) => ({
+        text: await runToolText(refreshWatchlistProfiles, args?.trim() || undefined),
       }),
     },
     {

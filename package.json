@@ -26,7 +26,8 @@
     "dev": "tsc -p tsconfig.json --watch",
     "tool": "node dist/dev/run-tool.js",
     "monitor-loop": "node dist/dev/run-monitor-loop.js",
-    "daily-update-loop": "node dist/dev/run-daily-update-loop.js"
+    "daily-update-loop": "node dist/dev/run-daily-update-loop.js",
+    "validate:mx-search": "npm run build && node dist/dev/validate-mx-search.js"
   },
   "openclaw": {
     "extensions": [

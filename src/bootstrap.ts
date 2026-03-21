@@ -20,6 +20,7 @@ import { FinancialAnalysisRepository } from "./storage/repositories/financial-an
 import { NewsAnalysisRepository } from "./storage/repositories/news-analysis-repo.js";
 import { CompositeAnalysisRepository } from "./storage/repositories/composite-analysis-repo.js";
 import { WatchlistService } from "./services/watchlist-service.js";
+import { WatchlistProfileService } from "./services/watchlist-profile-service.js";
 import { AnalysisService } from "./services/analysis-service.js";
 import { AnalysisViewService } from "./services/analysis-view-service.js";
 import { QuoteService } from "./services/quote-service.js";
@@ -39,6 +40,7 @@ import { FinancialFundamentalTask } from "./analysis/tasks/financial-fundamental
 import { FinancialFundamentalLiteTask } from "./analysis/tasks/financial-fundamental-lite.task.js";
 import { NewsCatalystTask } from "./analysis/tasks/news-catalyst.task.js";
 import { CompositeStockAnalysisTask } from "./analysis/tasks/composite-stock-analysis.task.js";
+import { PostCloseReviewTask } from "./analysis/tasks/post-close-review.task.js";
 import { addStockTool } from "./tools/add-stock.tool.js";
 import { analyzeTool } from "./tools/analyze.tool.js";
 import { fetchKlinesTool } from "./tools/fetch-klines.tool.js";
@@ -50,6 +52,7 @@ import { listWatchlistTool } from "./tools/list-watchlist.tool.js";
 import { dailyUpdateStatusTool } from "./tools/daily-update-status.tool.js";
 import { monitorStatusTool } from "./tools/monitor-status.tool.js";
 import { refreshWatchlistNamesTool } from "./tools/refresh-watchlist-names.tool.js";
+import { refreshWatchlistProfilesTool } from "./tools/refresh-watchlist-profiles.tool.js";
 import { queryDatabaseTool } from "./tools/query-database.tool.js";
 import { removeStockTool } from "./tools/remove-stock.tool.js";
 import { startDailyUpdateTool } from "./tools/start-daily-update.tool.js";
@@ -114,6 +117,7 @@ export function createAppContext(
   const financialService = new FinancialService(tickflowClient);
   const mxApiService = new MxApiService(config.mxSearchApiUrl, config.mxSearchApiKey);
   const financialLiteService = new FinancialLiteService(mxApiService);
+  const watchlistProfileService = new WatchlistProfileService(mxApiService);
   const tradingCalendarService = new TradingCalendarService(config.calendarFile);
   const alertService = new AlertService(
     config.openclawCliBin,
@@ -126,7 +130,11 @@ export function createAppContext(
     config.pythonArgs,
     config.pythonWorkdir,
   );
-  const watchlistService = new WatchlistService(watchlistRepository, instrumentService);
+  const watchlistService = new WatchlistService(
+    watchlistRepository,
+    instrumentService,
+    watchlistProfileService,
+  );
   const keyLevelsBacktestService = new KeyLevelsBacktestService(
     keyLevelsHistoryRepository,
     klinesRepository,
@@ -170,6 +178,7 @@ export function createAppContext(
   const financialFundamentalTask = new FinancialFundamentalTask();
   const financialFundamentalLiteTask = new FinancialFundamentalLiteTask();
   const newsCatalystTask = new NewsCatalystTask();
+  const postCloseReviewTask = new PostCloseReviewTask();
   const compositeStockAnalysisTask = new CompositeStockAnalysisTask(
     keyLevelsRepository,
     analysisLogRepository,
@@ -214,8 +223,12 @@ export function createAppContext(
   const postCloseReviewService = new PostCloseReviewService(
     watchlistService,
     compositeAnalysisOrchestrator,
+    analysisService,
+    postCloseReviewTask,
+    keyLevelsRepository,
     keyLevelsHistoryRepository,
-    keyLevelsBacktestService,
+    klinesRepository,
+    intradayKlinesRepository,
   );
   const realtimeMonitorWorker = new RealtimeMonitorWorker(
     monitorService,
@@ -258,6 +271,7 @@ export function createAppContext(
       mxSelectStockTool(mxApiService),
       queryDatabaseTool(database),
       refreshWatchlistNamesTool(watchlistService),
+      refreshWatchlistProfilesTool(watchlistService),
       removeStockTool(watchlistService),
       startDailyUpdateTool(dailyUpdateWorker, config, runtime.configSource, runtime),
       startMonitorTool(monitorService, runtime),

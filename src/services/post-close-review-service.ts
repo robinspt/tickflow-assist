@@ -1,60 +1,295 @@
-import type { KeyLevelsHistoryEntry } from "../types/domain.js";
+import type { KeyLevelsHistoryEntry, WatchlistItem } from "../types/domain.js";
 import { formatChinaDateTime } from "../utils/china-time.js";
 import { CompositeAnalysisOrchestrator } from "../analysis/orchestrators/composite-analysis.orchestrator.js";
-import { KeyLevelsHistoryRepository } from "../storage/repositories/key-levels-history-repo.js";
+import type {
+  CompositeAnalysisResult,
+  MarketOverviewContext,
+  PostCloseReviewResult,
+  PriorKeyLevelValidationContext,
+} from "../analysis/types/composite-analysis.js";
+import { PostCloseReviewTask } from "../analysis/tasks/post-close-review.task.js";
 import { WatchlistService } from "./watchlist-service.js";
-import { KeyLevelsBacktestService } from "./key-levels-backtest-service.js";
+import { AnalysisService } from "./analysis-service.js";
+import { KeyLevelsRepository } from "../storage/repositories/key-levels-repo.js";
+import { KeyLevelsHistoryRepository } from "../storage/repositories/key-levels-history-repo.js";
+import { KlinesRepository } from "../storage/repositories/klines-repo.js";
+import { IntradayKlinesRepository } from "../storage/repositories/intraday-klines-repo.js";
+
+const LEVEL_BUFFER = 0.005;
+const INTRADAY_PERIOD = "1m";
+
+interface ReviewSuccessEntry {
+  ok: true;
+  item: WatchlistItem;
+  validation: PriorKeyLevelValidationContext;
+  review: PostCloseReviewResult;
+}
+
+interface ReviewFailureEntry {
+  ok: false;
+  item: WatchlistItem;
+  errorMessage: string;
+}
+
+type ReviewEntry = ReviewSuccessEntry | ReviewFailureEntry;
+
+export interface PostCloseReviewRunResult {
+  overviewMessage: string;
+  detailMessages: string[];
+  combinedText: string;
+}
 
 export class PostCloseReviewService {
   constructor(
     private readonly watchlistService: WatchlistService,
     private readonly compositeAnalysisOrchestrator: CompositeAnalysisOrchestrator,
+    private readonly analysisService: AnalysisService,
+    private readonly postCloseReviewTask: PostCloseReviewTask,
+    private readonly keyLevelsRepository: KeyLevelsRepository,
     private readonly keyLevelsHistoryRepository: KeyLevelsHistoryRepository,
-    private readonly keyLevelsBacktestService: KeyLevelsBacktestService,
+    private readonly klinesRepository: KlinesRepository,
+    private readonly intradayKlinesRepository: IntradayKlinesRepository,
   ) {}
 
-  async run(): Promise<string> {
+  async run(): Promise<PostCloseReviewRunResult> {
     const watchlist = await this.watchlistService.list();
     if (watchlist.length === 0) {
-      return "🤖 收盘分析: 关注列表为空，已跳过分析与回测。";
+      const overviewMessage = "🧭 收盘复盘总览\n\n关注列表为空，已跳过收盘复盘。";
+      return {
+        overviewMessage,
+        detailMessages: [],
+        combinedText: overviewMessage,
+      };
     }
 
-    const detailLines = ["收盘分析明细:"];
-    let success = 0;
-    let failed = 0;
-    let refreshed = 0;
+    const entries: ReviewEntry[] = [];
+    const detailMessages: string[] = [];
+    let marketOverview: MarketOverviewContext | null = null;
 
     for (const item of watchlist) {
+      let compositeResult: CompositeAnalysisResult | null = null;
       try {
-        const result = await this.compositeAnalysisOrchestrator.analyze(item.symbol);
-        success += 1;
-        if (result.levels) {
-          await this.keyLevelsHistoryRepository.saveDailySnapshot(
-            toHistoryEntry(item.symbol, result.analysisText, result.levels),
-          );
-          refreshed += 1;
-          detailLines.push(
-            `✅ ${item.name}（${item.symbol}）: 评分 ${result.levels.score}/10 | 支撑 ${formatMaybePrice(result.levels.support)} | 压力 ${formatMaybePrice(result.levels.resistance)} | 止损 ${formatMaybePrice(result.levels.stop_loss)}`,
-          );
-          continue;
-        }
+        const input = await this.compositeAnalysisOrchestrator.buildInput(item.symbol);
+        marketOverview ??= input.market.marketOverview;
+        const tradeDate = input.market.klines[input.market.klines.length - 1]?.trade_date ?? formatChinaDateTime().slice(0, 10);
+        const validation = await this.buildValidationContext(item.symbol, tradeDate);
 
-        detailLines.push(`⚠️ ${item.name}（${item.symbol}）: 未生成结构化关键价位，已跳过活动快照更新`);
+        compositeResult = await this.compositeAnalysisOrchestrator.analyzeInput(input);
+        const review = await this.analysisService.runTask(this.postCloseReviewTask, {
+          ...input,
+          compositeResult,
+          validation,
+        });
+        const message = this.formatDetailMessage(item, validation, review);
+        await this.persistReview(item.symbol, message, review);
+
+        entries.push({
+          ok: true,
+          item,
+          validation,
+          review,
+        });
+        detailMessages.push(message);
       } catch (error) {
-        failed += 1;
         const message = error instanceof Error ? error.message : String(error);
-        detailLines.push(`❌ ${item.name}（${item.symbol}）: ${message}`);
+        if (compositeResult?.levels) {
+          await this.persistFallbackCompositeReview(item.symbol, compositeResult);
+        }
+        entries.push({ ok: false, item, errorMessage: message });
+        detailMessages.push(this.formatFailureMessage(item, message, compositeResult));
       }
     }
 
-    const summaryLines = [
-      `🤖 收盘分析: ${watchlist.length} 只股票`,
-      `🤖 分析完成: ${success} 成功, ${failed} 失败, ${refreshed} 只已刷新活动价位`,
-      "🤖 经验回灌: 后续 analyze 会自动引用历史关键位复盘摘要校准当前判断",
-      ...(await this.keyLevelsBacktestService.buildSummaryLines()),
+    const overviewMessage = this.formatOverviewMessage(marketOverview, entries);
+    return {
+      overviewMessage,
+      detailMessages,
+      combinedText: [overviewMessage, ...detailMessages].join("\n\n"),
+    };
+  }
+
+  private async persistReview(symbol: string, message: string, review: PostCloseReviewResult): Promise<void> {
+    if (review.decision === "invalidate" || !review.levels) {
+      await this.keyLevelsRepository.remove(symbol);
+      return;
+    }
+
+    const levels = {
+      ...review.levels,
+      analysis_text: message,
+    };
+    await this.keyLevelsRepository.save(symbol, levels);
+    await this.keyLevelsHistoryRepository.saveDailySnapshot(
+      toHistoryEntry(symbol, message, levels),
+    );
+  }
+
+  private async persistFallbackCompositeReview(symbol: string, result: CompositeAnalysisResult): Promise<void> {
+    if (!result.levels) {
+      return;
+    }
+
+    await this.keyLevelsHistoryRepository.saveDailySnapshot(
+      toHistoryEntry(symbol, result.analysisText, result.levels),
+    );
+  }
+
+  private async buildValidationContext(symbol: string, tradeDate: string): Promise<PriorKeyLevelValidationContext> {
+    const snapshots = await this.keyLevelsHistoryRepository.listBySymbol(symbol);
+    const snapshot = snapshots.find((item) => item.analysis_date < tradeDate) ?? null;
+    if (!snapshot) {
+      return {
+        available: false,
+        snapshotDate: null,
+        evaluatedTradeDate: tradeDate,
+        verdict: "unavailable",
+        snapshot: null,
+        summary: "昨日无可验证的活动关键位快照，本轮只能基于今日数据直接重算。",
+        lines: ["暂无昨日活动关键位快照。"],
+      };
+    }
+
+    const dailyRows = await this.klinesRepository.listBySymbol(symbol);
+    const row = dailyRows.find((item) => item.trade_date === tradeDate)
+      ?? dailyRows.find((item) => item.trade_date > snapshot.analysis_date)
+      ?? null;
+    if (!row) {
+      return {
+        available: false,
+        snapshotDate: snapshot.analysis_date,
+        evaluatedTradeDate: null,
+        verdict: "unavailable",
+        snapshot,
+        summary: `已找到 ${snapshot.analysis_date} 的关键位快照，但尚无后续交易日数据可供验证。`,
+        lines: ["缺少后续交易日数据。"],
+      };
+    }
+
+    const intradayRows = (await this.intradayKlinesRepository.listBySymbol(symbol, INTRADAY_PERIOD))
+      .filter((item) => item.trade_date === row.trade_date);
+
+    const support = evaluateSupport(snapshot, row);
+    const resistance = evaluateResistance(snapshot, row);
+    const stopLoss = evaluateStopLoss(snapshot, row);
+    const takeProfit = evaluateTakeProfit(snapshot, row);
+    const breakthrough = evaluateBreakthrough(snapshot, row);
+    const path = evaluatePath(snapshot, row, intradayRows);
+
+    const verdict = deriveValidationVerdict({
+      support,
+      stopLoss,
+      takeProfit,
+      breakthrough,
+      path,
+    });
+
+    const lines = [
+      `快照日期 ${snapshot.analysis_date}，验证交易日 ${row.trade_date}。`,
+      `当日K线: 高 ${row.high.toFixed(2)} | 低 ${row.low.toFixed(2)} | 收 ${row.close.toFixed(2)}`,
+      support,
+      resistance,
+      stopLoss,
+      takeProfit,
+      breakthrough,
+      path,
     ];
 
-    return [...summaryLines, "", ...detailLines].join("\n");
+    return {
+      available: true,
+      snapshotDate: snapshot.analysis_date,
+      evaluatedTradeDate: row.trade_date,
+      verdict,
+      snapshot,
+      summary: `昨日关键位${formatValidationVerdictLabel(verdict)}。`,
+      lines,
+    };
+  }
+
+  private formatOverviewMessage(
+    marketOverview: MarketOverviewContext | null,
+    entries: ReviewEntry[],
+  ): string {
+    const successEntries = entries.filter((entry): entry is ReviewSuccessEntry => entry.ok);
+    const failureCount = entries.length - successEntries.length;
+    const validationCounts = countBy(successEntries.map((entry) => entry.validation.verdict));
+    const decisionCounts = countBy(successEntries.map((entry) => entry.review.decision));
+    const marketBiasCounts = countBy(successEntries.map((entry) => entry.review.marketBias));
+    const sectorBiasCounts = countBy(successEntries.map((entry) => entry.review.sectorBias));
+    const newsImpactCounts = countBy(successEntries.map((entry) => entry.review.newsImpact));
+
+    const lines = [
+      marketOverview?.summary ?? "未获取到大盘总览，本轮仅输出个股复盘。",
+      "",
+      `复盘数量: ${entries.length} 只 | 成功 ${successEntries.length} | 失败 ${failureCount}`,
+      `关键位验证: 有效 ${validationCounts.validated ?? 0} | 混合 ${validationCounts.mixed ?? 0} | 失效 ${validationCounts.invalidated ?? 0} | 缺样本 ${validationCounts.unavailable ?? 0}`,
+      `明日处理: 沿用 ${decisionCounts.keep ?? 0} | 微调 ${decisionCounts.adjust ?? 0} | 重算 ${decisionCounts.recompute ?? 0} | 暂停 ${decisionCounts.invalidate ?? 0}`,
+      `大盘风向: 顺风 ${marketBiasCounts.tailwind ?? 0} | 中性 ${marketBiasCounts.neutral ?? 0} | 逆风 ${marketBiasCounts.headwind ?? 0}`,
+      `板块风向: 顺风 ${sectorBiasCounts.tailwind ?? 0} | 中性 ${sectorBiasCounts.neutral ?? 0} | 逆风 ${sectorBiasCounts.headwind ?? 0}`,
+      `新闻影响: 支持 ${newsImpactCounts.supportive ?? 0} | 中性 ${newsImpactCounts.neutral ?? 0} | 扰动 ${newsImpactCounts.disruptive ?? 0}`,
+    ];
+
+    return `🧭 收盘复盘总览\n\n${lines.join("\n")}`.trim();
+  }
+
+  private formatDetailMessage(
+    item: WatchlistItem,
+    validation: PriorKeyLevelValidationContext,
+    review: PostCloseReviewResult,
+  ): string {
+    const lines = [
+      `📘 收盘复盘 | ${item.name}（${item.symbol}）`,
+      "",
+      "昨日关键位验证",
+      `• ${validation.summary}`,
+      ...validation.lines.map((line) => `• ${line}`),
+      "",
+      "今日盘面",
+      review.sessionSummary || "未生成盘面一句话总结。",
+      "",
+      "大盘与板块",
+      review.marketSectorSummary || "未生成大盘/板块总结。",
+      `风向判断: 大盘${formatMarketBiasLabel(review.marketBias)} | 板块${formatMarketBiasLabel(review.sectorBias)}`,
+      "",
+      "新闻与公告",
+      review.newsSummary || "未生成新闻影响总结。",
+      `新闻影响: ${formatNewsImpactLabel(review.newsImpact)}`,
+      "",
+      "明日关键位处理",
+      `结论: ${formatDecisionLabel(review.decision)}`,
+      review.decisionReason || "未生成处理理由。",
+      "",
+      "更新后关键位",
+    ];
+
+    if (review.decision === "invalidate" || !review.levels) {
+      lines.push("• 已暂停沿用昨日关键位，等待下一轮重算。", "", "操作建议", review.actionAdvice || "明日先观察，等待新的关键位再执行。");
+      return lines.join("\n");
+    }
+
+    lines.push(
+      `• 支撑 ${formatMaybePrice(review.levels.support)} | 压力 ${formatMaybePrice(review.levels.resistance)} | 突破 ${formatMaybePrice(review.levels.breakthrough)}`,
+      `• 止损 ${formatMaybePrice(review.levels.stop_loss)} | 止盈 ${formatMaybePrice(review.levels.take_profit)} | 评分 ${review.levels.score}/10`,
+      "",
+      "操作建议",
+      review.actionAdvice || "按关键位和次日量价配合再决定是否执行。",
+    );
+    return lines.join("\n");
+  }
+
+  private formatFailureMessage(
+    item: WatchlistItem,
+    errorMessage: string,
+    compositeResult: CompositeAnalysisResult | null,
+  ): string {
+    const fallback = compositeResult?.levels
+      ? "已保留综合分析生成的关键位，可稍后用 view_analysis 或 analyze 复核。"
+      : "本轮未生成可用关键位。";
+    return [
+      `⚠️ 收盘复盘 | ${item.name}（${item.symbol}）`,
+      "",
+      `失败原因: ${errorMessage}`,
+      fallback,
+    ].join("\n");
   }
 }
 
@@ -81,6 +316,196 @@ function toHistoryEntry(
     analysis_text: analysisText,
     score: levels.score,
   };
+}
+
+function evaluateSupport(snapshot: KeyLevelsHistoryEntry, row: { low: number; close: number }): string {
+  if (!(snapshot.support != null && snapshot.support > 0)) {
+    return "支撑: 昨日未设置支撑位。";
+  }
+  const touchUpper = snapshot.support * (1 + LEVEL_BUFFER);
+  const holdLower = snapshot.support * (1 - LEVEL_BUFFER);
+  if (row.low > touchUpper) {
+    return `支撑 ${snapshot.support.toFixed(2)}: 当日未触达。`;
+  }
+  if (row.close < holdLower) {
+    return `支撑 ${snapshot.support.toFixed(2)}: 盘中触达后收盘失守，验证失败。`;
+  }
+  return `支撑 ${snapshot.support.toFixed(2)}: 盘中触达后收盘仍守住，验证有效。`;
+}
+
+function evaluateResistance(snapshot: KeyLevelsHistoryEntry, row: { high: number; close: number }): string {
+  if (!(snapshot.resistance != null && snapshot.resistance > 0)) {
+    return "压力: 昨日未设置压力位。";
+  }
+  const touchLower = snapshot.resistance * (1 - LEVEL_BUFFER);
+  const holdUpper = snapshot.resistance * (1 + LEVEL_BUFFER);
+  if (row.high < touchLower) {
+    return `压力 ${snapshot.resistance.toFixed(2)}: 当日未触达。`;
+  }
+  if (row.close > holdUpper) {
+    return `压力 ${snapshot.resistance.toFixed(2)}: 当日已被有效站上，原压力失效。`;
+  }
+  return `压力 ${snapshot.resistance.toFixed(2)}: 盘中触达但未有效站上，压制仍在。`;
+}
+
+function evaluateStopLoss(snapshot: KeyLevelsHistoryEntry, row: { low: number }): string {
+  if (!(snapshot.stop_loss != null && snapshot.stop_loss > 0)) {
+    return "止损: 昨日未设置止损位。";
+  }
+  if (row.low <= snapshot.stop_loss) {
+    return `止损 ${snapshot.stop_loss.toFixed(2)}: 已触发。`;
+  }
+  return `止损 ${snapshot.stop_loss.toFixed(2)}: 未触发。`;
+}
+
+function evaluateTakeProfit(snapshot: KeyLevelsHistoryEntry, row: { high: number }): string {
+  if (!(snapshot.take_profit != null && snapshot.take_profit > 0)) {
+    return "止盈: 昨日未设置止盈位。";
+  }
+  if (row.high >= snapshot.take_profit) {
+    return `止盈 ${snapshot.take_profit.toFixed(2)}: 已触发。`;
+  }
+  return `止盈 ${snapshot.take_profit.toFixed(2)}: 未触发。`;
+}
+
+function evaluateBreakthrough(snapshot: KeyLevelsHistoryEntry, row: { high: number; close: number }): string {
+  if (!(snapshot.breakthrough != null && snapshot.breakthrough > 0)) {
+    return "突破: 昨日未设置突破位。";
+  }
+  if (row.high < snapshot.breakthrough) {
+    return `突破 ${snapshot.breakthrough.toFixed(2)}: 未触发。`;
+  }
+  if (row.close >= snapshot.breakthrough * (1 + LEVEL_BUFFER)) {
+    return `突破 ${snapshot.breakthrough.toFixed(2)}: 已触发且收盘确认。`;
+  }
+  return `突破 ${snapshot.breakthrough.toFixed(2)}: 盘中试探但收盘未确认。`;
+}
+
+function evaluatePath(
+  snapshot: KeyLevelsHistoryEntry,
+  row: { low: number; high: number },
+  intradayRows: Array<{ low: number; high: number; open: number }>,
+): string {
+  if (!(snapshot.stop_loss != null && snapshot.stop_loss > 0 && snapshot.take_profit != null && snapshot.take_profit > 0)) {
+    return "路径: 缺少双目标，无法判断先止损还是先止盈。";
+  }
+
+  const hitsStop = row.low <= snapshot.stop_loss;
+  const hitsTakeProfit = row.high >= snapshot.take_profit;
+  if (!hitsStop && !hitsTakeProfit) {
+    return "路径: 当日未触发双目标。";
+  }
+  if (hitsStop && !hitsTakeProfit) {
+    return `路径: 当日先到止损 ${snapshot.stop_loss.toFixed(2)}。`;
+  }
+  if (!hitsStop && hitsTakeProfit) {
+    return `路径: 当日先到止盈 ${snapshot.take_profit.toFixed(2)}。`;
+  }
+
+  for (const intradayRow of intradayRows) {
+    const intradayHitsStop = intradayRow.low <= snapshot.stop_loss;
+    const intradayHitsTakeProfit = intradayRow.high >= snapshot.take_profit;
+    if (!intradayHitsStop && !intradayHitsTakeProfit) {
+      continue;
+    }
+    if (intradayHitsStop && !intradayHitsTakeProfit) {
+      return `路径: 同日双触发中，分钟线判定先到止损 ${snapshot.stop_loss.toFixed(2)}。`;
+    }
+    if (!intradayHitsStop && intradayHitsTakeProfit) {
+      return `路径: 同日双触发中，分钟线判定先到止盈 ${snapshot.take_profit.toFixed(2)}。`;
+    }
+    if (intradayRow.open <= snapshot.stop_loss) {
+      return `路径: 同日双触发中，分钟线按开盘位置判定先到止损 ${snapshot.stop_loss.toFixed(2)}。`;
+    }
+    if (intradayRow.open >= snapshot.take_profit) {
+      return `路径: 同日双触发中，分钟线按开盘位置判定先到止盈 ${snapshot.take_profit.toFixed(2)}。`;
+    }
+    return "路径: 同日双触发，但分钟线仍无法明确先后。";
+  }
+
+  return "路径: 同日双触发，但缺少有效分钟线判定先后。";
+}
+
+function deriveValidationVerdict(input: {
+  support: string;
+  stopLoss: string;
+  takeProfit: string;
+  breakthrough: string;
+  path: string;
+}): PriorKeyLevelValidationContext["verdict"] {
+  if (
+    input.support.includes("验证失败")
+    || input.stopLoss.includes("已触发")
+    || input.path.includes("先到止损")
+  ) {
+    return "invalidated";
+  }
+
+  if (
+    input.takeProfit.includes("已触发")
+    || input.breakthrough.includes("收盘确认")
+    || input.support.includes("验证有效")
+    || input.path.includes("先到止盈")
+  ) {
+    return "validated";
+  }
+
+  return "mixed";
+}
+
+function countBy(values: string[]): Record<string, number> {
+  return values.reduce<Record<string, number>>((acc, value) => {
+    acc[value] = (acc[value] ?? 0) + 1;
+    return acc;
+  }, {});
+}
+
+function formatDecisionLabel(value: PostCloseReviewResult["decision"]): string {
+  switch (value) {
+    case "keep":
+      return "沿用";
+    case "adjust":
+      return "微调";
+    case "invalidate":
+      return "暂停沿用";
+    default:
+      return "重算";
+  }
+}
+
+function formatMarketBiasLabel(value: PostCloseReviewResult["marketBias"]): string {
+  switch (value) {
+    case "tailwind":
+      return "顺风";
+    case "headwind":
+      return "逆风";
+    default:
+      return "中性";
+  }
+}
+
+function formatNewsImpactLabel(value: PostCloseReviewResult["newsImpact"]): string {
+  switch (value) {
+    case "supportive":
+      return "支持";
+    case "disruptive":
+      return "扰动";
+    default:
+      return "中性";
+  }
+}
+
+function formatValidationVerdictLabel(value: PriorKeyLevelValidationContext["verdict"]): string {
+  switch (value) {
+    case "validated":
+      return "验证有效";
+    case "invalidated":
+      return "明显失效";
+    case "mixed":
+      return "效果偏混合";
+    default:
+      return "暂无可验证样本";
+  }
 }
 
 function formatMaybePrice(value: number | null | undefined): string {

@@ -20,6 +20,15 @@ export class KeyLevelsRepository {
     await table.add([row]);
   }
 
+  async remove(symbol: string): Promise<void> {
+    if (!(await this.db.hasTable(KEY_LEVELS_TABLE))) {
+      return;
+    }
+
+    const table = await this.db.openTable(KEY_LEVELS_TABLE);
+    await table.delete(`symbol = '${escapeSqlString(symbol)}'`);
+  }
+
   async getBySymbol(symbol: string): Promise<KeyLevels | null> {
     if (!(await this.db.hasTable(KEY_LEVELS_TABLE))) {
       return null;

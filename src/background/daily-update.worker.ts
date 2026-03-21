@@ -4,7 +4,10 @@ import path from "node:path";
 import type { PluginConfig } from "../config/schema.js";
 import { UpdateService } from "../services/update-service.js";
 import { AlertService } from "../services/alert-service.js";
-import { PostCloseReviewService } from "../services/post-close-review-service.js";
+import {
+  PostCloseReviewService,
+  type PostCloseReviewRunResult,
+} from "../services/post-close-review-service.js";
 import type { DailyUpdateResultType, DailyUpdateState } from "../types/daily-update.js";
 import { chinaToday, formatChinaDateTime } from "../utils/china-time.js";
 import { isPidAlive, spawnDailyUpdateLoop } from "../runtime/daily-update-process.js";
@@ -28,6 +31,15 @@ const DEFAULT_STATE: DailyUpdateState = {
   consecutiveFailures: 0,
 };
 
+interface DailyUpdateExecutionOutput {
+  resultType: DailyUpdateResultType;
+  updateMessage: string;
+  overviewMessage: string | null;
+  detailMessages: string[];
+  reviewWarning: string | null;
+  combinedText: string;
+}
+
 export class DailyUpdateWorker {
   constructor(
     private readonly updateService: UpdateService,
@@ -41,7 +53,8 @@ export class DailyUpdateWorker {
   ) {}
 
   async run(force = false): Promise<string> {
-    return this.executeAndRecord(force, "manual", true);
+    const output = await this.executeAndRecord(force, "manual", true);
+    return output.combinedText;
   }
 
   async runLoop(
@@ -215,44 +228,34 @@ export class DailyUpdateWorker {
     force: boolean,
     trigger: "manual" | "scheduled",
     throwOnError: boolean,
-  ): Promise<string> {
+  ): Promise<DailyUpdateExecutionOutput> {
     const today = chinaToday();
     const state = await this.readState();
     const attemptedAt = formatChinaDateTime();
 
     try {
-      const updateResult = await this.updateService.updateAll(force);
-      let result = updateResult;
-      const resultType = classifyResult(updateResult);
-      if (resultType === "success" && this.postCloseReviewService) {
-        try {
-          const reviewResult = await this.postCloseReviewService.run();
-          result = [updateResult, "", reviewResult].join("\n");
-        } catch (reviewError) {
-          const message = reviewError instanceof Error ? reviewError.message : String(reviewError);
-          result = [updateResult, "", `⚠️ 收盘分析/回测失败: ${message}`].join("\n");
-        }
-      }
+      const updateMessage = await this.updateService.updateAll(force);
+      const output = await this.buildExecutionOutput(updateMessage);
 
       const nextState: DailyUpdateState = {
         ...state,
         lastAttemptAt: attemptedAt,
         lastAttemptDate: today,
-        lastResultType: resultType,
-        lastResultSummary: summarizeResult(result),
-        consecutiveFailures: resultType === "failed" ? state.consecutiveFailures + 1 : 0,
+        lastResultType: output.resultType,
+        lastResultSummary: summarizeResult(output.combinedText),
+        consecutiveFailures: output.resultType === "failed" ? state.consecutiveFailures + 1 : 0,
       };
 
-      if (resultType === "success") {
+      if (output.resultType === "success") {
         nextState.lastSuccessAt = attemptedAt;
         nextState.lastSuccessDate = today;
       }
 
       await this.writeState(nextState);
       if (trigger === "scheduled") {
-        await this.maybeSendNotification(resultType, result);
+        await this.maybeSendNotification(output);
       }
-      return result;
+      return output;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const failureText = `异常: ${message}`;
@@ -264,13 +267,50 @@ export class DailyUpdateWorker {
         lastResultSummary: failureText,
         consecutiveFailures: state.consecutiveFailures + 1,
       });
+      const output: DailyUpdateExecutionOutput = {
+        resultType: "failed",
+        updateMessage: failureText,
+        overviewMessage: null,
+        detailMessages: [],
+        reviewWarning: null,
+        combinedText: failureText,
+      };
       if (trigger === "scheduled") {
-        await this.maybeSendNotification("failed", failureText);
+        await this.maybeSendNotification(output);
       }
       if (throwOnError) {
         throw error;
       }
-      return failureText;
+      return output;
+    }
+  }
+
+  private async buildExecutionOutput(updateMessage: string): Promise<DailyUpdateExecutionOutput> {
+    const resultType = classifyResult(updateMessage);
+    const output: DailyUpdateExecutionOutput = {
+      resultType,
+      updateMessage,
+      overviewMessage: null,
+      detailMessages: [],
+      reviewWarning: null,
+      combinedText: updateMessage,
+    };
+
+    if (resultType !== "success" || !this.postCloseReviewService) {
+      return output;
+    }
+
+    try {
+      const reviewResult = await this.postCloseReviewService.run();
+      return mergeReviewOutput(output, reviewResult);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const reviewWarning = `⚠️ 收盘复盘失败: ${message}`;
+      return {
+        ...output,
+        reviewWarning,
+        combinedText: joinMessages(output.updateMessage, reviewWarning),
+      };
     }
   }
 
@@ -312,16 +352,57 @@ export class DailyUpdateWorker {
     await writeFile(file, JSON.stringify(state, null, 2), "utf-8");
   }
 
-  private async maybeSendNotification(resultType: DailyUpdateResultType, result: string): Promise<void> {
-    if (!this.notifyEnabled || resultType === "skipped") {
+  private async maybeSendNotification(output: DailyUpdateExecutionOutput): Promise<void> {
+    if (!this.notifyEnabled || output.resultType === "skipped") {
       return;
     }
 
-    const title = resultType === "success" ? "📊 定时日更完成" : "❌ 定时日更失败";
-    const lines = selectNotificationLines(result);
-    const message = this.alertService.formatSystemNotification(title, lines);
-    await this.alertService.send(message);
+    if (output.resultType !== "success") {
+      const message = this.alertService.formatSystemNotification(
+        "❌ 定时日更失败",
+        selectNotificationLines(output.updateMessage),
+      );
+      await this.alertService.send(message);
+      return;
+    }
+
+    const messages = [
+      this.alertService.formatSystemNotification(
+        "📊 定时日更完成",
+        normalizeResultLines(output.updateMessage),
+      ),
+      output.overviewMessage,
+      ...output.detailMessages,
+      output.reviewWarning,
+    ].filter((message): message is string => Boolean(message));
+
+    for (const message of messages) {
+      await this.alertService.send(message);
+    }
   }
+}
+
+function mergeReviewOutput(
+  output: DailyUpdateExecutionOutput,
+  reviewResult: PostCloseReviewRunResult,
+): DailyUpdateExecutionOutput {
+  return {
+    ...output,
+    overviewMessage: reviewResult.overviewMessage,
+    detailMessages: reviewResult.detailMessages,
+    combinedText: joinMessages(
+      output.updateMessage,
+      reviewResult.overviewMessage,
+      ...reviewResult.detailMessages,
+    ),
+  };
+}
+
+function joinMessages(...parts: Array<string | null | undefined>): string {
+  return parts
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+    .join("\n\n");
 }
 
 function sleep(ms: number): Promise<void> {
@@ -368,14 +449,14 @@ function summarizeResult(result: string): string {
 function selectSummaryLines(result: string): string[] {
   const lines = normalizeResultLines(result);
   const head = lines.slice(0, 2);
-  const highlights = lines.filter((line) => /^(🏁|🤖|🧪|💡|⚠️ 收盘分析\/回测失败)/.test(line));
-  return dedupeLines([...head, ...highlights]).slice(0, 5);
+  const highlights = lines.filter((line) => /^(🏁|🧭|复盘数量:|关键位验证:|明日处理:|⚠️ 收盘复盘失败|⚠️ 收盘分析\/回测失败)/.test(line));
+  return dedupeLines([...head, ...highlights]).slice(0, 6);
 }
 
 function selectNotificationLines(result: string): string[] {
   const lines = normalizeResultLines(result);
   const head = lines.slice(0, 4);
-  const highlights = lines.filter((line) => /^(🏁|🤖|🧪|💡|⚠️ 收盘分析\/回测失败)/.test(line));
+  const highlights = lines.filter((line) => /^(🏁|🧭|⚠️ 收盘复盘失败|⚠️ 收盘分析\/回测失败)/.test(line));
   return dedupeLines([...head, ...highlights]).slice(0, 12);
 }
 

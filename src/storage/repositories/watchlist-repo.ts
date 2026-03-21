@@ -8,6 +8,7 @@ export class WatchlistRepository {
   constructor(private readonly db: Database) {}
 
   async list(): Promise<WatchlistItem[]> {
+    await this.ensureSchema();
     const items = await this.db.tableToArray<WatchlistItem>(WATCHLIST_TABLE);
     return items
       .map((item) => ({
@@ -15,6 +16,10 @@ export class WatchlistRepository {
         name: String(item.name ?? ""),
         costPrice: Number(item.costPrice),
         addedAt: String(item.addedAt ?? ""),
+        sector: normalizeNullableString(item.sector),
+        themes: parseThemes(item.themes),
+        themeQuery: normalizeNullableString(item.themeQuery),
+        themeUpdatedAt: normalizeNullableString(item.themeUpdatedAt),
       }))
       .sort((a, b) => a.symbol.localeCompare(b.symbol));
   }
@@ -27,6 +32,7 @@ export class WatchlistRepository {
       return;
     }
 
+    await this.ensureSchema();
     const table = await this.db.openTable(WATCHLIST_TABLE);
     await table.delete(`symbol = '${escapeSqlString(item.symbol)}'`);
     await table.add([row]);
@@ -46,6 +52,36 @@ export class WatchlistRepository {
     await table.delete(`symbol = '${escapeSqlString(symbol)}'`);
     return true;
   }
+
+  private async ensureSchema(): Promise<void> {
+    if (!(await this.db.hasTable(WATCHLIST_TABLE))) {
+      return;
+    }
+
+    const fields = await this.db.describeTable(WATCHLIST_TABLE);
+    const fieldNames = new Set(fields.map((field) => field.name));
+    const missingColumns: Array<{ name: string; valueSql: string }> = [];
+
+    if (!fieldNames.has("sector")) {
+      missingColumns.push({ name: "sector", valueSql: "''" });
+    }
+    if (!fieldNames.has("themes")) {
+      missingColumns.push({ name: "themes", valueSql: "'[]'" });
+    }
+    if (!fieldNames.has("themeQuery")) {
+      missingColumns.push({ name: "themeQuery", valueSql: "''" });
+    }
+    if (!fieldNames.has("themeUpdatedAt")) {
+      missingColumns.push({ name: "themeUpdatedAt", valueSql: "''" });
+    }
+
+    if (missingColumns.length === 0) {
+      return;
+    }
+
+    const table = await this.db.openTable(WATCHLIST_TABLE);
+    await table.addColumns(missingColumns);
+  }
 }
 
 function escapeSqlString(value: string): string {
@@ -58,5 +94,49 @@ function toWatchlistRow(item: WatchlistItem): DbRow {
     name: item.name,
     costPrice: item.costPrice,
     addedAt: item.addedAt,
+    sector: item.sector ?? "",
+    themes: JSON.stringify(item.themes),
+    themeQuery: item.themeQuery ?? "",
+    themeUpdatedAt: item.themeUpdatedAt ?? "",
   };
+}
+
+function normalizeNullableString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const text = value.trim();
+  return text || null;
+}
+
+function parseThemes(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item ?? "").trim())
+      .filter(Boolean);
+  }
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  const text = value.trim();
+  if (!text) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((item) => String(item ?? "").trim())
+        .filter(Boolean);
+    }
+  } catch {
+    // Fall back to delimiter parsing for legacy rows.
+  }
+
+  return text
+    .split(/[、,，;；|]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }

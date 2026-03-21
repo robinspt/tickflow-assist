@@ -26,6 +26,7 @@ import { KlineTechnicalSignalTask } from "../tasks/kline-technical-signal.task.j
 import { NewsCatalystTask, buildNewsFallbackResult } from "../tasks/news-catalyst.task.js";
 import type { AnalysisStepTask } from "../tasks/analysis-step-task.js";
 import type {
+  CompositeAnalysisInput,
   CompositeAnalysisResult,
   FinancialAnalysisContext,
   FinancialInsightResult,
@@ -50,11 +51,11 @@ export class CompositeAnalysisOrchestrator {
     private readonly compositeAnalysisRepository: CompositeAnalysisRepository,
   ) {}
 
-  async analyze(symbol: string): Promise<CompositeAnalysisResult> {
+  async buildInput(symbol: string): Promise<CompositeAnalysisInput> {
     const market = await this.marketProvider.load(symbol);
     const [financial, news] = await Promise.all([
       this.financialProvider.load(symbol, market.companyName),
-      this.newsProvider.load(symbol, market.companyName),
+      this.newsProvider.load(symbol, market.companyName, market.watchlistItem),
     ]);
 
     const technicalPromise = this.runStep(this.technicalTask, market);
@@ -73,18 +74,7 @@ export class CompositeAnalysisOrchestrator {
       newsPromise,
     ]);
 
-    const analysisDate = formatChinaDateTime().slice(0, 10);
-    await Promise.all([
-      this.technicalAnalysisRepository.append(
-        buildTechnicalAnalysisEntry(market.symbol, analysisDate, technicalResult),
-      ),
-      this.financialAnalysisRepository.append(
-        buildFinancialAnalysisEntry(analysisDate, financial, financialResult),
-      ),
-      this.newsAnalysisRepository.append(buildNewsAnalysisEntry(analysisDate, news, newsResult)),
-    ]);
-
-    const compositeInput = {
+    return {
       market,
       financial,
       news,
@@ -92,6 +82,27 @@ export class CompositeAnalysisOrchestrator {
       financialResult,
       newsResult,
     };
+  }
+
+  async analyze(symbol: string): Promise<CompositeAnalysisResult> {
+    const input = await this.buildInput(symbol);
+    return this.analyzeInput(input);
+  }
+
+  async analyzeInput(compositeInput: CompositeAnalysisInput): Promise<CompositeAnalysisResult> {
+    const analysisDate = formatChinaDateTime().slice(0, 10);
+    await Promise.all([
+      this.technicalAnalysisRepository.append(
+        buildTechnicalAnalysisEntry(compositeInput.market.symbol, analysisDate, compositeInput.technicalResult),
+      ),
+      this.financialAnalysisRepository.append(
+        buildFinancialAnalysisEntry(analysisDate, compositeInput.financial, compositeInput.financialResult),
+      ),
+      this.newsAnalysisRepository.append(
+        buildNewsAnalysisEntry(analysisDate, compositeInput.news, compositeInput.newsResult),
+      ),
+    ]);
+
     const result = await this.analysisService.runTask(this.compositeTask, compositeInput);
 
     await this.compositeAnalysisRepository.append(

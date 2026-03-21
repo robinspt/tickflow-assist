@@ -5,6 +5,10 @@ export const watchlistSchema = new Schema([
   new Field("name", new Utf8(), true),
   new Field("costPrice", new Float64(), false),
   new Field("addedAt", new Utf8(), false),
+  new Field("sector", new Utf8(), true),
+  new Field("themes", new Utf8(), true),
+  new Field("themeQuery", new Utf8(), true),
+  new Field("themeUpdatedAt", new Utf8(), true),
 ]);
 
 export const klinesDailySchema = new Schema([

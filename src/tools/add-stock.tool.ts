@@ -3,6 +3,7 @@ import { KlineService } from "../services/kline-service.js";
 import { KlinesRepository } from "../storage/repositories/klines-repo.js";
 import { IndicatorService } from "../services/indicator-service.js";
 import { IndicatorsRepository } from "../storage/repositories/indicators-repo.js";
+import type { WatchlistItem } from "../types/domain.js";
 
 interface AddStockInput {
   symbol: string;
@@ -29,7 +30,7 @@ function parseInput(rawInput: unknown): AddStockInput {
   }
 
   if (typeof rawInput === "string") {
-    const parts = rawInput.trim().split(/\s+/);
+    const parts = rawInput.trim().split(/\s+/, 3);
     if (parts.length >= 2) {
       const symbol = parts[0];
       const costPrice = Number(parts[1]);
@@ -72,8 +73,9 @@ export function addStockTool(
         if (rows.length === 0) {
           return [
             `✅ 已添加: ${item.name}（${item.symbol}），成本价: ${item.costPrice.toFixed(2)}`,
+            formatWatchlistProfile(item),
             `⚠️ 已尝试拉取 ${klineCount} 天日K，但返回数据为空`,
-          ].join("\n");
+          ].filter(Boolean).join("\n");
         }
 
         await klinesRepository.saveAll(item.symbol, rows);
@@ -84,18 +86,33 @@ export function addStockTool(
         const last = rows[rows.length - 1];
         return [
           `✅ 已添加: ${item.name}（${item.symbol}），成本价: ${item.costPrice.toFixed(2)}`,
+          formatWatchlistProfile(item),
           `📊 已自动获取日K: ${rows.length} 根`,
           `区间: ${first.trade_date} ~ ${last.trade_date}`,
           `最新收盘: ${last.close.toFixed(2)}`,
           `🔧 技术指标已计算并写入数据库`,
-        ].join("\n");
+        ].filter(Boolean).join("\n");
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return [
           `✅ 已添加: ${item.name}（${item.symbol}），成本价: ${item.costPrice.toFixed(2)}`,
+          formatWatchlistProfile(item),
           `⚠️ 自动拉取 ${klineCount} 天日K失败: ${message}`,
-        ].join("\n");
+        ].filter(Boolean).join("\n");
       }
     },
   };
+}
+
+function formatWatchlistProfile(item: WatchlistItem): string | null {
+  const parts = [
+    item.sector ? `行业分类: ${item.sector}` : null,
+    item.themes.length > 0 ? `概念板块: ${item.themes.join("、")}` : null,
+  ].filter(Boolean);
+
+  if (parts.length === 0) {
+    return null;
+  }
+
+  return `🏷️ ${parts.join(" | ")}`;
 }
