@@ -35,6 +35,8 @@ export const COMPOSITE_ANALYSIS_SYSTEM_PROMPT = `
 - score 为最终综合评分（1-10整数）。
 - current_price 必须使用提供的最新可用价格。
 - 若技术面与基本面/资讯面冲突，正文必须明确指出冲突来源与影响方向。
+- 综合结论必须使用A股交易语境，必要时说明涨跌停、T+1、公告催化、题材轮动、监管风险对短线判断的影响。
+- 若提供了历史复盘经验，必须说明当前信号与历史经验是相互印证、需要修正，还是构成反例；但历史经验只能校准，不得覆盖当前证据。
 - 不要凭空捏造未提供的数据。
 `;
 
@@ -77,8 +79,20 @@ export function buildCompositeAnalysisUserPrompt(params: {
     `资讯催化: ${joinList(params.newsResult.catalysts)}`,
     `资讯风险: ${joinList(params.newsResult.risks)}`,
     "",
-    "请先输出 100-150 字核心摘要，再按“技术面与关键位 / 基本面结论 / 资讯催化与风险 / 共振或冲突与交易判断”分段展开，最后输出最终关键价位 JSON。",
+    ...buildReviewMemoryLines(params.market.reviewMemory),
+    "请先输出 100-150 字核心摘要，再按“技术面与关键位 / 基本面结论 / 资讯催化与风险 / 共振或冲突与交易判断”分段展开。若给出了历史复盘经验，需要明确写出当前判断与历史经验是一致、修正还是反例。最后输出最终关键价位 JSON。",
   ].join("\n");
+}
+
+function buildReviewMemoryLines(reviewMemory: MarketAnalysisContext["reviewMemory"]): string[] {
+  if (!reviewMemory.available || !reviewMemory.summary.trim()) {
+    return [];
+  }
+
+  return [
+    "## 历史复盘经验（仅作校准）",
+    reviewMemory.summary,
+  ];
 }
 
 function formatLevels(result: TechnicalSignalResult): string {

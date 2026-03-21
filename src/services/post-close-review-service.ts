@@ -50,6 +50,7 @@ export class PostCloseReviewService {
     const summaryLines = [
       `🤖 收盘分析: ${watchlist.length} 只股票`,
       `🤖 分析完成: ${success} 成功, ${failed} 失败, ${refreshed} 只已刷新活动价位`,
+      "🤖 经验回灌: 后续 analyze 会自动引用历史关键位复盘摘要校准当前判断",
       ...(await this.keyLevelsBacktestService.buildSummaryLines()),
     ];
 

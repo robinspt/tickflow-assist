@@ -1,5 +1,6 @@
 import type { IndicatorRow } from "../../types/indicator.js";
 import type { TickFlowIntradayKlineRow, TickFlowKlineRow, TickFlowQuote } from "../../types/tickflow.js";
+import type { ReviewMemoryContext } from "../../analysis/types/composite-analysis.js";
 
 export function buildKlineAnalysisUserPrompt(params: {
   symbol: string;
@@ -9,6 +10,7 @@ export function buildKlineAnalysisUserPrompt(params: {
   intradayKlines: TickFlowIntradayKlineRow[];
   intradayIndicators: IndicatorRow[];
   realtimeQuote: TickFlowQuote | null;
+  reviewMemory?: ReviewMemoryContext | null;
 }): string {
   const recentK = params.klines.slice(-30);
   const recentIndicators = params.indicators.slice(-10);
@@ -79,6 +81,7 @@ export function buildKlineAnalysisUserPrompt(params: {
     : [];
 
   const realtimeLines = buildRealtimeLines(params.realtimeQuote);
+  const reviewMemoryLines = buildReviewMemoryLines(params.reviewMemory);
   const intradaySummaryLines = buildIntradaySummaryLines(
     params.intradayKlines,
     latestIntradayIndicator,
@@ -103,14 +106,26 @@ export function buildKlineAnalysisUserPrompt(params: {
     "",
     ...latestLines,
     "",
+    ...reviewMemoryLines,
     ...intradaySummaryLines,
     "",
     ...intradayKlineLines,
     "",
     ...intradayIndicatorLines,
     "",
-    "请先给出日线趋势判断，再补充明确的日内走势判断（例如震荡上行、冲高回落、弱势横盘、尾盘转强等），最后输出完整关键价位数据。",
+    "请先给出日线趋势判断，再补充明确的日内走势判断（例如震荡上行、冲高回落、弱势横盘、尾盘转强等）。若历史复盘经验提示近期假突破、支撑失效或止损先到偏多，需要明确判断当前是否仍在重复该模式；但若当前实时走势与历史经验冲突，以当前数据为主。最后输出完整关键价位数据。",
   ].join("\n");
+}
+
+function buildReviewMemoryLines(reviewMemory?: ReviewMemoryContext | null): string[] {
+  if (!reviewMemory?.available || !reviewMemory.summary.trim()) {
+    return [];
+  }
+
+  return [
+    "## 历史复盘经验（仅作校准）",
+    reviewMemory.summary,
+  ];
 }
 
 function fmt(value: number | null | undefined, digits = 2): string {

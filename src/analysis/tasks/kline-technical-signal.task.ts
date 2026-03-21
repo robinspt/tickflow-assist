@@ -31,6 +31,7 @@ export class KlineTechnicalSignalTask
         intradayKlines: input.intradayKlines,
         intradayIndicators: input.intradayIndicators,
         realtimeQuote: input.realtimeQuote,
+        reviewMemory: input.reviewMemory,
       }),
     };
   }

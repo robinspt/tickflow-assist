@@ -7,6 +7,12 @@ import type { FinancialLiteSnapshot } from "../../services/financial-lite-servic
 
 export type FinancialAnalysisMode = "full" | "lite" | "none";
 
+export interface ReviewMemoryContext {
+  available: boolean;
+  summary: string;
+  asOf: string | null;
+}
+
 export interface MarketAnalysisContext {
   symbol: string;
   companyName: string;
@@ -16,6 +22,7 @@ export interface MarketAnalysisContext {
   intradayKlines: TickFlowIntradayKlineRow[];
   intradayIndicators: IndicatorRow[];
   realtimeQuote: TickFlowQuote | null;
+  reviewMemory: ReviewMemoryContext;
 }
 
 export interface FinancialAnalysisContext {

@@ -29,6 +29,7 @@ import { AlertService } from "./services/alert-service.js";
 import { UpdateService } from "./services/update-service.js";
 import { KeyLevelsBacktestService } from "./services/key-levels-backtest-service.js";
 import { PostCloseReviewService } from "./services/post-close-review-service.js";
+import { ReviewMemoryService } from "./services/review-memory-service.js";
 import { CompositeAnalysisOrchestrator } from "./analysis/orchestrators/composite-analysis.orchestrator.js";
 import { MarketAnalysisProvider } from "./analysis/providers/market-analysis.provider.js";
 import { FinancialAnalysisProvider } from "./analysis/providers/financial-analysis.provider.js";
@@ -132,6 +133,7 @@ export function createAppContext(
     intradayKlinesRepository,
     watchlistService,
   );
+  const reviewMemoryService = new ReviewMemoryService(keyLevelsBacktestService);
   const analysisService = new AnalysisService(
     config.llmBaseUrl,
     config.llmApiKey,
@@ -152,6 +154,7 @@ export function createAppContext(
     klineService,
     quoteService,
     indicatorService,
+    reviewMemoryService,
     tradingCalendarService,
     klinesRepository,
     intradayKlinesRepository,

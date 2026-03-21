@@ -9,6 +9,7 @@ import { WatchlistService } from "../../services/watchlist-service.js";
 import { KlineService } from "../../services/kline-service.js";
 import { QuoteService } from "../../services/quote-service.js";
 import { IndicatorService } from "../../services/indicator-service.js";
+import { ReviewMemoryService } from "../../services/review-memory-service.js";
 import { TradingCalendarService } from "../../services/trading-calendar-service.js";
 import { KlinesRepository } from "../../storage/repositories/klines-repo.js";
 import { IntradayKlinesRepository } from "../../storage/repositories/intraday-klines-repo.js";
@@ -25,6 +26,7 @@ export class MarketAnalysisProvider {
     private readonly klineService: KlineService,
     private readonly quoteService: QuoteService,
     private readonly indicatorService: IndicatorService,
+    private readonly reviewMemoryService: ReviewMemoryService,
     private readonly tradingCalendarService: TradingCalendarService,
     private readonly klinesRepository: KlinesRepository,
     private readonly intradayKlinesRepository: IntradayKlinesRepository,
@@ -32,11 +34,12 @@ export class MarketAnalysisProvider {
   ) {}
 
   async load(symbol: string): Promise<MarketAnalysisContext> {
-    const [watchlistItem, klines, indicators, quotes] = await Promise.all([
+    const [watchlistItem, klines, indicators, quotes, reviewMemory] = await Promise.all([
       this.watchlistService.getBySymbol(symbol),
       this.klinesRepository.listBySymbol(symbol),
       this.indicatorsRepository.listBySymbol(symbol),
       this.quoteService.fetchQuotes([symbol]),
+      this.reviewMemoryService.getSymbolContext(symbol),
     ]);
 
     let intradayKlines: TickFlowIntradayKlineRow[] = [];
@@ -76,6 +79,7 @@ export class MarketAnalysisProvider {
       intradayKlines,
       intradayIndicators,
       realtimeQuote: quotes[0] ?? null,
+      reviewMemory,
     };
   }
 }

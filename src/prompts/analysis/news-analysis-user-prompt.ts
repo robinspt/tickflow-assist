@@ -24,6 +24,8 @@ export const NEWS_ANALYSIS_SYSTEM_PROMPT = `
 - bias 只能是 positive / neutral / negative。
 - catalysts / risks / watch_items 各输出 1-3 条。
 - 优先提取高相关、较新的信息，不要复述无关免责声明。
+- A股语境下，公告、业绩预告/快报、监管问询/处罚、股东增减持、中标订单、资产重组、题材催化的优先级应高于泛媒体解读。
+- 若资讯只反映情绪或题材炒作，没有形成硬催化，必须明确指出持续性风险。
 `;
 
 export function buildNewsAnalysisUserPrompt(params: {
