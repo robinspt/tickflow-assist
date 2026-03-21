@@ -76,8 +76,51 @@ function runFixtureValidation(): void {
 
   const extracted = extractWatchlistProfile(nestedDocs, "宁德时代", "300750.SZ");
   assert.equal(extracted.sector, "电池行业");
-  assert.deepEqual(extracted.themes.slice(0, 2), ["储能", "锂电池"]);
+  assert.ok(extracted.themes.includes("储能"));
+  assert.ok(extracted.themes.includes("锂电池"));
   assert.equal(extracted.confidence, "high");
+
+  const blockDocs = normalizeMxSearchDocuments({
+    data: {
+      list: [
+        {
+          title: "拓维信息概念板块梳理",
+          summary: [
+            "概念板块：",
+            "• OpenClaw概念",
+            "• 华为昇腾 / 华为昇思",
+            "• 鲲鹏概念",
+            "• 开源鸿蒙（OpenHarmony）",
+            "• AI算力 / 数据中心 / 一体机",
+            "• 信创",
+            "• 在线教育（K-12考试测评）",
+            "• 托育概念",
+            "所属行业：计算机-软件开发-垂直应用软件",
+          ].join("\n"),
+          mediaName: "测试媒体",
+          date: "2026-03-21",
+        },
+      ],
+    },
+  });
+  const blockProfile = extractWatchlistProfile(blockDocs, "拓维信息", "002261.SZ");
+  assert.equal(blockProfile.sector, "计算机-软件开发-垂直应用软件");
+  for (const theme of [
+    "OpenClaw概念",
+    "华为昇腾",
+    "华为昇思",
+    "鲲鹏概念",
+    "开源鸿蒙",
+    "AI算力",
+    "数据中心",
+    "一体机",
+    "信创",
+    "在线教育",
+    "托育概念",
+  ]) {
+    assert.ok(blockProfile.themes.includes(theme), `missing theme: ${theme}`);
+  }
+  assert.ok(blockProfile.themes.length >= 11);
 
   const boardQuery = buildBoardNewsQuery({
     sector: "计算机-软件开发-垂直应用软件",

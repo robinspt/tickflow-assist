@@ -2,10 +2,24 @@ import type { MxSearchDocument } from "../types/mx-search.js";
 import { MxApiService } from "./mx-search-service.js";
 
 const MAX_PROFILE_DOCUMENTS = 8;
-const MAX_THEMES = 5;
+const MAX_THEMES = 20;
 const MAX_CONCEPT_QUERY_KEYWORDS = 3;
 const EXPLICIT_HIT_SCORE = 3;
 const LOOSE_HIT_SCORE = 1;
+const EXPLICIT_THEME_HEADERS = [
+  "概念板块",
+  "所属概念",
+  "相关概念",
+  "概念题材",
+  "核心题材",
+  "题材概念",
+  "涉及概念",
+  "覆盖题材",
+] as const;
+const ALWAYS_BLOCK_THEME_HEADERS = new Set<string>(["概念板块", "相关概念"]);
+const EXPLICIT_THEME_HEADER_PATTERN = new RegExp(
+  `^(${EXPLICIT_THEME_HEADERS.join("|")})(?:[:：]|为|是)?\\s*(.*)$`,
+);
 const GENERIC_LABELS = new Set([
   "最新新闻",
   "公司新闻",
@@ -53,6 +67,11 @@ interface RankedLabel {
   explicitHits: number;
   looseHits: number;
   documentCount: number;
+}
+
+interface ParsedThemeHeader {
+  header: string;
+  content: string;
 }
 
 export class WatchlistProfileService {
@@ -200,7 +219,7 @@ function collectExplicitLabels(
     /(?:所属行业|申万行业|行业分类|行业归属|所属板块)(?:[:：]|为|是)\s*([^\n。；;，,]{2,32})/g,
   ];
   const themePatterns = [
-    /(?:所属概念|概念题材|核心题材|题材概念|涉及概念|覆盖题材)(?:[:：]|为|是)\s*([^\n。；;]{2,48})/g,
+    /(?:所属概念|概念题材|核心题材|题材概念|涉及概念|覆盖题材)(?:[:：]|为|是)\s*([^\n。；;]{2,64})/g,
   ];
 
   for (const pattern of sectorPatterns) {
@@ -218,6 +237,8 @@ function collectExplicitLabels(
       }
     }
   }
+
+  collectExplicitThemeBlocks(text, themeCounts, companyName, symbol, documentIndex);
 }
 
 function collectLooseLabels(
@@ -240,7 +261,8 @@ function collectLooseLabels(
 
 function splitCandidates(text: string): string[] {
   return text
-    .split(/[、,，;；|/]/)
+    .split(/\r?\n/)
+    .flatMap((line) => stripListMarker(line).split(/[、,，;；|/]/))
     .map((item) => item.trim())
     .filter(Boolean);
 }
@@ -253,7 +275,7 @@ function addLabel(
   documentIndex: number,
   explicit: boolean,
 ): void {
-  const label = normalizeLabel(rawLabel, companyName, symbol);
+  const label = normalizeLabel(rawLabel, companyName, symbol, explicit);
   if (!label) {
     return;
   }
@@ -274,11 +296,116 @@ function addLabel(
   counts.set(label, current);
 }
 
-function normalizeLabel(rawLabel: string, companyName: string, symbol: string): string | null {
+function collectExplicitThemeBlocks(
+  text: string,
+  themeCounts: Map<string, LabelEvidence>,
+  companyName: string,
+  symbol: string,
+  documentIndex: number,
+): void {
+  const lines = text.split(/\r?\n/);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const parsed = parseExplicitThemeHeader(lines[index] ?? "");
+    if (!parsed) {
+      continue;
+    }
+
+    const hasContinuation = hasLikelyThemeContinuation(lines, index + 1);
+    if (!ALWAYS_BLOCK_THEME_HEADERS.has(parsed.header) && parsed.content && !hasContinuation) {
+      continue;
+    }
+
+    for (const item of splitCandidates(parsed.content)) {
+      addLabel(themeCounts, item, companyName, symbol, documentIndex, true);
+    }
+
+    let nextIndex = index + 1;
+    while (nextIndex < lines.length) {
+      const rawLine = lines[nextIndex] ?? "";
+      const cleaned = stripListMarker(rawLine).trim();
+      if (!cleaned || isThemeBlockBoundary(cleaned) || !isLikelyThemeContinuation(rawLine, cleaned)) {
+        break;
+      }
+
+      for (const item of splitCandidates(cleaned)) {
+        addLabel(themeCounts, item, companyName, symbol, documentIndex, true);
+      }
+      nextIndex += 1;
+    }
+
+    index = nextIndex - 1;
+  }
+}
+
+function parseExplicitThemeHeader(line: string): ParsedThemeHeader | null {
+  const cleaned = stripListMarker(line).trim();
+  const match = cleaned.match(EXPLICIT_THEME_HEADER_PATTERN);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    header: match[1] ?? "",
+    content: match[2] ?? "",
+  };
+}
+
+function hasLikelyThemeContinuation(lines: string[], startIndex: number): boolean {
+  for (let index = startIndex; index < lines.length; index += 1) {
+    const rawLine = lines[index] ?? "";
+    const cleaned = stripListMarker(rawLine).trim();
+    if (!cleaned) {
+      continue;
+    }
+    if (isThemeBlockBoundary(cleaned)) {
+      return false;
+    }
+    return isLikelyThemeContinuation(rawLine, cleaned);
+  }
+
+  return false;
+}
+
+function isLikelyThemeContinuation(rawLine: string, cleanedLine: string): boolean {
+  if (!cleanedLine || cleanedLine.length > 32) {
+    return false;
+  }
+  if (/[。！？!?]/.test(cleanedLine)) {
+    return false;
+  }
+
+  const hasListMarker = /^[\s>*•·●▪◦\-–—]+/.test(rawLine) || /^\s*\d+[.)、]\s*/.test(rawLine);
+  if (hasListMarker) {
+    return true;
+  }
+
+  if (/[、,，;；|/]/.test(cleanedLine)) {
+    return true;
+  }
+
+  return /^[A-Za-z0-9\u4e00-\u9fa5()（）+&\-\s]{2,32}$/.test(cleanedLine);
+}
+
+function isThemeBlockBoundary(line: string): boolean {
+  return /^(?:所属行业|申万行业|行业分类|行业归属|所属板块|主营业务|主营产品|主要产品|公司简介|经营范围|证券代码|证券简称|相关新闻|新闻摘要|风险提示|财务指标|行业地位)(?:[:：]|为|是)/.test(
+    line,
+  );
+}
+
+function stripListMarker(text: string): string {
+  return text
+    .replace(/^[\s>*•·●▪◦\-–—]+/, "")
+    .replace(/^\d+[.)、]\s*/, "")
+    .trim();
+}
+
+function normalizeLabel(rawLabel: string, companyName: string, symbol: string, explicit: boolean): string | null {
   const text = rawLabel
     .replace(/[（(].*?[）)]/g, "")
     .replace(/[《》"'“”]/g, "")
     .replace(/^[：:、，,；;\-]+/, "")
+    .replace(/[：:、，,；;。]+$/g, "")
     .replace(/\s+/g, "")
     .trim();
 
@@ -297,7 +424,11 @@ function normalizeLabel(rawLabel: string, companyName: string, symbol: string): 
   if (/^(或|及|和|与)/.test(text)) {
     return null;
   }
-  if (/(最新|今日|公司|个股|资讯|公告|新闻|数据|市场|资金|复盘|消息)/.test(text)) {
+  if (
+    explicit
+      ? /^(最新新闻|公司新闻|公司公告|最新公告|行业动态|板块动态|题材动态|概念动态|资金流向|龙虎榜|收盘复盘|市场快讯|消息面)$/.test(text)
+      : /(最新|今日|公司|个股|资讯|公告|新闻|数据|市场|资金|复盘|消息)/.test(text)
+  ) {
     return null;
   }
 
@@ -323,10 +454,7 @@ function rankLabels(counts: Map<string, LabelEvidence>): RankedLabel[] {
       if (right.documentCount !== left.documentCount) {
         return right.documentCount - left.documentCount;
       }
-      if (left.label.length !== right.label.length) {
-        return left.label.length - right.label.length;
-      }
-      return left.label.localeCompare(right.label, "zh-Hans-CN");
+      return 0;
     });
 }
 
