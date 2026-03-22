@@ -1,5 +1,6 @@
 import type { KeyLevels } from "../../types/domain.js";
 import type { PostCloseReviewInput } from "../../analysis/types/composite-analysis.js";
+import { formatCostPrice } from "../../utils/cost-price.js";
 
 export const POST_CLOSE_REVIEW_SYSTEM_PROMPT = `
 你是一位A股收盘复盘分析师，需要在收盘后同时完成“昨日关键位验证 + 今日盘面复盘 + 明日关键位处理决定”。
@@ -55,7 +56,7 @@ export function buildPostCloseReviewUserPrompt(input: PostCloseReviewInput): str
 
   return [
     `请对 ${input.market.companyName}（${input.market.symbol}）生成收盘复盘。`,
-    `用户成本价: ${(watchlistItem?.costPrice ?? 0).toFixed(2)}`,
+    `用户成本价: ${formatCostPrice(watchlistItem?.costPrice ?? null)}`,
     `最新收盘价: ${latestClose.toFixed(2)}`,
     `最新实时价: ${latestRealtimePrice.toFixed(2)}`,
     `申万行业分类: ${watchlistItem?.sector ?? "未记录"}`,

@@ -4,10 +4,11 @@ import { KlinesRepository } from "../storage/repositories/klines-repo.js";
 import { IndicatorService } from "../services/indicator-service.js";
 import { IndicatorsRepository } from "../storage/repositories/indicators-repo.js";
 import type { WatchlistItem } from "../types/domain.js";
+import { formatCostPrice } from "../utils/cost-price.js";
 
 interface AddStockInput {
   symbol: string;
-  costPrice: number;
+  costPrice?: number;
   count?: number;
 }
 
@@ -17,36 +18,38 @@ function parseInput(rawInput: unknown): AddStockInput {
   if (typeof rawInput === "object" && rawInput !== null) {
     const input = rawInput as Record<string, unknown>;
     const symbol = String(input.symbol ?? "").trim();
-    const costPrice = Number(input.costPrice ?? NaN);
-    const countRaw = input.klineCount ?? input.count;
-    const count = countRaw == null ? undefined : Number(countRaw);
-    if (!symbol || !Number.isFinite(costPrice) || costPrice <= 0) {
-      throw new Error("add-stock requires { symbol, costPrice>0 }");
-    }
-    if (count != null && (!Number.isFinite(count) || count <= 0)) {
-      throw new Error("add-stock count must be > 0");
+    const costPrice = parseOptionalPositiveNumber(input.costPrice);
+    const count = parseOptionalPositiveNumber(input.klineCount ?? input.count);
+    if (!symbol) {
+      throw new Error("add-stock requires { symbol }");
     }
     return { symbol, costPrice, count };
   }
 
   if (typeof rawInput === "string") {
-    const parts = rawInput.trim().split(/\s+/, 3);
-    if (parts.length >= 2) {
-      const symbol = parts[0];
-      const costPrice = Number(parts[1]);
-      const count = parts[2] ? Number(parts[2]) : undefined;
-      if (
-        symbol &&
-        Number.isFinite(costPrice) &&
-        costPrice > 0 &&
-        (count == null || (Number.isFinite(count) && count > 0))
-      ) {
+    const parts = rawInput.trim().split(/\s+/, 3).filter(Boolean);
+    if (parts.length >= 1) {
+      const symbol = parts[0] ?? "";
+      const costPrice = parts[1] == null ? undefined : parseOptionalPositiveNumber(parts[1]);
+      const count = parts[2] == null ? undefined : parseOptionalPositiveNumber(parts[2]);
+      if (symbol) {
         return { symbol, costPrice, count };
       }
     }
   }
 
   throw new Error("invalid add-stock input");
+}
+
+function parseOptionalPositiveNumber(value: unknown): number | undefined {
+  if (value == null || String(value).trim() === "") {
+    return undefined;
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    throw new Error("number must be greater than 0");
+  }
+  return numeric;
 }
 
 export function addStockTool(
@@ -58,7 +61,7 @@ export function addStockTool(
 ) {
   return {
     name: "add_stock",
-    description: "Add a symbol to the watchlist, then fetch daily K-lines and indicators.",
+    description: "Add a symbol to the watchlist with optional cost price, then fetch daily K-lines and indicators.",
     async run({ rawInput }: { rawInput?: unknown }): Promise<string> {
       let input: AddStockInput;
       try {
@@ -72,7 +75,7 @@ export function addStockTool(
 
       let addResult: Awaited<ReturnType<WatchlistService["add"]>>;
       try {
-        addResult = await watchlistService.add(symbol, costPrice);
+        addResult = await watchlistService.add(symbol, costPrice ?? null);
       } catch (error) {
         return formatAddStockFailure(symbol, error);
       }
@@ -118,7 +121,7 @@ export function addStockTool(
 
 function buildAddStockPrefix(item: WatchlistItem, profileError: string | null): string[] {
   return [
-    `✅ 已添加: ${item.name}（${item.symbol}），成本价: ${item.costPrice.toFixed(2)}`,
+    `✅ 已添加: ${item.name}（${item.symbol}），成本价: ${formatCostPrice(item.costPrice)}`,
     formatWatchlistProfile(item),
     formatWatchlistProfileWarning(profileError),
   ].filter((value): value is string => Boolean(value));

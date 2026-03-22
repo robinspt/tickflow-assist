@@ -1,6 +1,7 @@
 import type { WatchlistItem } from "../../types/domain.js";
 import { Database, type DbRow } from "../db.js";
 import { watchlistSchema } from "../schemas.js";
+import { normalizeCostPrice } from "../../utils/cost-price.js";
 
 const WATCHLIST_TABLE = "watchlist";
 
@@ -14,7 +15,7 @@ export class WatchlistRepository {
       .map((item) => ({
         symbol: String(item.symbol),
         name: String(item.name ?? ""),
-        costPrice: Number(item.costPrice),
+        costPrice: normalizeCostPrice(item.costPrice),
         addedAt: String(item.addedAt ?? ""),
         sector: normalizeNullableString(item.sector),
         themes: parseThemes(item.themes),
@@ -92,7 +93,7 @@ function toWatchlistRow(item: WatchlistItem): DbRow {
   return {
     symbol: item.symbol,
     name: item.name,
-    costPrice: item.costPrice,
+    costPrice: item.costPrice ?? 0,
     addedAt: item.addedAt,
     sector: item.sector ?? "",
     themes: JSON.stringify(item.themes),

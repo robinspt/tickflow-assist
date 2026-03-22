@@ -1,9 +1,10 @@
 import { WatchlistService } from "../services/watchlist-service.js";
+import { formatCostPrice } from "../utils/cost-price.js";
 
 export function listWatchlistTool(watchlistService: WatchlistService) {
   return {
     name: "list_watchlist",
-    description: "List current watchlist symbols with names, cost price, and industry/concept metadata.",
+    description: "List current watchlist symbols with names, optional cost price, and industry/concept metadata.",
     async run(): Promise<string> {
       const items = await watchlistService.list();
       if (items.length === 0) {
@@ -17,7 +18,7 @@ export function listWatchlistTool(watchlistService: WatchlistService) {
           item.themes.length > 0 ? `概念板块 ${item.themes.join("、")}` : null,
         ].filter(Boolean);
         lines.push(
-          `• ${item.name}（${item.symbol}） 成本: ${item.costPrice.toFixed(2)}${tags.length > 0 ? ` | ${tags.join(" | ")}` : ""}`,
+          `• ${item.name}（${item.symbol}） 成本: ${formatCostPrice(item.costPrice)}${tags.length > 0 ? ` | ${tags.join(" | ")}` : ""}`,
         );
       }
       return lines.join("\n");

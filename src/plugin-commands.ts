@@ -1,5 +1,6 @@
 import { buildWatchlistDebugSnapshot, type AppContext } from "./bootstrap.js";
 import type { LocalTool, PluginApi, RegisteredCommand } from "./runtime/plugin-api.js";
+import { formatCostPrice } from "./utils/cost-price.js";
 
 function getTool(tools: LocalTool[], name: string): LocalTool {
   const tool = tools.find((entry) => entry.name === name);
@@ -11,19 +12,22 @@ function getTool(tools: LocalTool[], name: string): LocalTool {
 
 function parseAddStockArgs(args: string | undefined): {
   symbol: string;
-  costPrice: number;
+  costPrice?: number;
   count?: number;
 } {
   const parts = (args ?? "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length < 2) {
-    throw new Error("用法: /ta_addstock <symbol> <costPrice> [count]");
+  if (parts.length < 1 || parts.length > 3) {
+    throw new Error("用法: /ta_addstock <symbol> [costPrice] [count]");
   }
 
   const symbol = parts[0];
-  const costPrice = Number(parts[1]);
+  const costPrice = parts[1] ? Number(parts[1]) : undefined;
   const count = parts[2] ? Number(parts[2]) : undefined;
-  if (!symbol || !Number.isFinite(costPrice) || costPrice <= 0) {
-    throw new Error("用法: /ta_addstock <symbol> <costPrice> [count]");
+  if (!symbol) {
+    throw new Error("用法: /ta_addstock <symbol> [costPrice] [count]");
+  }
+  if (costPrice != null && (!Number.isFinite(costPrice) || costPrice <= 0)) {
+    throw new Error("costPrice 必须大于 0");
   }
   if (count != null && (!Number.isFinite(count) || count <= 0)) {
     throw new Error("count 必须大于 0");
@@ -60,7 +64,7 @@ async function renderWatchlistDebug(app: AppContext): Promise<string> {
   if (snapshot.watchlistPreview.length > 0) {
     lines.push("", "watchlist 预览:");
     for (const item of snapshot.watchlistPreview) {
-      lines.push(`• ${item.name}（${item.symbol}） 成本: ${item.costPrice.toFixed(2)}`);
+      lines.push(`• ${item.name}（${item.symbol}） 成本: ${formatCostPrice(item.costPrice)}`);
     }
   }
 
@@ -89,7 +93,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     {
       name: "ta_addstock",
       description:
-        "添加自选股，不经过 AI 对话。用法: /ta_addstock <symbol> <costPrice> [count]",
+        "添加自选股，不经过 AI 对话。用法: /ta_addstock <symbol> [costPrice] [count]",
       acceptsArgs: true,
       requireAuth: true,
       handler: async ({ args }) => ({

@@ -57,6 +57,7 @@ metadata:
 参数理解规则：
 - 对“添加自选 / 删除自选 / 查看自选 / 监控状态 / 日更状态”这类一跳即可完成的意图，首个动作必须直接调用对应插件工具；禁止先调用 `read`、`write`、`edit`、`query_database`、子代理、会话生成、环境探测工具，禁止先说“我先找一下方法”“我先确认工具”之类的话。
 - 当用户消息中已经包含足够参数时，必须直接执行，不得额外探索：
+  - “添加自选 601872” -> 直接调用 `add_stock`
   - “添加自选 601872 成本 5.32” -> 直接调用 `add_stock`
   - “删除自选 601872” -> 直接调用 `remove_stock`
   - “自选列表” -> 直接调用 `list_watchlist`
@@ -64,7 +65,7 @@ metadata:
   - “找今天涨幅 2% 的股票” -> 直接调用 `mx_select_stock`
 - 如果工具必需参数缺失，只能补充缺失项本身；不要以“我需要摸索当前环境里的工具”“我需要确认执行方式”为由拒绝或拖延。
 - 股票代码按用户原始输入提取，例如 `002261`。
-- 成本价对应 `costPrice`。
+- 成本价对应 `costPrice`；若用户未提供成本价，可以省略该字段。
 - `add_stock` 默认会在添加成功后自动拉取日K并计算指标。
 - `analyze` 会读取本地日K和日线指标，临时补充当日分钟K、分钟指标、实时行情、最新财务数据与资讯检索结果，再走固定流水线综合分析；其中基本面部分在 `Expert` 级别下优先使用 TickFlow 完整财报，在非 `Expert` 级别下回退为 `mx_select_stock` 的 lite 指标拖底模式。
 - `view_analysis` 默认查看最近一次综合分析；如用户明确提到“技术面 / 基本面 / 资讯面 / 全部分析”，应传入 `profile=technical|financial|news|all`；如用户提到“最近 N 次”或“历史”，应同时传入 `limit=N`（或 `count=N`）。
@@ -74,7 +75,7 @@ metadata:
 - 若配置中的 `tickflowApiKeyLevel` 为 `Free` 或 `Start`，则应自动跳过分钟K获取；若分钟K接口失败，也不要让 `analyze` 或 `update_all` 因此整体失败。
 - 对新闻、公告、研报、政策、交易规则、具体事件、时效性影响分析等外部检索类问题，优先使用 `mx_search`，不要直接凭常识回答，也不要先读仓库文件再决定是否搜索。
 - 对自然语言选股、板块成分股、条件筛选、候选池推荐等任务，优先使用 `mx_select_stock`；若问题本质是“找哪些标的符合条件”，不要误用 `mx_search`。
-- 用户在“添加自选”意图中提到的“`N`天”对应 `add_stock.count`（或 `klineCount`），例如“添加 002261 成本 34.15 并获取 120 天日K”应调用 `add_stock`，其中 `count=120`。
+- 用户在“添加自选”意图中提到的“`N`天”对应 `add_stock.count`（或 `klineCount`），例如“添加 002261 成本 34.15 并获取 120 天日K”应调用 `add_stock`，其中 `count=120`。若用户未提供成本价但明确要求拉取 `N` 天日K，可只传 `symbol` 与 `count`。
 - 用户询问 TickFlow / 自选股 的日更状态时，必须调用 `daily_update_status`，不要把它解释成其他 crontab、系统任务或无关插件的定时更新。
 - 对 `daily_update_status`、`monitor_status`、`list_watchlist` 这类轻量状态查询，禁止使用 `sessions_spawn`、子代理、并行子任务、`query_database`、文件读取或任何“先分析再回答”的编排；必须在当前回合直接调用对应插件工具并返回结果。
 - 对 `add_stock`、`remove_stock` 同样适用上述限制：不得先读文件、读目录、读 skill、自查工具列表或推测执行方法，必须直接调用工具。

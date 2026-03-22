@@ -8,8 +8,8 @@
 
 | 指令示例 | 功能 |
 |---|---|
-| `添加 002261 成本 34.154` | 添加股票到关注列表 |
-| `查看关注列表` | 查看当前关注股票及成本价 |
+| `添加 002261` | 添加股票到关注列表，成本价可选 |
+| `查看关注列表` | 查看当前关注股票及成本价（未设置则显示为空） |
 | `删除 002202` | 从关注列表删除股票 |
 | `更新 002261 数据` | 抓取最新日 K 并重算指标 |
 | `获取 002261 1m 分钟K` | 抓取当日分钟 K 并写入数据库 |
@@ -42,7 +42,7 @@
 
 当前一共注册了 15 个直达命令：
 
-- `/ta_addstock <symbol> <costPrice> [count]`
+- `/ta_addstock <symbol> [costPrice] [count]`
 - `/ta_rmstock <symbol>`
 - `/ta_analyze <symbol>`
 - `/ta_viewanalysis <symbol>`
@@ -61,6 +61,7 @@
 常用示例：
 
 ```text
+/ta_addstock 601872
 /ta_addstock 601872 5.32
 /ta_addstock 002261 34.15 120
 /ta_rmstock 601872
@@ -83,8 +84,9 @@
 
 注意：
 
-- `/ta_addstock` 必须提供成本价，格式为 `/ta_addstock <symbol> <costPrice> [count]`
-- 例如 `/ta_addstock 002558` 会失败，因为缺少 `costPrice`
+- `/ta_addstock` 现在允许不填成本价，格式为 `/ta_addstock <symbol> [costPrice] [count]`
+- 若只写两个参数，例如 `/ta_addstock 002558 120`，第二个数字会被当作 `costPrice`；如需同时指定日K天数，需写成 `/ta_addstock 002558 12.34 120`
+- 未设置成本价时，添加、列表、分析和监控都可以正常运行；只是分析里会显示“未设置”，告警和监控也不会展示持仓盈亏百分比
 - `/ta_debug` 会返回插件进程当前看到的数据库路径、配置来源和 watchlist 快照，适合排查“CLI 有数据但插件命令看不到”的问题
 
 ### 命令行直连调试
@@ -118,6 +120,7 @@ cp local.config.example.json local.config.json
 
 ```bash
 npm run tool -- test_alert
+npm run tool -- add_stock '{"symbol":"002261"}'
 npm run tool -- add_stock '{"symbol":"002261","costPrice":34.154}'
 npm run tool -- fetch_klines '{"symbol":"002261","count":90}'
 npm run tool -- fetch_intraday_klines '{"symbol":"002261","period":"1m","count":240}'
@@ -150,12 +153,13 @@ npm run daily-update-loop
 - `update_all` 在收盘后执行时，会同时更新日K、日线指标和当日 `1m` 分钟K
 - `start_daily_update` 启动的是项目自管 detached 进程，如果运行环境未托管插件服务，则不再依赖 OpenClaw 的 `tickflow-assist.managed-loop` 后台服务
 - `npm run daily-update-loop` 可用于手工前台运行日更轮询，便于配合 `tmux`、`systemd --user` 或其它进程管理器排查
-- `analyze` 会读取本地日K和日线指标，临时拉取当日全部分钟K、计算分钟指标、获取实时行情，并补充最新财务数据与资讯检索结果，再走固定流水线综合分析；其中基本面部分在 `Expert` 级别下使用 TickFlow 完整财务数据，在非 `Expert` 级别下会回退到 `mx_select_stock` 的 lite 指标拖底模式
+- `analyze` 会读取本地日K和日线指标，临时拉取当日全部分钟K、计算分钟指标、获取实时行情，并补充最新财务数据与资讯检索结果，再走固定流水线综合分析；其中基本面部分在 `Expert` 级别下使用 TickFlow 完整财务数据，在非 `Expert` 级别下会回退到 `mx_select_stock` 的 lite 指标拖底模式。若未设置成本价，提示词中会明确标记为“未设置”，不会因为成本价为空而报错
 - `view_analysis` 默认返回最近一次综合分析；可通过 `profile=technical|financial|news|all` 查看各维度结果，并可通过 `limit` / `count` 查看最近 N 次
 - `mx_search` 与 `mx_select_stock` 默认读取 `plugin.mxSearchApiUrl` 作为妙想接口基础地址，默认值为 `https://mkapi2.dfcfs.com/finskillshub/api/claw`
 - `mx_search` 与 `mx_select_stock` 默认读取 `plugin.mxSearchApiKey`；如果未配置，则会回退读取环境变量 `MX_APIKEY`
 - 本地 `klines_intraday` 默认仅保留近 10 个交易日，超过部分会自动清理
 - `daily_update_status` 现在会显示 `定时进程`、`运行方式`、`进程配置来源`、`配置来源`、`最近心跳` 与最近执行结果，便于排查“后台进程没跑”还是“只是当天尚未触发更新”
+- 实时监控与价格告警在未设置成本价时仍会正常触发，只是不会计算和显示持仓盈亏百分比
 
 ## 2. 数据与运行说明
 
@@ -163,7 +167,7 @@ npm run daily-update-loop
 
 | 表名 | 说明 |
 |---|---|
-| `watchlist` | 关注列表、股票名称、成本价、添加时间 |
+| `watchlist` | 关注列表、股票名称、成本价（可空）、添加时间 |
 | `klines_daily` | 日 K 数据 |
 | `klines_intraday` | 分钟 K 数据，包含 `period` 与 `trade_time`，默认仅保留近 10 个交易日 |
 | `indicators` | 技术指标结果 |

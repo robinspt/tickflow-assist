@@ -3,6 +3,7 @@ import type {
   NewsInsightResult,
   TechnicalSignalResult,
 } from "../../analysis/types/composite-analysis.js";
+import { formatCostPrice } from "../../utils/cost-price.js";
 import type { FinancialAnalysisContext, MarketAnalysisContext, NewsAnalysisContext } from "../../analysis/types/composite-analysis.js";
 
 export const COMPOSITE_ANALYSIS_SYSTEM_PROMPT = `
@@ -53,7 +54,7 @@ export function buildCompositeAnalysisUserPrompt(params: {
 
   return [
     `请综合分析 ${params.market.companyName}（${params.market.symbol}）。`,
-    `用户成本价: ${(params.market.watchlistItem?.costPrice ?? 0).toFixed(2)}`,
+    `用户成本价: ${formatCostPrice(params.market.watchlistItem?.costPrice ?? null)}`,
     `最新收盘价: ${latestClose.toFixed(2)}`,
     `最新实时价: ${latestRealtimePrice.toFixed(2)}`,
     "",

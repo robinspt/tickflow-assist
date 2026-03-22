@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { calculateProfitPct, formatCostPrice } from "../utils/cost-price.js";
 
 export class AlertService {
   private lastError: string | null = null;
@@ -62,11 +63,9 @@ export class AlertService {
     ruleName: string;
     ruleDescription: string;
     levelPrice: number;
-    costPrice: number;
+    costPrice: number | null;
   }): string {
-    const profitPct = params.costPrice > 0
-      ? ((params.currentPrice - params.costPrice) / params.costPrice) * 100
-      : null;
+    const profitPct = calculateProfitPct(params.currentPrice, params.costPrice);
 
     return [
       `🚨 ${params.ruleName}告警`,
@@ -75,7 +74,9 @@ export class AlertService {
       `💹 当前价: ${params.currentPrice.toFixed(2)}`,
       `📊 触发价位: ${params.levelPrice.toFixed(2)}`,
       `📝 ${params.ruleDescription}`,
-      ...(profitPct == null ? [] : [`💰 持仓盈亏: ${profitPct >= 0 ? "+" : ""}${profitPct.toFixed(2)}%（成本 ${params.costPrice.toFixed(2)}）`]),
+      ...(profitPct == null
+        ? []
+        : [`💰 持仓盈亏: ${profitPct >= 0 ? "+" : ""}${profitPct.toFixed(2)}%（成本 ${formatCostPrice(params.costPrice)}）`]),
       "",
       "⏰ 请及时关注！",
     ].join("\n");

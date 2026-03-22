@@ -1,10 +1,11 @@
 import type { IndicatorRow } from "../../types/indicator.js";
 import type { TickFlowIntradayKlineRow, TickFlowKlineRow, TickFlowQuote } from "../../types/tickflow.js";
 import type { ReviewMemoryContext } from "../../analysis/types/composite-analysis.js";
+import { formatCostPrice } from "../../utils/cost-price.js";
 
 export function buildKlineAnalysisUserPrompt(params: {
   symbol: string;
-  costPrice: number;
+  costPrice: number | null;
   klines: TickFlowKlineRow[];
   indicators: IndicatorRow[];
   intradayKlines: TickFlowIntradayKlineRow[];
@@ -94,7 +95,7 @@ export function buildKlineAnalysisUserPrompt(params: {
     "请结合日线、日内分钟线、分钟指标和实时行情分析以下股票的技术面，并补充日内走势判断，给出关键价位。",
     "",
     `**股票代码**: ${params.symbol}`,
-    `**用户成本价**: ${params.costPrice.toFixed(2)} 元`,
+    `**用户成本价**: ${formatCostPrice(params.costPrice, " 元")}`,
     `**最新收盘价**: ${latestClose.toFixed(2)} 元`,
     `**最新实时价**: ${latestRealtimePrice.toFixed(2)} 元`,
     "",

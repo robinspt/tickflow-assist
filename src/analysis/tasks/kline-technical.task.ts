@@ -52,7 +52,7 @@ export class KlineTechnicalAnalysisTask
       systemPrompt: ANALYSIS_COMMON_SYSTEM_PROMPT,
       userPrompt: buildKlineAnalysisUserPrompt({
         symbol: input.symbol,
-        costPrice: input.watchlistItem?.costPrice ?? 0,
+        costPrice: input.watchlistItem?.costPrice ?? null,
         klines: input.klines,
         indicators: input.indicators,
         intradayKlines: input.intradayKlines,

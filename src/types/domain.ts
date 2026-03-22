@@ -1,7 +1,7 @@
 export interface WatchlistItem {
   symbol: string;
   name: string;
-  costPrice: number;
+  costPrice: number | null;
   addedAt: string;
   sector: string | null;
   themes: string[];

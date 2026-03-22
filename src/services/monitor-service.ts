@@ -5,6 +5,7 @@ import type { WatchlistItem, KeyLevels } from "../types/domain.js";
 import type { TickFlowQuote } from "../types/tickflow.js";
 import type { MonitorState } from "../types/monitor.js";
 import { formatChinaDateTime } from "../utils/china-time.js";
+import { calculateProfitPct, formatCostPrice } from "../utils/cost-price.js";
 import { QuoteService } from "./quote-service.js";
 import { TradingCalendarService } from "./trading-calendar-service.js";
 import { WatchlistService } from "./watchlist-service.js";
@@ -77,7 +78,7 @@ export class MonitorService {
     ];
 
     for (const item of watchlist) {
-      lines.push(`• ${item.name}（${item.symbol}） 成本: ${item.costPrice.toFixed(2)}`);
+      lines.push(`• ${item.name}（${item.symbol}） 成本: ${formatCostPrice(item.costPrice)}`);
     }
 
     return lines.join("\n");
@@ -179,7 +180,7 @@ export class MonitorService {
       lines.push("• 暂无关注股票");
     } else {
       for (const item of watchlist) {
-        lines.push(`• ${item.name}（${item.symbol}） 成本 ${item.costPrice.toFixed(2)}`);
+        lines.push(`• ${item.name}（${item.symbol}） 成本 ${formatCostPrice(item.costPrice)}`);
       }
     }
 
@@ -549,7 +550,7 @@ function formatQuoteLine(item: WatchlistItem, quote: TickFlowQuote): string {
       ? ((lastPrice - prevClose) / prevClose) * 100
       : null;
   const quoteTime = formatQuoteTimestamp(quote.timestamp);
-  const profitPct = item.costPrice > 0 ? ((lastPrice - item.costPrice) / item.costPrice) * 100 : null;
+  const profitPct = calculateProfitPct(lastPrice, item.costPrice);
 
   let line = `• ${item.name}（${item.symbol}） ${lastPrice.toFixed(2)}`;
   if (changePct != null) {

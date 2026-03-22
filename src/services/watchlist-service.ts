@@ -1,6 +1,7 @@
 import type { WatchlistItem } from "../types/domain.js";
 import { formatChinaDateTime } from "../utils/china-time.js";
 import { normalizeSymbol } from "../utils/symbol.js";
+import { normalizeCostPrice } from "../utils/cost-price.js";
 import { InstrumentService } from "./instrument-service.js";
 import { WatchlistRepository } from "../storage/repositories/watchlist-repo.js";
 import { WatchlistProfileService } from "./watchlist-profile-service.js";
@@ -49,9 +50,10 @@ export class WatchlistService {
     private readonly watchlistProfileService: WatchlistProfileService | null = null,
   ) {}
 
-  async add(symbolInput: string, costPrice: number): Promise<AddWatchlistResult> {
+  async add(symbolInput: string, costPrice: number | null = null): Promise<AddWatchlistResult> {
     const symbol = normalizeSymbol(symbolInput);
     const existing = await this.getBySymbol(symbol);
+    const normalizedCostPrice = normalizeCostPrice(costPrice);
     const name = await this.instrumentService.resolveName(symbol);
     const addedAt = formatChinaDateTime();
     const fallbackProfile = {
@@ -81,7 +83,7 @@ export class WatchlistService {
     const item: WatchlistItem = {
       symbol,
       name,
-      costPrice,
+      costPrice: normalizedCostPrice ?? existing?.costPrice ?? null,
       addedAt,
       sector: profile.sector,
       themes: profile.themes,
