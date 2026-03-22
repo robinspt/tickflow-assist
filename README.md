@@ -1,6 +1,6 @@
-# 📈 TickFlow Assist
+# TickFlow Assist
 
-基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件，利用 [TickFlow API](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 获取日线、分钟线、实时行情，并把分析结果落到本地 LanceDB。
+基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件。它使用 [TickFlow API](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 获取行情与财务数据，结合 LLM 生成技术面、基本面、资讯面的综合判断，并把结果持久化到本地 LanceDB。
 
 当前主线架构：
 
@@ -8,54 +8,19 @@
 - JS/TS 负责主业务流程
 - Python 仅保留技术指标计算
 
-## 📝 更新日志
+## 项目简介
 
-**项目仍在前期功能快速迭代中，请定期更新。**
+TickFlow Assist 面向一条完整的“自选管理 -> 数据抓取 -> 综合分析 -> 后台监控 -> 结果留痕”链路，适合在 OpenClaw 中做 A 股日常盯盘、收盘后复盘和分析结果沉淀。
 
-### 2026-03-17
+## 核心特性
 
-- 解决后台循环失败问题，统一由单一托管 service 并行管理日更与实时监控任务，避免部分循环未被正常启动。
-- 优化一键安装脚本，增加菜单式安装/升级/卸载入口。
+- 数据抓取：支持日 K、分钟 K、实时行情与财务数据接入，收盘后可批量更新。
+- 多维分析：技术面、财务面、资讯面按固定流水线执行，输出综合结论与关键价位。
+- 监控告警：围绕止损、突破、支撑、压力、止盈、涨跌幅和成交量异动进行交易时段轮询。
+- 复盘留痕：收盘后自动生成活动关键价位快照，并提供 `1/3/5` 日回测统计（测试）。
+- 本地数据库：使用 LanceDB 保存自选、K 线、指标、分析结果、关键价位和告警日志。
 
-### 2026-03-19
-
-- 新增工具，支持通过 TickFlow 获取利润表、资产负债表、现金流量表与核心财务指标。
-- 集成东方财富妙想 Skills 接入：`mx_search` 用于资讯/公告/研报检索，`mx_select_stock` 用于自然语言智能选股。
-- 股票分析升级为固定流水线综合分析，分析时会结合技术面、财务面与资讯面统一生成结论，分析结果持久化写入数据库。
-
-### 2026-03-20
-
-- 分析 prompt 改为紧凑输入与分层输出，减少 K 线上下文占用，综合结论更清晰。
-- 收盘后日更新增综合分析、活动价位历史快照与自动回测（测试），并提供 `backtest_key_levels` 工具。
-- 关键价位回测（测试）补充 `1/3/5` 日支撑、压力、止损、止盈、突破统计；同日双触发时优先用分钟线判定先止损还是先止盈。
-
-### 2026-03-21
-
-- 分析 prompt 补充 A 股语境，综合判断更贴近涨跌停、T+1、题材轮动与公告催化。
-- 收盘后复盘摘要会在后续 `analyze` 中自动回灌，作为历史经验校准当前判断。
-- 调整 KDJ 指标口径，更贴近国内看盘软件常见算法。
-
-## ✨ 功能特点
-
-- 自选股管理：添加、删除、查看、刷新名称，成本价可选
-- 日K与分钟K：支持单股抓取与收盘后批量更新，分钟 K 默认保留近 30 个交易日
-- 技术指标：日线指标持久化，分钟指标按分析任务实时计算
-- 多源综合分析：固定流水线串联技术面、基本面、资讯面，统一生成综合结论与关键价位，并补充 A 股语境与历史复盘校准
-- 收盘后复盘：日更后自动执行综合分析、刷新活动价位，并输出回测摘要（测试）；复盘摘要会在后续分析中自动引用
-- 关键价位回测（测试）：支持 `1/3/5` 日支撑、压力、止损、止盈、突破统计，同日双触发优先用分钟线判定先后
-- 财务数据接入：支持通过 TickFlow 获取利润表、资产负债表、现金流量表与核心财务指标
-- 资讯与选股能力：集成东方财富妙想 Skills，`mx_search` 用于新闻/公告/研报/事件检索，`mx_select_stock` 用于自然语言选股与条件筛选
-- 基本面分级路由：TickFlow `Expert` 使用完整财务数据，非 `Expert` 自动回退到妙想 Skills 的 `mx_select_stock` lite 指标拖底
-- 分析结果留痕：支持综合分析、技术面、基本面、资讯面分维度持久化，并保留活动价位历史快照
-- 实时监控：按交易时段轮询报价并触发告警；未设置成本价时仍可正常运行，只是不展示持仓盈亏百分比
-- 定时日更：交易日 15:25 后执行，更新自选股票日K、分钟K，并附带收盘后分析与回测结论（测试）
-- 本地数据库：使用 LanceDB 保存行情、指标、分析日志和告警留痕
-- OpenClaw 内置 Skills：
-  - `stock_analysis`
-  - `usage_help`
-  - `database_query`
-
-## 📚 文档导航
+## 文档导航
 
 - 安装指南：[docs/installation.md](docs/installation.md)
 - 使用指南：[docs/usage.md](docs/usage.md)
@@ -65,129 +30,94 @@
   - [skills/usage-help/SKILL.md](skills/usage-help/SKILL.md)
   - [skills/database-query/SKILL.md](skills/database-query/SKILL.md)
 
-- TickFlow数据获取：[TickFlow官网](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 
-  - TickFlow 是为量化开发者打造的**专业金融数据 API**
-  - Free 套餐即可使用稳定的**日线K线、实时行情**，具体详见官网介绍。
-- 东方财富妙想 Skills（可选，用于 `mx_search` / `mx_select_stock`）：
-  - API Key 获取地址：[https://marketing.dfcfs.com/views/finskillshub/](https://marketing.dfcfs.com/views/finskillshub/)
-  - 当前每个技能每日限额 **50 次**
+## 安装与配置
 
-## ⚡ 一键安装
+### 一键安装
 
-如果你已经安装了 `git`、`node`、`npm`、`uv`、`openclaw` 与 `jq`，可以直接运行安装管理脚本：
+如果你已经安装了 `git`、`node`、`npm`、`uv`、`openclaw` 与 `jq`，可以直接运行安装向导：
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist/main/setup-tickflow.sh)"
 ```
 
-脚本启动后会先展示当前依赖与项目状态，然后可按菜单选择：
+向导会自动完成源码更新、依赖安装、配置写入、插件安装与 Gateway 重启。完整流程见 [docs/installation.md](docs/installation.md)。
 
-- 新安装
-- 升级
-- 卸载
-
-如果脚本检测到已有 OpenClaw 插件配置，会优先复用现有项目目录，而不是要求你重新按固定目录安装。
-
-其中新安装与升级流程会自动：
-
-- 拉取或更新源码
-- 安装依赖并构建
-- 收集或复用 TickFlow / 妙想 Skills / LLM / 告警通道配置
-- 写入 `local.config.json` 与 `~/.openclaw/openclaw.json`
-- 安装并启用 OpenClaw 插件
-- 重启 OpenClaw Gateway
-
-如果项目目录里已经有 `local.config.json`，向导会优先沿用已有配置，避免重复安装时把本地调试参数覆盖回默认值。完整安装说明见 [docs/installation.md](docs/installation.md)。
-
-## 🔄 更新方式
-
-如果你已经完成安装，后续升级优先建议继续使用上文的一键安装脚本，进入菜单后选择“升级”即可。这样在版本新增配置项或变量时，向导会一并写入配置，省去手动修改的麻烦。
-
-如果你更希望手动更新，也可以在项目目录执行以下命令，同步最新代码与构建结果；但请注意检查是否有新增配置项，避免遗漏变量导致功能不可用：
+### 手动安装
 
 ```bash
-git pull
+git clone https://github.com/robinspt/tickflow-assist.git
+cd tickflow-assist
 npm install
-npm run build
-openclaw gateway restart
-```
-
-如果本次更新涉及 Python 指标桥接依赖，也请额外执行：
-
-```bash
 cd python
 uv sync
 cd ..
+npm run check
+npm run build
+openclaw plugins install -l /path/to/tickflow-assist
+openclaw plugins enable tickflow-assist
+openclaw gateway restart
 ```
 
-## 🚀 核心能力
+正式插件运行读取 `~/.openclaw/openclaw.json` 中的 `plugins.entries["tickflow-assist"].config`。本地调试与 CLI 读取项目根目录 `local.config.json` 下的 `plugin` 字段，两套配置互不共享。
 
-### 行情与分析
+## 使用方式
 
-- `fetch_klines`：抓取日K并重算日线指标
-- `fetch_intraday_klines`：抓取当日分钟K并写入数据库
-- `update_all`：收盘后批量更新日K、日线指标和当日分钟K，并追加活动价位回测摘要（测试）
-- `analyze`：读取本地日线数据，并临时补充分钟线、分钟指标、实时行情与历史复盘摘要做综合分析；若未设置成本价，会显示为“未设置”，但不会影响分析执行
-- `backtest_key_levels`：回测活动价位快照（测试），输出 `1/3/5` 日支撑、压力、止损、止盈、突破与路径统计
+常见入口有三种：
 
-### 监控与告警
+- OpenClaw 对话：直接说“添加 002261”“分析 002261”“开始监控”。
+- Slash Command：使用 `/ta_addstock`、`/ta_analyze`、`/ta_monitorstatus` 等免 AI 直达命令。
+- 本地 CLI：通过 `npm run tool -- ...`、`npm run monitor-loop`、`npm run daily-update-loop` 做调试或直连运行。
 
-- 实时监控交易时段：`09:30-11:30`、`13:00-15:00`
-- 支持止损、突破、支撑、压力、止盈、涨跌幅、成交量等规则
-- 盯盘阶段通知：上午开盘、上午结束、下午开盘、当日收盘自动推送
-- 通过 OpenClaw CLI 投递 Telegram、QQBot、WeCom 等通道
+常用示例：
 
-### 数据落库
+```text
+添加 002261
+分析 002261
+/ta_addstock 002261 34.15
+/ta_monitorstatus
+npm run tool -- analyze '{"symbol":"002261"}'
+```
 
-| 表名 | 说明 |
-|---|---|
-| `watchlist` | 关注列表 |
-| `klines_daily` | 日 K 数据 |
-| `klines_intraday` | 分钟 K 数据，默认仅保留近 30 个交易日 |
-| `indicators` | 日线技术指标 |
-| `key_levels` | 关键价位与评分 |
-| `key_levels_history` | 收盘后活动关键价位快照 |
-| `technical_analysis` | 技术面分析结果 |
-| `financial_analysis` | 基本面分析结果 |
-| `news_analysis` | 资讯面分析结果 |
-| `composite_analysis` | 综合分析结果 |
-| `analysis_log` | 分析日志 |
-| `alert_log` | 告警日志 |
+更完整的指令分类、CLI 示例与运行规则见 [docs/usage.md](docs/usage.md)。
 
-## 🧩 支持的 Claw
+## 架构与目录
 
-- 🦞 [OpenClaw](https://openclaw.ai)（已支持）
-- 🐈 [Nanobot](https://github.com/HKUDS/nanobot)（待 Nanobot 支持 Plugins）
-- 🤖 其他 Claw（待增加）
-
-## 🗂️ 项目结构
+后台任务统一由 `tickflow-assist.managed-loop` 托管，在同一个 service 内并行运行日更与实时监控。
 
 ```text
 tickflow-assist/
 ├── docs/                         # 安装与使用文档
 ├── src/                          # 主业务代码
+├── src/tools/                    # OpenClaw tools
+├── src/services/                 # 行情、分析、监控、告警、更新服务
+├── src/background/               # 日更与实时监控后台逻辑
+├── src/prompts/analysis/         # 分析 prompt
 ├── skills/                       # 插件内置 skills
-├── python/                       # Python 指标计算桥接
+├── python/                       # Python 指标计算子模块
 ├── openclaw.plugin.json          # 插件清单
-├── README.md                     # 项目概览
-└── day_future.txt                # 交易日历
+└── README.md                     # 项目概览
 ```
 
-## ⚠️ 风险提示
+## 依赖与可选能力
 
-重要声明：本项目仅用于策略研究、流程验证与教学交流，不构成任何形式的投资建议、收益承诺或具体交易指引。
+- TickFlow：提供日线、分钟线、实时行情与财务数据接口。
+- OpenClaw：负责插件运行、工具注册、对话入口与消息投递。
+- 东方财富妙想 Skills：可选，用于 `mx_search` 与 `mx_select_stock`，也用于非 Expert 财务链路的 lite 补充。
+
+## 风险提示
+
+本项目仅用于策略研究、流程验证与教学交流，不构成任何形式的投资建议、收益承诺或具体交易指引。
 
 - 市场环境、流动性、执行价格与个人交易纪律都会影响实际结果，历史表现不代表未来收益。
 - AI 模型、自动化分析与回测结果都可能存在偏差、遗漏或失效，不应作为单一决策依据。
 - 使用前请结合自身资金情况、风险承受能力与独立判断审慎评估，并自行承担相应风险。
-- 如涉及真实资金交易，建议先进行充分的模拟验证，必要时咨询持牌专业人士。
 
-## 🙏 鸣谢
+## 鸣谢
 
-- [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 提供行情数据服务与 API 支持
-- [OpenClaw](https://openclaw.ai) 提供插件运行、对话通道与工具编排能力
-- [CortexReach/memory-lancedb-pro](https://github.com/CortexReach/memory-lancedb-pro) 给你的 OpenClaw Agent 提供持久化、智能化的长期记忆
+- [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE)
+- [OpenClaw](https://openclaw.ai)
+- [CortexReach/memory-lancedb-pro](https://github.com/CortexReach/memory-lancedb-pro)
 
-## 📄 License
+## License
 
 MIT

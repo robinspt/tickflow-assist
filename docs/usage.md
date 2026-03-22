@@ -1,203 +1,242 @@
 # TickFlow Assist 使用指南
 
-本文档介绍插件的使用方式、支持的指令、调试方法以及数据表和运行规则。安装与配置请参阅 [安装指南](installation.md)。
+本文档聚焦于日常使用、调试入口与关键运行规则。安装与配置请参阅 [安装指南](installation.md)。项目概览请先看 [README](../README.md)。
 
-## 1. 使用方式
+## 1. 使用入口
 
-### 对话常用指令
+| 入口 | 适合场景 | 说明 |
+|---|---|---|
+| OpenClaw 对话 | 日常使用 | 直接用自然语言操作自选、分析、监控和数据库查询 |
+| `/ta_` Slash Command | 零歧义操作 | 插件直接处理，不经过 AI 推理 |
+| `npm run tool -- ...` / loop | 本地调试、VPS 直连 | 读取 `local.config.json.plugin`，适合排障和脚本化调用 |
+
+## 2. 对话常用指令
+
+下面的说法是推荐示例，不要求逐字一致；表达清楚股票代码和动作即可。
+
+### 自选管理
 
 | 指令示例 | 功能 |
 |---|---|
-| `添加 002261` | 添加股票到关注列表，成本价可选 |
-| `查看关注列表` | 查看当前关注股票及成本价（未设置则显示为空） |
-| `删除 002202` | 从关注列表删除股票 |
-| `更新 002261 数据` | 抓取最新日 K 并重算指标 |
-| `获取 002261 1m 分钟K` | 抓取当日分钟 K 并写入数据库 |
-| `搜索立讯精密最新研报` | 搜索资讯、公告、研报、政策或事件解读 |
+| `添加 002261` | 添加股票到关注列表，成本价可后续补充 |
+| `添加 002261 成本 34.15` | 添加股票并记录成本价 |
+| `查看关注列表` | 查看当前自选、名称与成本价 |
+| `删除 002261` | 从关注列表移除股票 |
+| `刷新自选股名称` | 批量刷新关注股票名称 |
+
+### 数据获取与检索
+
+| 指令示例 | 功能 |
+|---|---|
+| `更新 002261 数据` | 抓取最新日 K 并重算日线指标 |
+| `获取 002261 1m 分钟K` | 抓取分钟 K 并写入数据库 |
+| `搜索立讯精密最新研报` | 搜索资讯、公告、研报或事件解读 |
 | `找今日涨幅 2% 的股票` | 用自然语言条件执行智能选股 |
-| `分析 002261` | 执行固定流水线综合分析，结合技术面、财务面与近期资讯 |
-| `查看 002261 上次分析` | 回看最近一次综合分析结论 |
-| `查看 002261 最近 3 次综合分析` | 回看最近 3 次综合分析 |
-| `查看 002261 技术面分析` | 回看最近一次技术面子任务结果 |
-| `查看 002261 最近 3 次技术面分析` | 回看最近 3 次技术面子任务结果 |
-| `查看 002261 基本面分析` | 回看最近一次财务子任务结果 |
-| `查看 002261 最近 3 次基本面分析` | 回看最近 3 次财务子任务结果 |
-| `查看 002261 资讯面分析` | 回看最近一次资讯子任务结果 |
-| `查看 002261 最近 3 次资讯面分析` | 回看最近 3 次资讯子任务结果 |
+
+### 分析与复盘
+
+| 指令示例 | 功能 |
+|---|---|
+| `分析 002261` | 执行综合分析，汇总技术面、财务面和资讯面 |
+| `查看 002261 上次分析` | 回看最近一次综合分析 |
+| `查看 002261 最近 3 次综合分析` | 回看最近几次综合分析 |
+| `查看 002261 技术面分析` | 回看最近一次技术面结果 |
+| `查看 002261 基本面分析` | 回看最近一次财务面结果 |
+| `查看 002261 资讯面分析` | 回看最近一次资讯面结果 |
+| `回测 002261 最近 5 次关键位快照` | 回测关键价位快照的命中情况 |
+
+如需查看更多历史，也可以直接说“查看 002261 最近 3 次技术面分析”“查看 002261 最近 3 次资讯面分析”。
+
+### 后台维护与排障
+
+| 指令示例 | 功能 |
+|---|---|
 | `开始监控` | 启动实时监控 |
-| `监控状态` | 查看监控状态、行情、关键价位覆盖情况 |
+| `监控状态` | 查看监控状态、最新行情与关键价位覆盖情况 |
 | `启动定时日更` | 启动项目自管的定时日更进程 |
-| `TickFlow日更状态` | 查看定时日更进程状态与最近一次执行情况 |
-| `停止定时日更` | 停止项目自管的定时日更进程 |
-| `停止监控` | 停止监控 |
+| `TickFlow日更状态` | 查看日更进程状态与最近执行结果 |
+| `停止定时日更` | 停止日更进程 |
+| `停止监控` | 停止实时监控 |
 | `测试告警` | 验证 OpenClaw channel 投递链路 |
-| `使用帮助` | 查看插件常用指令与示例 |
+| `使用帮助` | 查看插件常用指令 |
 | `数据库里有哪些表` | 查看 LanceDB 当前数据表 |
-| `看技术指标表结构` | 查看技术指标表字段结构 |
-| `查 002261 最近 5 条技术指标` | 查询数据库中的技术指标记录 |
+| `看技术指标表结构` | 查看数据库表字段结构 |
+| `查 002261 最近 5 条技术指标` | 查询数据库中的最近记录 |
 
-### 免 AI 直达命令
+## 3. Slash Commands
 
-如果你希望跳过模型决策，直接执行插件动作，可使用 TickFlow Assist 注册的 `ta_` 前缀 slash commands。
+插件当前注册了 17 个 `/ta_` 直达命令，适合“添加自选”“查状态”“发测试告警”这类不需要模型解释的操作。
 
-当前一共注册了 15 个直达命令：
+### 自选管理
 
-- `/ta_addstock <symbol> [costPrice] [count]`
-- `/ta_rmstock <symbol>`
-- `/ta_analyze <symbol>`
-- `/ta_viewanalysis <symbol>`
-- `/ta_watchlist`
-- `/ta_refreshnames`
-- `/ta_startmonitor`
-- `/ta_stopmonitor`
-- `/ta_monitorstatus`
-- `/ta_startdailyupdate`
-- `/ta_stopdailyupdate`
-- `/ta_updateall`
-- `/ta_dailyupdatestatus`
-- `/ta_testalert`
-- `/ta_debug`
+| 命令 | 说明 |
+|---|---|
+| `/ta_addstock <symbol> [costPrice] [count]` | 添加自选，并抓取默认 90 天日 K |
+| `/ta_rmstock <symbol>` | 删除自选 |
+| `/ta_watchlist` | 查看自选列表 |
+| `/ta_refreshnames` | 刷新股票名称 |
+| `/ta_refreshprofiles [symbol]` | 刷新行业分类与概念板块 |
+
+### 分析与复盘
+
+| 命令 | 说明 |
+|---|---|
+| `/ta_analyze <symbol>` | 直接执行综合分析 |
+| `/ta_viewanalysis <symbol>` | 查看最近一次综合分析 |
+| `/ta_backtest [symbol] [recentLimit]` | 回测活动关键价位快照，可按股票与最近次数过滤 |
+
+### 后台维护与调试
+
+| 命令 | 说明 |
+|---|---|
+| `/ta_startmonitor` | 启动实时监控 |
+| `/ta_stopmonitor` | 停止实时监控 |
+| `/ta_monitorstatus` | 查看监控状态 |
+| `/ta_startdailyupdate` | 启动定时日更 |
+| `/ta_stopdailyupdate` | 停止定时日更 |
+| `/ta_updateall` | 立即执行一次完整日更 |
+| `/ta_dailyupdatestatus` | 查看定时日更状态 |
+| `/ta_testalert` | 发送一条测试告警 |
+| `/ta_debug` | 查看插件进程当前看到的配置来源、数据库路径与 watchlist 快照 |
 
 常用示例：
 
 ```text
 /ta_addstock 601872
-/ta_addstock 601872 5.32
-/ta_addstock 002261 34.15 120
-/ta_rmstock 601872
+/ta_addstock 002261 34.15
+/ta_watchlist
 /ta_analyze 002261
 /ta_viewanalysis 002261
-/ta_watchlist
-/ta_refreshnames
+/ta_backtest 002261 5
 /ta_startmonitor
-/ta_stopmonitor
 /ta_monitorstatus
-/ta_startdailyupdate
-/ta_stopdailyupdate
-/ta_updateall
 /ta_dailyupdatestatus
 /ta_testalert
-/ta_debug
 ```
 
-这些命令由插件直接处理，优先于 AI agent，适合添加/删除自选、查看状态、测试告警这类零歧义操作。
+使用提示：
 
-注意：
+- `/ta_addstock` 的第二个参数是 `costPrice`，第三个参数才是日 K 数量；如果只写两个参数，第二个数字会被当作成本价。
+- `/ta_viewanalysis` 只看最近一次综合分析；如果你要看技术面、资讯面或最近 N 次历史，优先用自然语言或 CLI 的 `view_analysis`。
+- `/ta_backtest` 不带参数时会输出整体回测概览，带 `symbol` 和 `recentLimit` 时会更聚焦。
+- `/ta_debug` 适合排查“OpenClaw 对话能看到的状态”和“CLI 看到的状态”不一致的问题。
 
-- `/ta_addstock` 现在允许不填成本价，格式为 `/ta_addstock <symbol> [costPrice] [count]`
-- 若只写两个参数，例如 `/ta_addstock 002558 120`，第二个数字会被当作 `costPrice`；如需同时指定日K天数，需写成 `/ta_addstock 002558 12.34 120`
-- 未设置成本价时，添加、列表、分析和监控都可以正常运行；只是分析里会显示“未设置”，告警和监控也不会展示持仓盈亏百分比
-- `/ta_debug` 会返回插件进程当前看到的数据库路径、配置来源和 watchlist 快照，适合排查“CLI 有数据但插件命令看不到”的问题
+## 4. CLI 与本地直连调试
 
-### 命令行直连调试
+`npm run tool -- ...`、`npm run monitor-loop` 与 `npm run daily-update-loop` 读取的是项目根目录 `local.config.json` 的 `plugin` 字段，不会回退到 `~/.openclaw/openclaw.json`。
 
-`npm run tool -- ...`、`npm run monitor-loop` 与 `npm run daily-update-loop` 读取的是项目根目录 `local.config.json`，不是 `~/.openclaw/openclaw.json`。
-
-先准备本地调试配置：
-
-```bash
-cp local.config.example.json local.config.json
-```
-
-再填写其中的 `plugin` 配置，然后执行：
+推荐配置结构：
 
 ```json
 {
   "plugin": {
     "tickflowApiUrl": "https://api.tickflow.org",
-    "tickflowApiKey": "your-tickflow-key"
+    "tickflowApiKey": "sk-xxx",
+    "llmBaseUrl": "https://api.openai.com/v1",
+    "llmApiKey": "sk-xxx",
+    "llmModel": "gpt-4o",
+    "databasePath": "./data/lancedb",
+    "calendarFile": "./day_future.txt",
+    "requestInterval": 30,
+    "alertChannel": "telegram",
+    "openclawCliBin": "openclaw",
+    "alertAccount": "",
+    "alertTarget": "YOUR_TARGET",
+    "pythonBin": "uv",
+    "pythonArgs": ["run", "python"],
+    "pythonWorkdir": "./python"
   }
 }
 ```
 
-这里要特别注意：
+### 常用命令
 
-- CLI 工具读取的是 `local.config.json.plugin`
-- 不是 `local.config.json` 顶层其它字段
-- 也不会自动 fallback 到 `~/.openclaw/openclaw.json`
-
-然后执行：
+基础验证：
 
 ```bash
 npm run tool -- test_alert
-npm run tool -- add_stock '{"symbol":"002261"}'
 npm run tool -- add_stock '{"symbol":"002261","costPrice":34.154}'
 npm run tool -- fetch_klines '{"symbol":"002261","count":90}'
 npm run tool -- fetch_intraday_klines '{"symbol":"002261","period":"1m","count":240}'
-npm run tool -- mx_search '{"query":"立讯精密最新研报","limit":5}'
-npm run tool -- mx_select_stock '{"keyword":"今日涨幅2%的股票","pageNo":1,"pageSize":20}'
 npm run tool -- analyze '{"symbol":"002261"}'
+```
+
+分析回看与检索：
+
+```bash
 npm run tool -- view_analysis '{"symbol":"002261"}'
 npm run tool -- view_analysis '{"symbol":"002261","limit":3}'
-npm run tool -- view_analysis '{"symbol":"002261","profile":"technical"}'
 npm run tool -- view_analysis '{"symbol":"002261","profile":"technical","limit":3}'
-npm run tool -- view_analysis '{"symbol":"002261","profile":"financial"}'
-npm run tool -- view_analysis '{"symbol":"002261","profile":"financial","limit":3}'
-npm run tool -- view_analysis '{"symbol":"002261","profile":"news"}'
-npm run tool -- view_analysis '{"symbol":"002261","profile":"news","limit":3}'
-npm run tool -- view_analysis '{"symbol":"002261","profile":"all"}'
-npm run tool -- update_all
-npm run tool -- start_daily_update
-npm run tool -- daily_update_status
-npm run tool -- stop_daily_update
+npm run tool -- backtest_key_levels '{"symbol":"002261","recentLimit":5}'
+npm run tool -- mx_search '{"query":"立讯精密最新研报","limit":5}'
+npm run tool -- mx_select_stock '{"keyword":"今日涨幅2%的股票","pageNo":1,"pageSize":20}'
+```
+
+后台与循环：
+
+```bash
 npm run tool -- start_monitor
 npm run tool -- monitor_status
 npm run tool -- stop_monitor
+npm run tool -- start_daily_update
+npm run tool -- daily_update_status
+npm run tool -- stop_daily_update
+npm run tool -- update_all
+npm run monitor-loop
 npm run daily-update-loop
 ```
 
-补充说明：
+## 5. 运行规则与关键机制
 
-- `local.config.json` 只影响本地调试 / CLI 链路，不会反向修改 `~/.openclaw/openclaw.json`
-- 如果你希望 OpenClaw 对话结果、`npm run tool -- ...`、后台 loop 状态完全一致，建议把两套配置保持同步
-- `update_all` 在收盘后执行时，会同时更新日K、日线指标和当日 `1m` 分钟K
-- `start_daily_update` 启动的是项目自管 detached 进程，如果运行环境未托管插件服务，则不再依赖 OpenClaw 的 `tickflow-assist.managed-loop` 后台服务
-- `npm run daily-update-loop` 可用于手工前台运行日更轮询，便于配合 `tmux`、`systemd --user` 或其它进程管理器排查
-- `analyze` 会读取本地日K和日线指标，临时拉取当日全部分钟K、计算分钟指标、获取实时行情，并补充最新财务数据与资讯检索结果，再走固定流水线综合分析；其中基本面部分在 `Expert` 级别下使用 TickFlow 完整财务数据，在非 `Expert` 级别下会回退到 `mx_select_stock` 的 lite 指标拖底模式。若未设置成本价，提示词中会明确标记为“未设置”，不会因为成本价为空而报错
-- `view_analysis` 默认返回最近一次综合分析；可通过 `profile=technical|financial|news|all` 查看各维度结果，并可通过 `limit` / `count` 查看最近 N 次
-- `mx_search` 与 `mx_select_stock` 默认读取 `plugin.mxSearchApiUrl` 作为妙想接口基础地址，默认值为 `https://mkapi2.dfcfs.com/finskillshub/api/claw`
-- `mx_search` 与 `mx_select_stock` 默认读取 `plugin.mxSearchApiKey`；如果未配置，则会回退读取环境变量 `MX_APIKEY`
-- 本地 `klines_intraday` 默认仅保留近 10 个交易日，超过部分会自动清理
-- `daily_update_status` 现在会显示 `定时进程`、`运行方式`、`进程配置来源`、`配置来源`、`最近心跳` 与最近执行结果，便于排查“后台进程没跑”还是“只是当天尚未触发更新”
-- 实时监控与价格告警在未设置成本价时仍会正常触发，只是不会计算和显示持仓盈亏百分比
+### 监控告警阈值
 
-## 2. 数据与运行说明
-
-### 数据表
-
-| 表名 | 说明 |
-|---|---|
-| `watchlist` | 关注列表、股票名称、成本价（可空）、添加时间 |
-| `klines_daily` | 日 K 数据 |
-| `klines_intraday` | 分钟 K 数据，包含 `period` 与 `trade_time`，默认仅保留近 10 个交易日 |
-| `indicators` | 技术指标结果 |
-| `key_levels` | 关键价位与评分 |
-| `analysis_log` | 每次分析的文本和结构化结果 |
-| `technical_analysis` | 技术面子任务结果与关键价位快照 |
-| `financial_analysis` | 基本面子任务结果与财务证据快照 |
-| `news_analysis` | 资讯面子任务结果与资讯证据快照 |
-| `composite_analysis` | 综合分析结果与多维度评分摘要 |
-| `alert_log` | 告警去重与留痕 |
-
-### 实时监控规则
-
-| 规则 | 说明 | 触发条件 |
+| 告警类型 | 触发条件 | 说明 |
 |---|---|---|
-| 止损告警 | 跌破止损位 | `价格 <= 止损位` |
-| 止损预警 | 接近止损位 | `价格 <= 止损位 × 1.005` |
-| 突破告警 | 突破关键位 | `价格 >= 突破位` |
-| 支撑告警 | 接近支撑位 | `价格 <= 支撑位 × 1.005` |
-| 压力告警 | 接近压力位 | `价格 >= 压力位 × 0.995` |
-| 止盈告警 | 达到止盈位 | `价格 >= 止盈位` |
-| 涨跌幅异动 | 单日涨跌幅超阈值 | `绝对涨跌幅 >= 5%` |
-| 成交量异动 | 成交量异常放大 | `当前量 >= 5日均量 × 3` |
+| 止损告警 | `价格 <= 止损位` | 触及止损位 |
+| 止损预警 | `价格 <= 止损位 × 1.005` | 接近止损位 |
+| 突破告警 | `价格 >= 突破位` | 突破关键压力位 |
+| 支撑告警 | `价格 <= 支撑位 × 1.005` | 接近支撑位 |
+| 压力告警 | `价格 >= 压力位 × 0.995` | 接近压力位 |
+| 止盈告警 | `价格 >= 止盈位` | 达到止盈位 |
+| 涨跌幅异动 | `绝对涨跌幅 >= 5%` | 基于昨收计算 |
+| 成交量异动 | `当前量 >= 5 日均量 × 3` | 放量异动 |
 
-运行约束：
+### 数据来源与降级逻辑
 
-- 非交易日不监控
-- 交易时段：`09:30-11:30`、`13:00-15:00`
-- 阶段通知：`09:30` 左右发送“开始上午盯盘”，`11:30` 左右发送“上午盯盘结束”，`13:00` 左右发送“开始下午盯盘”，`15:00` 左右发送“今日盯盘结束”
-- 收盘后 `update_all` 才允许执行日更
-- `monitor_status` 会显示当前运行方式与最近心跳；如果心跳超时，会直接提示后台监控疑似未实际轮询
-- 如果后台轮询抛过异常，`monitor_status` 会显示最近一次异常时间和错误摘要
-- `daily_update_status` 会显示当前日更运行方式：`project_scheduler`
+| 场景 | 当前行为 |
+|---|---|
+| `analyze` | 读取本地日 K、日线指标，并临时补充分钟 K、分钟指标、实时行情和历史复盘摘要 |
+| 财务面（Expert） | 优先使用 TickFlow 完整财务快照 |
+| 财务面（非 Expert / TickFlow 完整财务失败） | 回退到 `mx_select_stock` 的 lite 指标链路 |
+| 财务面仍不可用 | 财务子任务返回降级结果，但综合分析继续执行 |
+| 资讯面不可用 | 资讯子任务返回降级结果，但综合分析继续执行 |
+| 分钟 K 保留策略 | `analyze` / `update_all` 会保留近 30 个交易日；单独执行 `fetch_intraday_klines` 会保留近 10 个交易日 |
+
+### 后台运行规则
+
+| 项目 | 说明 |
+|---|---|
+| 实时监控时段 | `09:30-11:30`、`13:00-15:00` |
+| 阶段通知 | 上午开盘、上午收盘、下午开盘、当日收盘各发送一次 |
+| `update_all` | 面向收盘后日更流程 |
+| 定时日更轮询 | 按 15 分钟对齐轮询，交易日 `15:25` 后最多执行一次 |
+| `monitor_status` | 显示运行方式、最近心跳、最新行情与关键位覆盖情况 |
+| `daily_update_status` | 显示运行方式、配置来源、最近心跳与最近执行结果 |
+
+## 6. 主要数据表
+
+| 表名 | 用途 |
+|---|---|
+| `watchlist` | 自选列表、成本价、行业分类、概念板块 |
+| `klines_daily` | 日 K 数据 |
+| `klines_intraday` | 分钟 K 数据 |
+| `indicators` | 技术指标 |
+| `key_levels` / `key_levels_history` | 当前关键价位与历史快照 |
+| `technical_analysis` / `financial_analysis` / `news_analysis` / `composite_analysis` | 多维分析结果 |
+| `analysis_log` / `alert_log` | 分析日志与告警留痕 |
+
+## 7. 高优先级注意事项
+
+- 正式插件读取 `~/.openclaw/openclaw.json`；CLI 与本地 loop 读取 `local.config.json.plugin`，两者不会自动同步。
+- 未配置 `mxSearchApiKey` 时，`mx_search` / `mx_select_stock` 不可用，非 Expert 财务链路的 lite 回退也会失效。
+- 不要把真实 API Key、消息目标、OPENID、群 ID 等写进仓库或文档示例。
