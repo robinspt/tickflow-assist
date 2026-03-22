@@ -132,6 +132,8 @@
   "plugin": {
     "tickflowApiUrl": "https://api.tickflow.org",
     "tickflowApiKey": "sk-xxx",
+    "mxSearchApiUrl": "https://mkapi2.dfcfs.com/finskillshub/api/claw",
+    "mxSearchApiKey": "mkt_xxx",
     "llmBaseUrl": "https://api.openai.com/v1",
     "llmApiKey": "sk-xxx",
     "llmModel": "gpt-4o",
@@ -239,4 +241,3 @@ npm run daily-update-loop
 
 - 正式插件读取 `~/.openclaw/openclaw.json`；CLI 与本地 loop 读取 `local.config.json.plugin`，两者不会自动同步。
 - 未配置 `mxSearchApiKey` 时，`mx_search` / `mx_select_stock` 不可用，非 Expert 财务链路的 lite 回退也会失效。
-- 不要把真实 API Key、消息目标、OPENID、群 ID 等写进仓库或文档示例。

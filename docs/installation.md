@@ -94,6 +94,8 @@ plugins.entries["tickflow-assist"].config
         "enabled": true,
         "config": {
           "tickflowApiKey": "your-tickflow-key",
+          "mxSearchApiUrl": "https://mkapi2.dfcfs.com/finskillshub/api/claw",
+          "mxSearchApiKey": "mkt_xxx",
           "llmBaseUrl": "https://api.openai.com/v1",
           "llmApiKey": "sk-xxx",
           "llmModel": "gpt-4o",
@@ -117,6 +119,8 @@ plugins.entries["tickflow-assist"].config
 {
   "plugin": {
     "tickflowApiKey": "your-tickflow-key",
+    "mxSearchApiUrl": "https://mkapi2.dfcfs.com/finskillshub/api/claw",
+    "mxSearchApiKey": "mkt_xxx",
     "llmBaseUrl": "https://api.openai.com/v1",
     "llmApiKey": "sk-xxx",
     "llmModel": "gpt-4o",
@@ -144,7 +148,7 @@ plugins.entries["tickflow-assist"].config
 | `calendarFile` | 是 | 交易日历文件路径，建议正式环境用绝对路径 |
 | `requestInterval` | 否 | 实时监控轮询间隔，默认 `30` 秒 |
 | `dailyUpdateNotify` | 否 | 是否发送定时日更通知，默认 `false` |
-| `alertChannel` | 是 | 告警通道，如 `telegram`、`qqbot`、`wecom` |
+| `alertChannel` | 是 | 告警通道，如 `telegram`、`qqbot`（QQ机器人）、`wecom`（企业微信）、`weixin`（微信） |
 | `openclawCliBin` | 否 | `openclaw` 可执行文件路径，默认 `openclaw` |
 | `alertAccount` | 否 | 多账号通道使用；QQBot / WeCom 常见为 `default` |
 | `alertTarget` | 是 | 告警投递目标，写法随通道而不同 |
@@ -224,9 +228,9 @@ TickFlow Assist 当前通过 `openclaw message send` 投递告警，因此前提
 | 通道 | 官方项目 / 接入方式 | `alertAccount` | `alertTarget` 示例 | 说明 |
 |---|---|---|---|---|
 | `telegram` | `openclaw channels add --channel telegram` | 通常留空 | `-1001234567890` | 直接使用群组 / 会话 ID |
-| `qqbot` | [@tencent-connect/openclaw-qqbot](https://www.npmjs.com/package/@tencent-connect/openclaw-qqbot) | 推荐 `default` | `qqbot:c2c:YOUR_OPENID` | 优先在目标会话发送 `/whoami`，读取 `User id` |
-| `wecom` | [@wecom/wecom-openclaw-plugin](https://www.npmjs.com/package/@wecom/wecom-openclaw-plugin) | 常见为 `default` | `YOUR_USER_ID_OR_CHAT_ID` | 优先在目标会话发送 `/whoami`，再区分单聊 `userId` / 群聊 `chatId` |
-| `weixin` | [@tencent-weixin/openclaw-weixin](https://www.npmjs.com/package/@tencent-weixin/openclaw-weixin) | 视插件配置 | `YOUR_TARGET` | 预留通道，当前 TickFlow Assist 尚未做专门适配，建议先用 `test_alert` 验证 |
+| `qqbot`（QQ机器人） | [@tencent-connect/openclaw-qqbot](https://www.npmjs.com/package/@tencent-connect/openclaw-qqbot) | 推荐 `default` | `qqbot:c2c:YOUR_OPENID` | 优先在目标会话发送 `/whoami`，读取 `User id` |
+| `wecom`（企业微信） | [@wecom/wecom-openclaw-plugin](https://www.npmjs.com/package/@wecom/wecom-openclaw-plugin) | 常见为 `default` | `YOUR_USER_ID_OR_CHAT_ID` | 优先在目标会话发送 `/whoami`，再区分单聊 `userId` / 群聊 `chatId` |
+| `weixin`（微信） | [@tencent-weixin/openclaw-weixin](https://www.npmjs.com/package/@tencent-weixin/openclaw-weixin) | 视插件配置 | `YOUR_TARGET` | 预留通道，当前 TickFlow Assist 尚未做专门适配，建议先用 `test_alert` 验证 |
 
 配置示例：
 
