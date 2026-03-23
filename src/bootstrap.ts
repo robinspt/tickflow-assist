@@ -237,11 +237,11 @@ export function createAppContext(
   const dailyUpdateWorker = new DailyUpdateWorker(
     updateService,
     postCloseReviewService,
+    tradingCalendarService,
     config.databasePath,
     alertService,
     config.dailyUpdateNotify,
     runtime.configSource,
-    config.calendarFile,
   );
 
   return {

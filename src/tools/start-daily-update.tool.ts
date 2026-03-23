@@ -23,7 +23,7 @@ export function startDailyUpdateTool(
         `PID: ${result.pid ?? "托管服务"}`,
         `运行方式: ${runtime.pluginManagedServices ? "plugin_service" : "project_scheduler"}`,
         `配置来源: ${configSource}`,
-        "说明: 后台按 15 分钟对齐轮询，交易日 15:25 后最多执行一次日更",
+        "说明: 后台按 15 分钟对齐轮询，交易日 15:25 后最多执行一次日更，20:00 后最多执行一次复盘",
       ];
       return lines.join("\n");
     },

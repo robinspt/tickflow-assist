@@ -17,4 +17,11 @@ export interface DailyUpdateState {
   lastResultType: DailyUpdateResultType | null;
   lastResultSummary: string | null;
   consecutiveFailures: number;
+  lastReviewAttemptAt: string | null;
+  lastReviewAttemptDate: string | null;
+  lastReviewSuccessAt: string | null;
+  lastReviewSuccessDate: string | null;
+  lastReviewResultType: DailyUpdateResultType | null;
+  lastReviewResultSummary: string | null;
+  reviewConsecutiveFailures: number;
 }

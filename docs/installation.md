@@ -147,7 +147,7 @@ plugins.entries["tickflow-assist"].config
 | `databasePath` | 是 | LanceDB 数据目录，建议正式环境用绝对路径 |
 | `calendarFile` | 是 | 交易日历文件路径，建议正式环境用绝对路径 |
 | `requestInterval` | 否 | 实时监控轮询间隔，默认 `30` 秒 |
-| `dailyUpdateNotify` | 否 | 是否发送定时日更通知，默认 `false` |
+| `dailyUpdateNotify` | 否 | 是否发送定时日更与定时复盘通知，默认 `true` |
 | `alertChannel` | 是 | 告警通道，如 `telegram`、`qqbot`（QQ机器人）、`wecom`（企业微信）、`weixin`（微信） |
 | `openclawCliBin` | 否 | `openclaw` 可执行文件路径，默认 `openclaw` |
 | `alertAccount` | 否 | 多账号通道使用；QQBot / WeCom 常见为 `default` |

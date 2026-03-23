@@ -56,7 +56,7 @@
       },
       "dailyUpdateNotify": {
         "type": "boolean",
-        "default": false
+        "default": true
       },
       "alertChannel": {
         "type": "string",

@@ -11,7 +11,7 @@
     "databasePath": "./data/lancedb",
     "calendarFile": "./day_future.txt",
     "requestInterval": 30,
-    "dailyUpdateNotify": false,
+    "dailyUpdateNotify": true,
     "alertChannel": "telegram",
     "openclawCliBin": "openclaw",
     "alertAccount": "",

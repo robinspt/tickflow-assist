@@ -35,7 +35,7 @@ export const DEFAULT_PLUGIN_CONFIG: Omit<
   databasePath: "./data/lancedb",
   calendarFile: "./day_future.txt",
   requestInterval: 30,
-  dailyUpdateNotify: false,
+  dailyUpdateNotify: true,
   alertChannel: "telegram",
   openclawCliBin: "openclaw",
   alertAccount: "",

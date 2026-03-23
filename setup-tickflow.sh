@@ -755,7 +755,7 @@ load_existing_config_defaults() {
   EXISTING_LOCAL_LLM_KEY=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.llmApiKey')
   EXISTING_LOCAL_LLM_MODEL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.llmModel')
   EXISTING_LOCAL_REQUEST_INTERVAL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.requestInterval')
-  EXISTING_LOCAL_DAILY_UPDATE_NOTIFY=$(read_json_compact "$LOCAL_CONFIG_PATH" '.plugin.dailyUpdateNotify // false')
+  EXISTING_LOCAL_DAILY_UPDATE_NOTIFY=$(read_json_compact "$LOCAL_CONFIG_PATH" 'if (.plugin? | type) == "object" and (.plugin | has("dailyUpdateNotify")) then .plugin.dailyUpdateNotify else empty end')
   EXISTING_LOCAL_ALERT_CHANNEL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.alertChannel')
   EXISTING_LOCAL_ALERT_ACCOUNT=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.alertAccount')
   EXISTING_LOCAL_ALERT_TARGET=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.alertTarget')
@@ -775,7 +775,7 @@ load_existing_config_defaults() {
   EXISTING_OPENCLAW_LLM_KEY=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.llmApiKey')
   EXISTING_OPENCLAW_LLM_MODEL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.llmModel')
   EXISTING_OPENCLAW_REQUEST_INTERVAL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.requestInterval')
-  EXISTING_OPENCLAW_DAILY_UPDATE_NOTIFY=$(read_json_compact "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.dailyUpdateNotify // false')
+  EXISTING_OPENCLAW_DAILY_UPDATE_NOTIFY=$(read_json_compact "$OPENCLAW_JSON" 'if (.plugins.entries["tickflow-assist"].config? | type) == "object" and (.plugins.entries["tickflow-assist"].config | has("dailyUpdateNotify")) then .plugins.entries["tickflow-assist"].config.dailyUpdateNotify else empty end')
   EXISTING_OPENCLAW_ALERT_CHANNEL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.alertChannel')
   EXISTING_OPENCLAW_ALERT_ACCOUNT=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.alertAccount')
   EXISTING_OPENCLAW_ALERT_TARGET=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.alertTarget')
@@ -792,7 +792,7 @@ load_existing_config_defaults() {
   DEFAULT_LLM_KEY=${EXISTING_LOCAL_LLM_KEY:-$EXISTING_OPENCLAW_LLM_KEY}
   DEFAULT_LLM_MODEL=${EXISTING_LOCAL_LLM_MODEL:-${EXISTING_OPENCLAW_LLM_MODEL:-gpt-4o}}
   DEFAULT_REQUEST_INTERVAL=${EXISTING_LOCAL_REQUEST_INTERVAL:-${EXISTING_OPENCLAW_REQUEST_INTERVAL:-30}}
-  DEFAULT_DAILY_UPDATE_NOTIFY=${EXISTING_LOCAL_DAILY_UPDATE_NOTIFY:-${EXISTING_OPENCLAW_DAILY_UPDATE_NOTIFY:-false}}
+  DEFAULT_DAILY_UPDATE_NOTIFY=${EXISTING_LOCAL_DAILY_UPDATE_NOTIFY:-${EXISTING_OPENCLAW_DAILY_UPDATE_NOTIFY:-true}}
   DEFAULT_ALERT_CHANNEL=${EXISTING_LOCAL_ALERT_CHANNEL:-${EXISTING_OPENCLAW_ALERT_CHANNEL:-telegram}}
   DEFAULT_ALERT_ACCOUNT=${EXISTING_LOCAL_ALERT_ACCOUNT:-$EXISTING_OPENCLAW_ALERT_ACCOUNT}
   DEFAULT_ALERT_TARGET=${EXISTING_LOCAL_ALERT_TARGET:-$EXISTING_OPENCLAW_ALERT_TARGET}

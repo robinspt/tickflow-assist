@@ -49,6 +49,20 @@ export class TradingCalendarService {
     return { ok: true, reason: "交易日已收盘" };
   }
 
+  async canRunPostCloseReview(date: Date = new Date()): Promise<{ ok: boolean; reason: string }> {
+    if (!(await this.isTradingDay(date))) {
+      return { ok: false, reason: `${this.toChinaDate(date)} 非交易日` };
+    }
+
+    const china = this.toChinaParts(date);
+    const hhmm = `${china.hour}:${china.minute}`;
+    if (hhmm < "20:00") {
+      return { ok: false, reason: `当前 ${hhmm}，须等到 20:00 后执行复盘` };
+    }
+
+    return { ok: true, reason: "交易日已完成收盘且达到复盘时间" };
+  }
+
   async getRecentTradingDays(limit: number, endDate: Date = new Date()): Promise<string[]> {
     if (!Number.isInteger(limit) || limit <= 0) {
       throw new Error(`limit must be a positive integer, got ${limit}`);
