@@ -272,8 +272,9 @@ TickFlow Assist 当前通过 `openclaw message send` 投递告警，因此前提
 官方项目：[@tencent-weixin/openclaw-weixin](https://www.npmjs.com/package/@tencent-weixin/openclaw-weixin)
 
 - 当前 TickFlow Assist 还没有针对 `weixin` 做专门适配。
-- 如果该通道插件版本支持 `openclaw message send` 主动投递，可按与其它通道相同的方式尝试填写 `alertChannel`、`alertAccount`、`alertTarget`。
-- 建议先执行一次 `test_alert`，确认 target 规则与主动投递链路都正常。
+- 当前实测中，`@tencent-weixin/openclaw-weixin` 通过 `openclaw message send` 主动发送时仍可能要求额外的 `contextToken`；因此即使已拿到 `alertTarget`，`test_alert`、监控告警、日更通知也仍可能失败。
+- 如果出现 `sendWeixinOutbound: contextToken is required`，说明当前版本暂时不适合作为 TickFlow Assist 的后台主动告警通道，建议先仅将微信作为 OpenClaw 对话入口使用，待官方插件后续更新后再启用主动告警推送。
+- 建议先执行一次 `test_alert`，确认当前插件版本与目标链路是否兼容。
 
 </details>
 
