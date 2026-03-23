@@ -11,6 +11,7 @@ import {
 import { TradingCalendarService } from "../services/trading-calendar-service.js";
 import type { DailyUpdateResultType, DailyUpdateState } from "../types/daily-update.js";
 import { chinaToday, formatChinaDateTime } from "../utils/china-time.js";
+import { sleepWithAbort } from "../utils/abortable-sleep.js";
 import { isPidAlive, spawnDailyUpdateLoop } from "../runtime/daily-update-process.js";
 
 const DAILY_UPDATE_READY_TIME = "15:25";
@@ -93,7 +94,7 @@ export class DailyUpdateWorker {
       if (state.running) {
         await this.runScheduledPasses();
       }
-      await sleep(getNextAlignedDelayMs(this.intervalMs));
+      await sleepWithAbort(getNextAlignedDelayMs(this.intervalMs), signal);
     }
   }
 
@@ -563,9 +564,6 @@ function joinMessages(...parts: Array<string | null | undefined>): string {
     .join("\n\n");
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 function getNextAlignedDelayMs(intervalMs: number): number {
   const intervalMinutes = Math.max(1, Math.floor(intervalMs / 60_000));

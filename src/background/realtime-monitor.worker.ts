@@ -1,4 +1,5 @@
 import { MonitorService } from "../services/monitor-service.js";
+import { sleepWithAbort } from "../utils/abortable-sleep.js";
 
 export class RealtimeMonitorWorker {
   constructor(
@@ -25,7 +26,7 @@ export class RealtimeMonitorWorker {
       } catch (error) {
         await this.monitorService.recordLoopError(error);
       }
-      await new Promise((resolve) => setTimeout(resolve, this.intervalMs));
+      await sleepWithAbort(this.intervalMs, signal);
     }
   }
 }

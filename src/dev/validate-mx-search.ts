@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { parseWatchlistProfileExtraction } from "../analysis/parsers/watchlist-profile.parser.js";
-import { normalizePluginConfig } from "../config/normalize.js";
+import { normalizePluginConfig, resolvePluginConfigPaths } from "../config/normalize.js";
 import {
   buildWatchlistProfileExtractionUserPrompt,
 } from "../prompts/analysis/index.js";
@@ -226,7 +226,7 @@ async function loadLocalConfig() {
   const file = path.join(process.cwd(), "local.config.json");
   try {
     const parsed = JSON.parse(await readFile(file, "utf8")) as LocalConfigShape;
-    return normalizePluginConfig(parsed.plugin ?? {});
+    return resolvePluginConfigPaths(normalizePluginConfig(parsed.plugin ?? {}), process.cwd());
   } catch {
     return null;
   }

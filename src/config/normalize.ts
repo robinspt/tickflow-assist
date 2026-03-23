@@ -66,8 +66,8 @@ export function normalizePluginConfig(input: unknown): PluginConfig {
     llmBaseUrl: normalizeString(raw.llmBaseUrl, DEFAULT_PLUGIN_CONFIG.llmBaseUrl),
     llmApiKey: normalizeString(raw.llmApiKey),
     llmModel: normalizeString(raw.llmModel, DEFAULT_PLUGIN_CONFIG.llmModel),
-    databasePath: path.resolve(normalizeString(raw.databasePath, DEFAULT_PLUGIN_CONFIG.databasePath)),
-    calendarFile: path.resolve(normalizeString(raw.calendarFile, DEFAULT_PLUGIN_CONFIG.calendarFile)),
+    databasePath: normalizeString(raw.databasePath, DEFAULT_PLUGIN_CONFIG.databasePath),
+    calendarFile: normalizeString(raw.calendarFile, DEFAULT_PLUGIN_CONFIG.calendarFile),
     requestInterval: normalizeInteger(raw.requestInterval, DEFAULT_PLUGIN_CONFIG.requestInterval),
     dailyUpdateNotify: normalizeBoolean(raw.dailyUpdateNotify, DEFAULT_PLUGIN_CONFIG.dailyUpdateNotify),
     alertChannel: normalizeString(raw.alertChannel, DEFAULT_PLUGIN_CONFIG.alertChannel),
@@ -76,7 +76,16 @@ export function normalizePluginConfig(input: unknown): PluginConfig {
     alertTarget: normalizeString(raw.alertTarget),
     pythonBin: normalizeString(raw.pythonBin, DEFAULT_PLUGIN_CONFIG.pythonBin),
     pythonArgs: normalizeStringArray(raw.pythonArgs, DEFAULT_PLUGIN_CONFIG.pythonArgs),
-    pythonWorkdir: path.resolve(normalizeString(raw.pythonWorkdir, DEFAULT_PLUGIN_CONFIG.pythonWorkdir)),
+    pythonWorkdir: normalizeString(raw.pythonWorkdir, DEFAULT_PLUGIN_CONFIG.pythonWorkdir),
+  };
+}
+
+export function resolvePluginConfigPaths(config: PluginConfig, baseDir: string): PluginConfig {
+  return {
+    ...config,
+    databasePath: resolveConfigPath(config.databasePath, baseDir),
+    calendarFile: resolveConfigPath(config.calendarFile, baseDir),
+    pythonWorkdir: resolveConfigPath(config.pythonWorkdir, baseDir),
   };
 }
 
@@ -100,4 +109,11 @@ export function validatePluginConfig(config: PluginConfig): string[] {
   }
 
   return errors;
+}
+
+function resolveConfigPath(value: string, baseDir: string): string {
+  if (!value) {
+    return value;
+  }
+  return path.isAbsolute(value) ? value : path.resolve(baseDir, value);
 }

@@ -246,6 +246,6 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
   ];
 
   for (const command of commands) {
-    api.registerCommand?.(command);
+    api.registerCommand(command);
   }
 }

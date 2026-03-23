@@ -15,6 +15,8 @@ NC='\033[0m'
 PLUGIN_ID="tickflow-assist"
 REPO_URL="https://github.com/robinspt/tickflow-assist.git"
 OPENCLAW_JSON="$HOME/.openclaw/openclaw.json"
+MIN_NODE_VERSION="22.16.0"
+MIN_OPENCLAW_VERSION="2026.3.22"
 
 DRY_RUN=false
 ACTION=""
@@ -66,6 +68,53 @@ done
 
 command_installed() {
   command -v "$1" >/dev/null 2>&1
+}
+
+trim_version_prefix() {
+  local value="${1#v}"
+  value="${value#V}"
+  printf '%s\n' "$value"
+}
+
+extract_version_token() {
+  local value="$1"
+  printf '%s\n' "$value" | grep -Eo '[0-9]+(\.[0-9]+){2,3}' | head -n1 || true
+}
+
+version_gte() {
+  local current="$(trim_version_prefix "$1")"
+  local required="$(trim_version_prefix "$2")"
+  local current_parts required_parts max_len idx current_part required_part
+
+  IFS='.' read -r -a current_parts <<< "$current"
+  IFS='.' read -r -a required_parts <<< "$required"
+  max_len=${#current_parts[@]}
+  if [[ ${#required_parts[@]} -gt $max_len ]]; then
+    max_len=${#required_parts[@]}
+  fi
+
+  for ((idx = 0; idx < max_len; idx++)); do
+    current_part=${current_parts[$idx]:-0}
+    required_part=${required_parts[$idx]:-0}
+    ((10#$current_part > 10#$required_part)) && return 0
+    ((10#$current_part < 10#$required_part)) && return 1
+  done
+
+  return 0
+}
+
+detect_node_version() {
+  command_installed node || return 1
+  node --version 2>/dev/null | tr -d '[:space:]'
+}
+
+detect_openclaw_version() {
+  local openclaw_cmd="$1"
+  local raw=""
+
+  [[ -z "$openclaw_cmd" ]] && return 1
+  raw=$("$openclaw_cmd" --version 2>/dev/null | head -n1 || true)
+  extract_version_token "$raw"
 }
 
 maybe_fix_openclaw_path() {
@@ -494,15 +543,37 @@ refresh_state() {
   OPENCLAW_PATH_HINT=""
   OPENCLAW_PATH_WARNING="no"
   OPENCLAW_PATH_FIXED="no"
+  NODE_VERSION_VALUE=""
+  NODE_VERSION_OK="unknown"
+  OPENCLAW_VERSION_VALUE=""
+  OPENCLAW_VERSION_OK="unknown"
 
   command_installed git && HAS_GIT="yes"
   command_installed node && HAS_NODE="yes"
+  if [[ "$HAS_NODE" == "yes" ]]; then
+    NODE_VERSION_VALUE=$(detect_node_version || true)
+    if [[ -n "$NODE_VERSION_VALUE" ]]; then
+      if version_gte "$NODE_VERSION_VALUE" "$MIN_NODE_VERSION"; then
+        NODE_VERSION_OK="yes"
+      else
+        NODE_VERSION_OK="no"
+      fi
+    fi
+  fi
   command_installed npm && HAS_NPM="yes"
   command_installed uv && HAS_UV="yes"
   command_installed jq && HAS_JQ="yes"
   maybe_fix_openclaw_path >/dev/null 2>&1 || true
   if OPENCLAW_CMD="$(resolve_openclaw_command)"; then
     HAS_OPENCLAW="yes"
+    OPENCLAW_VERSION_VALUE=$(detect_openclaw_version "$OPENCLAW_CMD" || true)
+    if [[ -n "$OPENCLAW_VERSION_VALUE" ]]; then
+      if version_gte "$OPENCLAW_VERSION_VALUE" "$MIN_OPENCLAW_VERSION"; then
+        OPENCLAW_VERSION_OK="yes"
+      else
+        OPENCLAW_VERSION_OK="no"
+      fi
+    fi
     if [[ "$OPENCLAW_PATH_FIXED" == "yes" ]]; then
       OPENCLAW_PATH_WARNING="yes"
       OPENCLAW_PATH_HINT="$OPENCLAW_CMD"
@@ -551,11 +622,11 @@ show_status_panel() {
   show_header
   echo -e "${BOLD}依赖状态${NC}"
   print_status_row "git" "$HAS_GIT"
-  print_status_row "node" "$HAS_NODE"
+  print_status_row "node" "$HAS_NODE" "${NODE_VERSION_VALUE:-}"
   print_status_row "npm" "$HAS_NPM"
   print_status_row "uv" "$HAS_UV"
   print_status_row "jq" "$HAS_JQ"
-  print_status_row "openclaw" "$HAS_OPENCLAW" "${OPENCLAW_PATH_HINT:-}"
+  print_status_row "openclaw" "$HAS_OPENCLAW" "${OPENCLAW_VERSION_VALUE:-${OPENCLAW_PATH_HINT:-}}"
   echo ""
   echo -e "${BOLD}项目状态${NC}"
   print_status_row "项目目录" "$PLUGIN_SOURCE_READY" "$PLUGIN_DIR"
@@ -566,6 +637,14 @@ show_status_panel() {
   print_status_row "插件配置已写入" "$OPENCLAW_PLUGIN_CONFIGURED" "$PLUGIN_ID"
   print_status_row "插件已启用" "$OPENCLAW_PLUGIN_ENABLED" "$PLUGIN_ID"
   echo ""
+  if [[ "$NODE_VERSION_OK" == "no" ]]; then
+    warn "检测到 Node ${NODE_VERSION_VALUE}。TickFlow Assist 0.2.0 面向 OpenClaw v${MIN_OPENCLAW_VERSION}+，建议 Node >= ${MIN_NODE_VERSION}。"
+    echo ""
+  fi
+  if [[ "$OPENCLAW_VERSION_OK" == "no" ]]; then
+    warn "检测到 OpenClaw ${OPENCLAW_VERSION_VALUE}。TickFlow Assist 0.2.0 仅支持 OpenClaw >= v${MIN_OPENCLAW_VERSION}。"
+    echo ""
+  fi
   if [[ "$OPENCLAW_PATH_WARNING" == "yes" ]]; then
     if [[ "$OPENCLAW_PATH_FIXED" == "yes" ]]; then
       warn "检测到 openclaw 已安装，但不在当前 PATH 中。脚本已临时加入 PATH，并将使用: $OPENCLAW_CMD"
@@ -631,6 +710,18 @@ ensure_required_commands() {
 
   if [[ ${#missing[@]} -gt 0 ]]; then
     fail "缺少依赖：${missing[*]}。请先安装后重试。"
+  fi
+}
+
+ensure_supported_runtime_versions() {
+  refresh_state
+
+  if [[ "$NODE_VERSION_OK" == "no" ]]; then
+    fail "当前 Node 版本 ${NODE_VERSION_VALUE} 过低。请升级到 >= ${MIN_NODE_VERSION} 后再安装/升级 TickFlow Assist 0.2.0。"
+  fi
+
+  if [[ "$OPENCLAW_VERSION_OK" == "no" ]]; then
+    fail "当前 OpenClaw 版本 ${OPENCLAW_VERSION_VALUE:-unknown} 过低。TickFlow Assist 0.2.0 需要 OpenClaw >= v${MIN_OPENCLAW_VERSION}。请先升级 OpenClaw。"
   fi
 }
 
@@ -1405,6 +1496,7 @@ run_install_flow() {
   refresh_state
 
   ensure_required_commands git node npm jq openclaw
+  ensure_supported_runtime_versions
   ensure_uv
   prepare_plugin_source
   install_dependencies_and_build
@@ -1429,6 +1521,7 @@ run_upgrade_flow() {
   fi
 
   ensure_required_commands git node npm jq openclaw
+  ensure_supported_runtime_versions
   ensure_uv
   prepare_plugin_source
   install_dependencies_and_build

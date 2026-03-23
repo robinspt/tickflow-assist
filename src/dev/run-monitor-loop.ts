@@ -1,8 +1,9 @@
+
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { createAppContext } from "../bootstrap.js";
-import { normalizePluginConfig } from "../config/normalize.js";
+import { normalizePluginConfig, resolvePluginConfigPaths } from "../config/normalize.js";
 
 interface LocalConfigShape {
   plugin?: Record<string, unknown>;
@@ -53,7 +54,7 @@ async function main(): Promise<void> {
       await alertService.send(
         alertService.formatSystemNotification("⚠️ TickFlow 监控退出通知", [
           `时间: ${new Date().toISOString()}`,
-          `原因: 监控循环异常退出`,
+          "原因: 监控循环异常退出",
           `详情: ${message}`,
         ]),
       );
@@ -66,7 +67,7 @@ async function loadLocalConfig() {
   const configPath = path.resolve("local.config.json");
   const raw = await readFile(configPath, "utf-8");
   const parsed = JSON.parse(raw) as LocalConfigShape;
-  return normalizePluginConfig(parsed.plugin ?? {});
+  return resolvePluginConfigPaths(normalizePluginConfig(parsed.plugin ?? {}), process.cwd());
 }
 
 void main().catch((error) => {

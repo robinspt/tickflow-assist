@@ -1,8 +1,9 @@
+
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { createAppContext } from "../bootstrap.js";
-import { normalizePluginConfig } from "../config/normalize.js";
+import { normalizePluginConfig, resolvePluginConfigPaths } from "../config/normalize.js";
 
 interface LocalConfigShape {
   plugin?: Record<string, unknown>;
@@ -31,7 +32,7 @@ async function loadLocalConfig() {
   const configPath = path.resolve("local.config.json");
   const raw = await readFile(configPath, "utf-8");
   const parsed = JSON.parse(raw) as LocalConfigShape;
-  return normalizePluginConfig(parsed.plugin ?? {});
+  return resolvePluginConfigPaths(normalizePluginConfig(parsed.plugin ?? {}), process.cwd());
 }
 
 function parseToolInput(args: string[]): unknown {

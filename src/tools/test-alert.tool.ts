@@ -4,7 +4,7 @@ import { formatChinaDateTime } from "../utils/china-time.js";
 export function testAlertTool(alertService: AlertService) {
   return {
     name: "test_alert",
-    description: "Send a test alert through OpenClaw CLI.",
+    description: "Send a test alert through the configured OpenClaw alert delivery path.",
     async run(): Promise<string> {
       const ok = await alertService.send(
         alertService.formatSystemNotification("🧪 TickFlow 测试告警", [

@@ -8,6 +8,11 @@
 - JS/TS 负责主业务流程
 - Python 仅保留技术指标计算
 
+兼容性要求：
+
+- TickFlow Assist `0.2.0` 起面向 OpenClaw `v2026.3.22+` 的新版 plugin SDK
+- 建议 Node `>=22.16.0`，这是 OpenClaw `v2026.3.22` 上游声明的运行时要求
+
 ## 🧭 项目简介
 
 TickFlow Assist 面向一条完整的“自选管理 -> 数据抓取 -> 综合分析 -> 后台监控 -> 结果留痕”链路，适合在 OpenClaw 中做 A 股日常盯盘、收盘后复盘和分析结果沉淀。
@@ -41,6 +46,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 ```
 
 向导会自动完成源码更新、依赖安装、配置写入、插件安装与 Gateway 重启。完整流程见 [docs/installation.md](docs/installation.md)。
+
+如果你已经装过 `0.1.0`，直接重复运行这条命令并选择“升级”即可，不需要先卸载重装；只有插件目录来源已经混乱、或者 OpenClaw 里残留了别的同名安装时，才建议先清理后重装。
 
 ### 手动安装
 
@@ -118,6 +125,7 @@ tickflow-assist/
 - `2026-03-19`：新增财务与妙想链路
 - `2026-03-20`：补充收盘分析与回测
 - `2026-03-21`：优化A股语境与复盘记忆
+- `2026-03-23`：发布 `v0.2.0`，迁移到 OpenClaw `v2026.3.22+` 的新版 plugin SDK
 - `2026-03-23`：复盘改至20:00独立调度
 
 ## 🙏 鸣谢

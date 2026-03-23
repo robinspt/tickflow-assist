@@ -1,9 +1,22 @@
-import type { LocalTool, PluginApi, RegisteredAgentTool } from "./runtime/plugin-api.js";
-import { normalizePluginConfig, validatePluginConfig } from "./config/normalize.js";
+
+import path from "node:path";
+
+import { Type } from "@sinclair/typebox";
+
 import { createAppContext } from "./bootstrap.js";
+import { normalizePluginConfig, validatePluginConfig } from "./config/normalize.js";
 import { registerPluginCommands } from "./plugin-commands.js";
+import {
+  definePluginEntry,
+  type LocalTool,
+  type PluginApi,
+  type RegisteredAgentTool,
+} from "./runtime/plugin-api.js";
 
 const PLUGIN_ID = "tickflow-assist";
+const PLUGIN_NAME = "TickFlow Assist";
+const PLUGIN_DESCRIPTION =
+  "A-share watchlist analysis, monitoring, and alert delivery powered by TickFlow and OpenClaw.";
 const STOCK_AGENT_ID = "stock";
 const STOCK_PROMPT_ENFORCEMENT = [
   "You are handling the stock agent.",
@@ -16,12 +29,13 @@ const STOCK_PROMPT_ENFORCEMENT = [
   "If a required tool parameter is missing, ask only for that missing parameter.",
 ].join("\n");
 
-const GENERIC_TOOL_PARAMETERS_SCHEMA = {
-  type: "object",
-  description: "Pass tool arguments as top-level JSON fields.",
-  properties: {},
-  additionalProperties: true,
-} as const;
+const GENERIC_TOOL_PARAMETERS_SCHEMA = Type.Object(
+  {},
+  {
+    additionalProperties: true,
+    description: "Pass tool arguments as top-level JSON fields.",
+  },
+);
 
 function extractRawInput(params: Record<string, unknown>): unknown {
   const keys = Object.keys(params);
@@ -40,10 +54,13 @@ function extractRawInput(params: Record<string, unknown>): unknown {
 function toAgentTool(tool: LocalTool): RegisteredAgentTool {
   return {
     name: tool.name,
+    label: tool.name,
     description: `${tool.description} Pass arguments as top-level JSON fields.`,
     parameters: GENERIC_TOOL_PARAMETERS_SCHEMA,
-    async execute(_toolCallId: string, params: Record<string, unknown>) {
-      const text = await tool.run({ rawInput: extractRawInput(params) });
+    async execute(_toolCallId, params) {
+      const text = await tool.run({
+        rawInput: extractRawInput(params as Record<string, unknown>),
+      });
       return {
         content: [
           {
@@ -51,6 +68,9 @@ function toAgentTool(tool: LocalTool): RegisteredAgentTool {
             text,
           },
         ],
+        details: {
+          text,
+        },
       };
     },
   };
@@ -63,61 +83,43 @@ function summarizeConfigKeys(config: unknown): string[] {
   return Object.keys(config as Record<string, unknown>).sort();
 }
 
-function extractPluginConfig(rawConfig: unknown): unknown {
-  if (typeof rawConfig !== "object" || rawConfig === null) {
-    return rawConfig;
+function resolvePluginPath(value: string, resolvePath: (input: string) => string): string {
+  if (!value || path.isAbsolute(value)) {
+    return value;
   }
+  return resolvePath(value);
+}
 
-  const root = rawConfig as {
-    plugins?: {
-      entries?: Record<string, { config?: unknown } | undefined>;
-    };
+function safeJson(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function logInfo(api: PluginApi, message: string, meta?: Record<string, unknown>): void {
+  api.logger.info(meta ? `${message} ${safeJson(meta)}` : message);
+}
+
+function logWarn(api: PluginApi, message: string, meta?: Record<string, unknown>): void {
+  api.logger.warn(meta ? `${message} ${safeJson(meta)}` : message);
+}
+
+function registerTickFlowAssist(api: PluginApi): void {
+  const pluginConfigInput = api.pluginConfig ?? {};
+  const normalizedConfig = normalizePluginConfig(pluginConfigInput);
+  const config = {
+    ...normalizedConfig,
+    databasePath: resolvePluginPath(normalizedConfig.databasePath, api.resolvePath),
+    calendarFile: resolvePluginPath(normalizedConfig.calendarFile, api.resolvePath),
+    pythonWorkdir: resolvePluginPath(normalizedConfig.pythonWorkdir, api.resolvePath),
   };
-
-  return root.plugins?.entries?.[PLUGIN_ID]?.config ?? rawConfig;
-}
-
-function extractAgentId(event: unknown, context: unknown): string | undefined {
-  if (typeof context === "object" && context !== null) {
-    const ctx = context as {
-      agentId?: unknown;
-      agent?: {
-        id?: unknown;
-      };
-    };
-    if (typeof ctx.agentId === "string" && ctx.agentId.trim()) {
-      return ctx.agentId;
-    }
-    if (typeof ctx.agent?.id === "string" && ctx.agent.id.trim()) {
-      return ctx.agent.id;
-    }
-  }
-
-  if (typeof event === "object" && event !== null) {
-    const evt = event as {
-      agentId?: unknown;
-      agent?: {
-        id?: unknown;
-      };
-    };
-    if (typeof evt.agentId === "string" && evt.agentId.trim()) {
-      return evt.agentId;
-    }
-    if (typeof evt.agent?.id === "string" && evt.agent.id.trim()) {
-      return evt.agent.id;
-    }
-  }
-
-  return undefined;
-}
-
-export default function registerTickFlowAssist(api: PluginApi): void {
-  const pluginConfigInput = extractPluginConfig(api.config);
-  const config = normalizePluginConfig(pluginConfigInput ?? {});
   const errors = validatePluginConfig(config);
-  const pluginManagedServices = typeof api.registerService === "function";
+  const pluginManagedServices = api.registrationMode === "full";
 
-  api.log?.info?.("tickflow-assist plugin registering", {
+  logInfo(api, "tickflow-assist plugin registering", {
+    registrationMode: api.registrationMode,
     rawConfigKeys: summarizeConfigKeys(api.config),
     pluginConfigKeys: summarizeConfigKeys(pluginConfigInput),
     calendarFile: config.calendarFile,
@@ -126,15 +128,21 @@ export default function registerTickFlowAssist(api: PluginApi): void {
   });
 
   if (errors.length > 0) {
-    api.log?.warn?.("tickflow-assist config is incomplete", { errors });
+    logWarn(api, "tickflow-assist config is incomplete", { errors });
+  }
+
+  if (api.registrationMode === "setup-only") {
+    return;
   }
 
   const app = createAppContext(config, {
     configSource: "openclaw_plugin",
     pluginManagedServices,
+    openclawConfig: api.config,
+    pluginRuntime: api.runtime,
   });
 
-  api.log?.info?.("tickflow-assist plugin loaded", {
+  logInfo(api, "tickflow-assist plugin loaded", {
     tickflowApiKeyLevel: config.tickflowApiKeyLevel,
     calendarFile: config.calendarFile,
     requestInterval: config.requestInterval,
@@ -145,21 +153,21 @@ export default function registerTickFlowAssist(api: PluginApi): void {
   });
 
   for (const tool of app.tools) {
-    api.registerTool?.(toAgentTool(tool));
+    api.registerTool(toAgentTool(tool));
   }
 
   if (pluginManagedServices) {
     for (const service of app.backgroundServices) {
-      api.registerService?.(service);
+      api.registerService(service);
     }
   }
 
   registerPluginCommands(api, app.tools, app);
 
-  api.on?.(
+  api.on(
     "before_prompt_build",
-    (event, context) => {
-      if (extractAgentId(event, context) !== STOCK_AGENT_ID) {
+    (_event, context) => {
+      if (context.agentId !== STOCK_AGENT_ID) {
         return;
       }
 
@@ -170,3 +178,10 @@ export default function registerTickFlowAssist(api: PluginApi): void {
     { priority: 100 },
   );
 }
+
+export default definePluginEntry({
+  id: PLUGIN_ID,
+  name: PLUGIN_NAME,
+  description: PLUGIN_DESCRIPTION,
+  register: registerTickFlowAssist,
+});

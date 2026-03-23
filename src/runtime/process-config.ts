@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { PluginConfig } from "../config/schema.js";
-import { normalizePluginConfig } from "../config/normalize.js";
+import { normalizePluginConfig, resolvePluginConfigPaths } from "../config/normalize.js";
 
 const CONFIG_B64_ENV = "TICKFLOW_ASSIST_CONFIG_B64";
 const CONFIG_SOURCE_ENV = "TICKFLOW_ASSIST_CONFIG_SOURCE";
@@ -32,7 +32,7 @@ export async function loadProcessConfig(): Promise<LoadedProcessConfig> {
   if (encoded) {
     const decoded = Buffer.from(encoded, "base64").toString("utf-8");
     return {
-      config: normalizePluginConfig(JSON.parse(decoded)),
+      config: resolvePluginConfigPaths(normalizePluginConfig(JSON.parse(decoded)), process.cwd()),
       configSource: normalizeConfigSource(process.env[CONFIG_SOURCE_ENV]),
     };
   }
@@ -47,7 +47,7 @@ export async function loadLocalConfig(): Promise<PluginConfig> {
   const configPath = path.resolve("local.config.json");
   const raw = await readFile(configPath, "utf-8");
   const parsed = JSON.parse(raw) as LocalConfigShape;
-  return normalizePluginConfig(parsed.plugin ?? {});
+  return resolvePluginConfigPaths(normalizePluginConfig(parsed.plugin ?? {}), process.cwd());
 }
 
 function normalizeConfigSource(value: string | undefined): "openclaw_plugin" | "local_config" {

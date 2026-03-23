@@ -10,6 +10,8 @@
 - `node` 与 `npm`
 - `uv`
 - `openclaw`
+- OpenClaw 版本建议 `v2026.3.22` 或更高
+- Node 版本建议 `>=22.16.0`（这是 OpenClaw `v2026.3.22` 上游声明的运行时要求）
 - 可用的 `TickFlow API Key`：[获取地址](https://tickflow.org/auth/register?ref=BUJ54JEDGE)
 - 可用的 OpenAI 兼容 `LLM API Key`
 - 可选的东方财富妙想 Skills `API Key`：[获取地址](https://marketing.dfcfs.com/views/finskillshub/)
@@ -37,7 +39,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 - 安装并启用 `tickflow-assist`
 - 重启 OpenClaw Gateway
 
-如果你只是日常升级，重新运行同一条命令并在菜单里选择“升级”即可。
+如果你只是日常升级，重新运行同一条命令并在菜单里选择“升级”即可。对于从 `v0.1.0` 升到 `v0.2.0` 的场景，也优先直接升级，不需要先卸载后重装。
 
 ## 3. 手动安装
 
@@ -304,6 +306,8 @@ npm run tool -- test_alert
 
 推荐继续使用安装向导，在菜单里选择“升级”。
 
+从 `v0.1.0` 升到 `v0.2.0` 时，默认也走这条直接升级路径即可；不需要先卸载。
+
 如果你更喜欢手动更新：
 
 ```bash
@@ -315,6 +319,8 @@ uv sync
 cd ..
 npm run check
 npm run build
+openclaw plugins install -l /path/to/tickflow-assist
+openclaw plugins enable tickflow-assist
 openclaw gateway restart
 ```
 
@@ -333,7 +339,14 @@ openclaw gateway restart
 plugins.entries["tickflow-assist"]
 ```
 
-重新安装：
+重新安装通常只在这两类场景需要：
+
+- 你要更换插件源码目录
+- OpenClaw 里残留了旧的同名安装来源，直接升级后仍指向错误路径
+
+如果只是从 `v0.1.0` 升到 `v0.2.0`，优先直接执行升级，不需要先卸载。
+
+确实需要重装时再执行：
 
 ```bash
 openclaw plugins install -l /path/to/tickflow-assist

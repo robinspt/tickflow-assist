@@ -63,7 +63,12 @@ import { testAlertTool } from "./tools/test-alert.tool.js";
 import { updateAllTool } from "./tools/update-all.tool.js";
 import { viewAnalysisTool } from "./tools/view-analysis.tool.js";
 import { backtestKeyLevelsTool } from "./tools/backtest-key-levels.tool.js";
-import type { LocalTool, RegisteredService } from "./runtime/plugin-api.js";
+import type {
+  LocalTool,
+  OpenClawPluginConfig,
+  OpenClawPluginRuntime,
+  RegisteredService,
+} from "./runtime/plugin-api.js";
 import { RealtimeMonitorWorker } from "./background/realtime-monitor.worker.js";
 import { DailyUpdateWorker } from "./background/daily-update.worker.js";
 import type { WatchlistItem } from "./types/domain.js";
@@ -75,6 +80,8 @@ export interface AppContext {
   runtime: {
     configSource: "openclaw_plugin" | "local_config";
     pluginManagedServices: boolean;
+    openclawConfig?: OpenClawPluginConfig;
+    pluginRuntime?: OpenClawPluginRuntime;
   };
   services: {
     alertService: AlertService;
@@ -91,11 +98,15 @@ export function createAppContext(
   options: {
     pluginManagedServices?: boolean;
     configSource?: "openclaw_plugin" | "local_config";
+    openclawConfig?: OpenClawPluginConfig;
+    pluginRuntime?: OpenClawPluginRuntime;
   } = {},
 ): AppContext {
   const runtime = {
     configSource: options.configSource ?? "local_config",
     pluginManagedServices: options.pluginManagedServices ?? false,
+    openclawConfig: options.openclawConfig,
+    pluginRuntime: options.pluginRuntime,
   };
   const tickflowClient = new TickFlowClient(config.tickflowApiUrl, config.tickflowApiKey);
   const database = new Database(config.databasePath);
@@ -125,12 +136,19 @@ export function createAppContext(
   );
   const watchlistProfileService = new WatchlistProfileService(mxApiService, analysisService);
   const tradingCalendarService = new TradingCalendarService(config.calendarFile);
-  const alertService = new AlertService(
-    config.openclawCliBin,
-    config.alertChannel,
-    config.alertAccount,
-    config.alertTarget,
-  );
+  const alertService = new AlertService({
+    openclawCliBin: config.openclawCliBin,
+    channel: config.alertChannel,
+    account: config.alertAccount,
+    target: config.alertTarget,
+    runtime:
+      runtime.openclawConfig && runtime.pluginRuntime
+        ? {
+            config: runtime.openclawConfig,
+            runtime: runtime.pluginRuntime,
+          }
+        : undefined,
+  });
   const indicatorService = new IndicatorService(
     config.pythonBin,
     config.pythonArgs,
@@ -243,6 +261,8 @@ export function createAppContext(
     config.dailyUpdateNotify,
     runtime.configSource,
   );
+  let managedLoopAbortController: AbortController | null = null;
+  let managedLoopPromise: Promise<void> | null = null;
 
   return {
     config,
@@ -284,19 +304,38 @@ export function createAppContext(
     backgroundServices: [
       {
         id: "tickflow-assist.managed-loop",
-        description: "Run TickFlow daily-update scheduler and realtime monitor concurrently.",
-        start: async ({ signal }) => {
+        start: async () => {
+          if (managedLoopAbortController) {
+            return;
+          }
+
+          const abortController = new AbortController();
+          managedLoopAbortController = abortController;
+
           await dailyUpdateWorker.bindManagedServiceRuntime(runtime.configSource);
           await monitorService.bindManagedServiceRuntime();
 
-          await Promise.all([
+          managedLoopPromise = Promise.all([
             dailyUpdateWorker
-              .runLoop(signal, "plugin_service", runtime.configSource)
+              .runLoop(abortController.signal, "plugin_service", runtime.configSource)
               .catch(() => {}),
             realtimeMonitorWorker
-              .runLoop(signal, "plugin_service")
+              .runLoop(abortController.signal, "plugin_service")
               .catch(() => {}),
-          ]);
+          ]).then(() => undefined);
+        },
+        stop: async () => {
+          const abortController = managedLoopAbortController;
+          const runPromise = managedLoopPromise;
+          managedLoopAbortController = null;
+          managedLoopPromise = null;
+
+          if (!abortController) {
+            return;
+          }
+
+          abortController.abort();
+          await runPromise;
         },
       },
     ],

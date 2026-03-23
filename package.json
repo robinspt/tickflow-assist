@@ -1,6 +1,6 @@
 {
   "name": "tickflow-assist",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "OpenClaw plugin for TickFlow-based A-share analysis, monitoring, and alerting.",
   "license": "MIT",
   "type": "module",
@@ -38,11 +38,13 @@
     ".": "./dist/plugin.js"
   },
   "dependencies": {
-    "apache-arrow": "^17.0.0",
-    "@lancedb/lancedb": "^0.18.2"
+    "@lancedb/lancedb": "^0.18.2",
+    "@sinclair/typebox": "^0.34.48",
+    "apache-arrow": "^17.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.11",
+    "openclaw": "^2026.3.22",
     "typescript": "^5.8.2"
   }
 }
