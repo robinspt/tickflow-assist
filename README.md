@@ -47,7 +47,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 
 向导会自动完成源码更新、依赖安装、配置写入、插件安装与 Gateway 重启。完整流程见 [docs/installation.md](docs/installation.md)。
 
-如果你已经装过 `0.1.0`，直接重复运行这条命令并选择“升级”即可，不需要先卸载重装；只有插件目录来源已经混乱、或者 OpenClaw 里残留了别的同名安装时，才建议先清理后重装。
+如果你已经装过旧版本，优先直接执行“升级”。具体升级与重装边界见 [docs/installation.md](docs/installation.md)。
 
 ### 手动安装
 
@@ -125,8 +125,7 @@ tickflow-assist/
 - `2026-03-19`：新增财务与妙想链路
 - `2026-03-20`：补充收盘分析与回测
 - `2026-03-21`：优化A股语境与复盘记忆
-- `2026-03-23`：发布 `v0.2.0`，迁移到 OpenClaw `v2026.3.22+` 的新版 plugin SDK
-- `2026-03-23`：复盘改至20:00独立调度
+- `2026-03-23`：发布 `v0.2.0`，迁移到 OpenClaw `v2026.3.22+` 的新版 plugin SDK，并将复盘改至 20:00 独立调度
 
 ## 🙏 鸣谢
 
