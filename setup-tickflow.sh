@@ -233,6 +233,7 @@ read_json_compact() {
 alert_target_hint() {
   case "$1" in
     telegram) printf '%s' "Telegram群组ID / 会话ID" ;;
+    discord) printf '%s' "Discord user:User id" ;;
     qqbot) printf '%s' "qqbot:c2c:OPENID" ;;
     wecom) printf '%s' "企业微信 userId（单聊）/ chatId 或群 ID（群聊）" ;;
     *) printf '%s' "OpenClaw target" ;;
@@ -241,22 +242,25 @@ alert_target_hint() {
 
 prompt_manual_alert_channel() {
   echo "  1) telegram   (默认 / Default)"
-  echo "  2) qqbot"
-  echo "  3) wecom"
+  echo "  2) discord"
+  echo "  3) qqbot"
+  echo "  4) wecom"
   DEFAULT_CHANNEL_CHOICE=1
   case "$DEFAULT_ALERT_CHANNEL" in
-    qqbot) DEFAULT_CHANNEL_CHOICE=2 ;;
-    wecom) DEFAULT_CHANNEL_CHOICE=3 ;;
+    discord) DEFAULT_CHANNEL_CHOICE=2 ;;
+    qqbot) DEFAULT_CHANNEL_CHOICE=3 ;;
+    wecom) DEFAULT_CHANNEL_CHOICE=4 ;;
     *) DEFAULT_CHANNEL_CHOICE=1 ;;
   esac
   while true; do
-    read -r -p "  请选择推送通道 (1-3) [默认 ${DEFAULT_CHANNEL_CHOICE}]: " CH_CHOICE
+    read -r -p "  请选择推送通道 (1-4) [默认 ${DEFAULT_CHANNEL_CHOICE}]: " CH_CHOICE
     CH_CHOICE=${CH_CHOICE:-$DEFAULT_CHANNEL_CHOICE}
     case "$CH_CHOICE" in
       1) ALERT_CHANNEL="telegram"; return 0 ;;
-      2) ALERT_CHANNEL="qqbot"; return 0 ;;
-      3) ALERT_CHANNEL="wecom"; return 0 ;;
-      *) warn "无效选择，请输入 1-3。" ;;
+      2) ALERT_CHANNEL="discord"; return 0 ;;
+      3) ALERT_CHANNEL="qqbot"; return 0 ;;
+      4) ALERT_CHANNEL="wecom"; return 0 ;;
+      *) warn "无效选择，请输入 1-4。" ;;
     esac
   done
 }
