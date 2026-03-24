@@ -20,6 +20,7 @@ export interface ToolContext {
 export interface LocalTool {
   name: string;
   description: string;
+  optional?: boolean;
   run: (context: ToolContext) => Promise<string> | string;
 }
 

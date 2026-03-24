@@ -19,6 +19,7 @@ export function removeStockTool(watchlistService: WatchlistService) {
   return {
     name: "remove_stock",
     description: "Remove a symbol from the watchlist.",
+    optional: true,
     async run({ rawInput }: { rawInput?: unknown }): Promise<string> {
       const symbol = parseSymbol(rawInput);
       const removed = await watchlistService.remove(symbol);

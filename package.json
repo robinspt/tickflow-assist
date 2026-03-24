@@ -5,11 +5,15 @@
   "license": "MIT",
   "type": "module",
   "main": "dist/plugin.js",
+  "bin": {
+    "tickflow-assist": "dist/dev/tickflow-assist-cli.js"
+  },
   "files": [
     "dist",
     "docs",
     "skills",
     "python",
+    "day_future.txt",
     "openclaw.plugin.json",
     "README.md"
   ],
@@ -24,6 +28,8 @@
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "dev": "tsc -p tsconfig.json --watch",
+    "test": "npm run build && node --test dist/plugin-registration.test.js",
+    "community-setup": "node dist/dev/tickflow-assist-cli.js configure-openclaw",
     "tool": "node dist/dev/run-tool.js",
     "monitor-loop": "node dist/dev/run-monitor-loop.js",
     "daily-update-loop": "node dist/dev/run-daily-update-loop.js",
@@ -40,7 +46,8 @@
   "dependencies": {
     "@lancedb/lancedb": "^0.18.2",
     "@sinclair/typebox": "^0.34.48",
-    "apache-arrow": "^17.0.0"
+    "apache-arrow": "^17.0.0",
+    "json5": "^2.2.3"
   },
   "devDependencies": {
     "@types/node": "^22.13.11",

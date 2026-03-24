@@ -64,12 +64,31 @@ npm run check
 npm run build
 ```
 
-### 3.3 安装并启用插件
+### 3.3 安装并启用插件（源码安装）
 
 ```bash
 openclaw plugins install -l /path/to/tickflow-assist
 openclaw plugins enable tickflow-assist
 ```
+
+### 3.4 社区安装（npm / 社区插件）
+
+发布到 npm 后，社区安装不需要源码目录，也不需要 `setup-tickflow.sh`：
+
+```bash
+openclaw plugins install tickflow-assist
+npx -y tickflow-assist configure-openclaw
+```
+
+第二条命令会自动：
+
+- 写入 `plugins.entries["tickflow-assist"].config`
+- 给顶层 `tools.allow` 或推断出的目标 Agent 补 `tickflow-assist` allowlist
+- 执行 `openclaw plugins enable tickflow-assist`
+- 执行 `openclaw config validate`
+- 执行 `openclaw gateway restart`
+
+如果你已经手动启用插件，或暂时不想重启 Gateway，可追加 `--no-enable` 或 `--no-restart`。
 
 ## 4. 插件配置
 
@@ -169,6 +188,21 @@ plugins.entries["tickflow-assist"].config
 
 如果你给股票 Agent 显式配置 `tools`，推荐保留 `profile: "full"`，不要额外禁用 `exec`、`read`、`write` 等运行时能力。
 
+从 `0.2.0` 起，以下 TickFlow Assist agent tools 按 OpenClaw 官方建议以 optional 注册：
+
+- `add_stock`
+- `remove_stock`
+- `refresh_watchlist_names`
+- `refresh_watchlist_profiles`
+- `start_monitor`
+- `stop_monitor`
+- `start_daily_update`
+- `stop_daily_update`
+- `update_all`
+- `test_alert`
+
+如果你给 Agent 配了 `tools.allow`，请把插件 id `tickflow-assist` 或上面的具体工具名加入允许列表；否则这些 optional tools 不会自动出现在对话可调用工具集中。插件 Slash Command 不受这个 allowlist 影响。
+
 多 Agent 场景示例：
 
 ```json5
@@ -179,6 +213,7 @@ plugins.entries["tickflow-assist"].config
         "id": "stock",
         "tools": {
           "profile": "full",
+          "allow": ["tickflow-assist"],
           "deny": []
         }
       }
@@ -193,6 +228,7 @@ plugins.entries["tickflow-assist"].config
 {
   "tools": {
     "profile": "full",
+    "allow": ["tickflow-assist"],
     "deny": []
   }
 }

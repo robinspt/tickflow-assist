@@ -9,6 +9,7 @@ export function startMonitorTool(
   return {
     name: "start_monitor",
     description: "Start logical monitor state and return startup summary.",
+    optional: true,
     async run(): Promise<string> {
       if (runtime.pluginManagedServices) {
         const result = await monitorService.enableManagedLoop();

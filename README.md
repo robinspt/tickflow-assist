@@ -65,7 +65,20 @@ openclaw plugins enable tickflow-assist
 openclaw gateway restart
 ```
 
+### 社区安装（npm / 社区插件）
+
+发布到 npm 后，社区安装不需要源码目录，也不需要 `setup-tickflow.sh`：
+
+```bash
+openclaw plugins install tickflow-assist
+npx -y tickflow-assist configure-openclaw
+```
+
+第二条命令会自动写入 `plugins.entries["tickflow-assist"].config`、补 `tools.allow += ["tickflow-assist"]`，并默认执行 `openclaw plugins enable`、`openclaw config validate` 与 `openclaw gateway restart`。如需保留手动控制，可追加 `--no-enable` 或 `--no-restart`。
+
 正式插件运行读取 `~/.openclaw/openclaw.json` 中的 `plugins.entries["tickflow-assist"].config`。本地调试与 CLI 读取项目根目录 `local.config.json` 下的 `plugin` 字段，两套配置互不共享。
+
+从 `0.2.0` 起，`add_stock`、`remove_stock`、`start_monitor`、`stop_monitor`、`start_daily_update`、`stop_daily_update`、`update_all`、`test_alert` 以及自选资料刷新工具按 OpenClaw 官方建议注册为 optional agent tools。若你给 Agent 显式配置了 `tools.allow`，请把插件 id `tickflow-assist` 或这些工具名加入允许列表；Slash Command 不受影响。
 
 ## 🚀 使用方式
 

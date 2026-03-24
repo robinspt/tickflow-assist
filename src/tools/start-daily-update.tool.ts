@@ -10,6 +10,7 @@ export function startDailyUpdateTool(
   return {
     name: "start_daily_update",
     description: "Start the TickFlow daily-update scheduler.",
+    optional: true,
     async run(): Promise<string> {
       const result = runtime.pluginManagedServices
         ? await dailyUpdateWorker.enableManagedLoop(configSource)

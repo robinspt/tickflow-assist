@@ -4,6 +4,7 @@ export function refreshWatchlistNamesTool(watchlistService: WatchlistService) {
   return {
     name: "refresh_watchlist_names",
     description: "Refresh instrument names in watchlist from TickFlow metadata.",
+    optional: true,
     async run(): Promise<string> {
       const result = await watchlistService.refreshNames();
       const lines = [

@@ -5,6 +5,7 @@ export function testAlertTool(alertService: AlertService) {
   return {
     name: "test_alert",
     description: "Send a test alert through the configured OpenClaw alert delivery path.",
+    optional: true,
     async run(): Promise<string> {
       const ok = await alertService.send(
         alertService.formatSystemNotification("🧪 TickFlow 测试告警", [

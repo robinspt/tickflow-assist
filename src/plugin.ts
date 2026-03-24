@@ -152,7 +152,10 @@ function registerTickFlowAssist(api: PluginApi): void {
   });
 
   for (const tool of app.tools) {
-    api.registerTool(toAgentTool(tool));
+    api.registerTool(
+      toAgentTool(tool),
+      tool.optional ? { optional: true } : undefined,
+    );
   }
 
   if (pluginManagedServices) {

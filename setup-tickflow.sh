@@ -1113,13 +1113,7 @@ select_agent_tools_target() {
     SELECTED_AGENT_LABEL="${AGENT_TARGET_LABELS[$((AGENT_CHOICE - 1))]}"
     success "已选择 Agent: $SELECTED_AGENT_LABEL"
 
-    AGENT_TOOLS_JSON=$(cat <<EOF
-{
-  "profile": "full",
-  "deny": []
-}
-EOF
-)
+    AGENT_TOOLS_JSON='{"profile":"full","allow":["tickflow-assist"],"deny":[]}'
   else
     info "跳过 Agent tools 配置。"
   fi

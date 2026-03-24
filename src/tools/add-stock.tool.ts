@@ -62,6 +62,7 @@ export function addStockTool(
   return {
     name: "add_stock",
     description: "Add a symbol to the watchlist with optional cost price, then fetch daily K-lines and indicators.",
+    optional: true,
     async run({ rawInput }: { rawInput?: unknown }): Promise<string> {
       let input: AddStockInput;
       try {

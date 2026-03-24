@@ -29,6 +29,7 @@ export function refreshWatchlistProfilesTool(watchlistService: WatchlistService)
   return {
     name: "refresh_watchlist_profiles",
     description: "Refresh industry and concept metadata for the whole watchlist or one symbol.",
+    optional: true,
     async run({ rawInput }: { rawInput?: unknown }): Promise<string> {
       const input = parseInput(rawInput);
       const result = await watchlistService.refreshProfiles({

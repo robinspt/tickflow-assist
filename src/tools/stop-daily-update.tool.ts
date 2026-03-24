@@ -7,6 +7,7 @@ export function stopDailyUpdateTool(
   return {
     name: "stop_daily_update",
     description: "Stop the TickFlow daily-update scheduler.",
+    optional: true,
     async run(): Promise<string> {
       const result = runtime.pluginManagedServices
         ? { stopped: (await dailyUpdateWorker.getState()).running, pid: null }

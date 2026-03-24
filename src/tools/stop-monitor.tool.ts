@@ -7,6 +7,7 @@ export function stopMonitorTool(
   return {
     name: "stop_monitor",
     description: "Stop logical monitor state and return stop summary.",
+    optional: true,
     async run(): Promise<string> {
       if (runtime.pluginManagedServices) {
         const wasRunning = (await monitorService.getState()).running;

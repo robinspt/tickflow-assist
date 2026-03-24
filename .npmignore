@@ -1,0 +1,4 @@
+python/.venv/
+python/__pycache__/
+dist/plugin-registration.test.d.ts
+dist/plugin-registration.test.js

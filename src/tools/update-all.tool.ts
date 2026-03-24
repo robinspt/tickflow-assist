@@ -5,6 +5,7 @@ export function updateAllTool(dailyUpdateWorker: DailyUpdateWorker) {
     name: "update_all",
     description:
       "Batch update daily/intraday market data for all watchlist symbols, then run post-close analysis and key-level backtest.",
+    optional: true,
     async run({ rawInput }: { rawInput?: unknown }): Promise<string> {
       let force = false;
       if (typeof rawInput === "object" && rawInput !== null) {
