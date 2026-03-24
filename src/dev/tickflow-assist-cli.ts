@@ -713,17 +713,58 @@ function runOpenClaw(bin: string, args: string[], description: string): void {
   }
 }
 
-function setupPythonDeps(pythonWorkdir: string): void {
+async function setupPythonDeps(pythonWorkdir: string, nonInteractive: boolean): Promise<void> {
   let uvBin = "uv";
   try {
     const which = spawnSync("which", ["uv"], { encoding: "utf-8" });
     if (which.status !== 0) {
-      console.warn("Warning: uv not found in PATH, skipping Python dependency setup.");
-      console.warn("Please install uv (https://docs.astral.sh/uv/) and run 'uv sync' manually in:");
-      console.warn(`  ${pythonWorkdir}`);
-      return;
+      console.log("\n  ⚠️ 找不到 uv (Python 包管理工具)。");
+
+      let shouldInstall = false;
+      if (!nonInteractive) {
+        const rl = createInterface({ input: process.stdin, output: process.stdout });
+        const answer = (await rl.question("  是否自动下载并安装 uv？(y/n) [y]: ")).trim().toLowerCase();
+        rl.close();
+        if (!answer || ["y", "yes", "1", "true"].includes(answer)) {
+          shouldInstall = true;
+        }
+      }
+
+      if (shouldInstall) {
+        console.log("  正在安装 uv...");
+        const installResult = spawnSync("sh", ["-c", "curl -LsSf https://astral.sh/uv/install.sh | sh"], { stdio: "inherit" });
+        if (installResult.status !== 0) {
+          console.warn("  uv 安装失败，跳过 Python 依赖安装。");
+          return;
+        }
+
+        let foundUv = false;
+        let installedLoc = "";
+        for (const loc of [path.join(os.homedir(), ".local", "bin", "uv"), path.join(os.homedir(), ".cargo", "bin", "uv")]) {
+          try {
+            await access(loc);
+            uvBin = loc;
+            installedLoc = loc;
+            foundUv = true;
+            break;
+          } catch {
+            // ignore
+          }
+        }
+        if (!foundUv) {
+          uvBin = "uv";
+        } else {
+          console.log(`\n  ✅ uv 已自动安装到 ${installedLoc}`);
+          console.log("  ⚠️ 温馨提示：为了在终端能直接使用 uv 命令，您可能需要执行 `source $HOME/.local/bin/env` \n  或自行将其所在目录添加入系统的 PATH 环境变量中。\n");
+        }
+      } else {
+        console.warn("\n  ⚠️ 跳过 Python 依赖安装。请手动安装 uv (https://docs.astral.sh/uv/) 并执行 'uv sync'，路径：");
+        console.warn(`  ${pythonWorkdir}`);
+        return;
+      }
+    } else {
+      uvBin = which.stdout.trim() || "uv";
     }
-    uvBin = which.stdout.trim() || "uv";
   } catch {
     // fall through with default "uv"
   }
@@ -758,7 +799,7 @@ async function configureOpenClaw(options: CliOptions): Promise<void> {
   await ensurePathNotice(config.pythonWorkdir, "pythonWorkdir");
 
   if (options.pythonSetup) {
-    setupPythonDeps(config.pythonWorkdir);
+    await setupPythonDeps(config.pythonWorkdir, options.nonInteractive);
   }
 
   applyPluginConfig(root, config, target);

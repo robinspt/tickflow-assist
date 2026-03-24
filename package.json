@@ -1,6 +1,6 @@
 {
   "name": "tickflow-assist",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "OpenClaw plugin for TickFlow-based A-share analysis, monitoring, and alerting.",
   "license": "MIT",
   "type": "module",
