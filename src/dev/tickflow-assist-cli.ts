@@ -20,6 +20,7 @@ type CliOptions = {
   nonInteractive: boolean;
   restart: boolean;
   enable: boolean;
+  pythonSetup: boolean;
   openclawBin: string;
   overrides: Partial<PluginConfigInput>;
 };
@@ -59,7 +60,7 @@ const DEFAULTS = {
   dailyUpdateNotify: true,
   alertChannel: "telegram",
   openclawCliBin: "openclaw",
-  alertAccount: "",
+  alertAccount: "default",
   pythonBin: "uv",
   pythonArgs: ["run", "python"],
 } as const;
@@ -78,6 +79,7 @@ Options:
   --non-interactive           Use existing config / flags only, no prompts
   --no-enable                 Do not run 'openclaw plugins enable'
   --no-restart                Do not run 'openclaw gateway restart'
+  --no-python-setup           Do not run 'uv sync' for Python dependencies
   --openclaw-bin <path>       OpenClaw CLI binary, default: openclaw
   --tickflow-api-key <key>
   --tickflow-api-key-level <Free|Start|Pro|Expert>
@@ -101,6 +103,7 @@ function parseArgs(argv: string[]): CliOptions {
     nonInteractive: false,
     restart: true,
     enable: true,
+    pythonSetup: true,
     openclawBin: DEFAULTS.openclawCliBin,
     overrides: {},
   };
@@ -152,6 +155,9 @@ function parseArgs(argv: string[]): CliOptions {
         break;
       case "--no-restart":
         options.restart = false;
+        break;
+      case "--no-python-setup":
+        options.pythonSetup = false;
         break;
       case "--no-enable":
         options.enable = false;
@@ -342,10 +348,117 @@ function inferAllowTarget(root: JsonObject, options: CliOptions): AllowTarget {
   return { type: "global" };
 }
 
+type ChannelInfo = { channel: string; accounts: string[] };
+
+async function discoverConfiguredChannels(configPath: string): Promise<ChannelInfo[]> {
+  try {
+    const root = await readConfigFile(configPath);
+    const channels = typeof root.channels === "object" && root.channels !== null
+      ? (root.channels as JsonObject)
+      : {};
+
+    const results: ChannelInfo[] = [];
+    for (const [name, value] of Object.entries(channels)) {
+      if (typeof value !== "object" || value === null) continue;
+      const entry = value as JsonObject;
+      if (entry.enabled === false) continue;
+
+      const accounts: string[] = [];
+      if (typeof entry.accounts === "object" && entry.accounts !== null) {
+        for (const [acctName, acctValue] of Object.entries(entry.accounts as JsonObject)) {
+          if (typeof acctValue !== "object" || acctValue === null) continue;
+          if ((acctValue as JsonObject).enabled === false) continue;
+          accounts.push(acctName);
+        }
+      }
+      results.push({ channel: name, accounts });
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+async function promptSelect(
+  rl: ReturnType<typeof createInterface>,
+  label: string,
+  choices: { value: string; label: string }[],
+  defaultValue: string,
+): Promise<string> {
+  const defaultIndex = Math.max(0, choices.findIndex((c) => c.value === defaultValue));
+  console.log(`  ${label}`);
+  for (let i = 0; i < choices.length; i++) {
+    const marker = i === defaultIndex ? " (默认)" : "";
+    console.log(`    ${i + 1}) ${choices[i].label}${marker}`);
+  }
+  while (true) {
+    const answer = (await rl.question(`  请选择 (1-${choices.length}) [${defaultIndex + 1}]: `)).trim();
+    if (!answer) {
+      return choices[defaultIndex].value;
+    }
+    const num = Number(answer);
+    if (Number.isInteger(num) && num >= 1 && num <= choices.length) {
+      return choices[num - 1].value;
+    }
+    console.error(`  请输入 1-${choices.length}`);
+  }
+}
+
+async function promptAlertChannel(
+  rl: ReturnType<typeof createInterface>,
+  configPath: string,
+  defaultChannel: string,
+): Promise<{ channel: string; account: string }> {
+  const configured = await discoverConfiguredChannels(configPath);
+
+  let selectedChannel = defaultChannel;
+
+  if (configured.length > 0) {
+    console.log("  检测到 openclaw.json 中已有通道配置：");
+    const choices = configured.map((c) => {
+      const acctLabel = c.accounts.length > 0 ? ` (accounts: ${c.accounts.join(", ")})` : "";
+      return { value: c.channel, label: `${c.channel}${acctLabel}` };
+    });
+    choices.push({ value: "__manual__", label: "手动输入其他通道" });
+    selectedChannel = await promptSelect(rl, "推送通道", choices, defaultChannel);
+    if (selectedChannel === "__manual__") {
+      selectedChannel = await promptString(rl, "Alert Channel", defaultChannel, true);
+    }
+  } else {
+    const knownChannels = [
+      { value: "telegram", label: "telegram" },
+      { value: "discord", label: "discord" },
+      { value: "qqbot", label: "qqbot" },
+      { value: "wecom", label: "wecom" },
+    ];
+    selectedChannel = await promptSelect(rl, "推送通道", knownChannels, defaultChannel);
+  }
+
+  // Resolve account
+  const channelAccounts = configured.find((c) => c.channel === selectedChannel)?.accounts ?? [];
+  let selectedAccount = "";
+
+  if (channelAccounts.length === 1) {
+    selectedAccount = channelAccounts[0];
+    console.log(`  已自动选择账号: ${selectedAccount}`);
+  } else if (channelAccounts.length > 1) {
+    const acctChoices = channelAccounts.map((a) => ({ value: a, label: a }));
+    selectedAccount = await promptSelect(rl, "选择账号", acctChoices, channelAccounts[0]);
+  } else {
+    // Default for channels that typically need an account
+    if (["qqbot", "wecom"].includes(selectedChannel)) {
+      selectedAccount = "default";
+    }
+  }
+
+  return { channel: selectedChannel, account: selectedAccount };
+}
+
 async function promptForConfig(
   options: CliOptions,
   existing: Partial<PluginConfigInput>,
   pluginDir: string,
+  configPath: string,
 ): Promise<PluginConfigInput> {
   const defaults: PluginConfigInput = {
     tickflowApiUrl: DEFAULTS.tickflowApiUrl,
@@ -387,20 +500,35 @@ async function promptForConfig(
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
     console.log("TickFlow Assist 社区安装配置向导");
-    console.log(`OpenClaw 配置文件: ${resolveOpenClawConfigPath(options.configPath)}`);
+    console.log(`OpenClaw 配置文件: ${configPath}`);
     console.log(`插件目录: ${pluginDir}`);
     console.log("");
 
     seed.tickflowApiKey = await promptString(rl, "TickFlow API Key", seed.tickflowApiKey, true);
+
     seed.tickflowApiKeyLevel = normalizeApiKeyLevel(
-      await promptString(rl, "TickFlow API Key Level [Free/Start/Pro/Expert]", seed.tickflowApiKeyLevel, true),
+      await promptSelect(rl, "TickFlow 订阅等级", [
+        { value: "Free", label: "Free" },
+        { value: "Start", label: "Start" },
+        { value: "Pro", label: "Pro" },
+        { value: "Expert", label: "Expert" },
+      ], seed.tickflowApiKeyLevel),
     );
+
     seed.mxSearchApiKey = await promptString(rl, "MX Search API Key (可留空)", seed.mxSearchApiKey, false);
     seed.llmBaseUrl = await promptString(rl, "LLM Base URL", seed.llmBaseUrl, true);
     seed.llmApiKey = await promptString(rl, "LLM API Key", seed.llmApiKey, true);
     seed.llmModel = await promptString(rl, "LLM Model", seed.llmModel, true);
-    seed.alertChannel = await promptString(rl, "Alert Channel", seed.alertChannel, true);
-    seed.alertAccount = await promptString(rl, "Alert Account (可留空)", seed.alertAccount, false);
+
+    console.log("");
+    const alertResult = await promptAlertChannel(rl, configPath, seed.alertChannel);
+    seed.alertChannel = alertResult.channel;
+    seed.alertAccount = alertResult.account;
+    console.log(`  已选择通道: ${seed.alertChannel}`);
+    if (seed.alertAccount) {
+      console.log(`  已选择账号: ${seed.alertAccount}`);
+    }
+
     seed.alertTarget = await promptString(rl, "Alert Target", seed.alertTarget, true);
     seed.requestInterval = await promptInteger(rl, "Request Interval (seconds)", seed.requestInterval, 5);
     seed.dailyUpdateNotify = await promptBoolean(rl, "Daily Update Notify", seed.dailyUpdateNotify);
@@ -580,6 +708,38 @@ function runOpenClaw(bin: string, args: string[], description: string): void {
   }
 }
 
+function setupPythonDeps(pythonWorkdir: string): void {
+  let uvBin = "uv";
+  try {
+    const which = spawnSync("which", ["uv"], { encoding: "utf-8" });
+    if (which.status !== 0) {
+      console.warn("Warning: uv not found in PATH, skipping Python dependency setup.");
+      console.warn("Please install uv (https://docs.astral.sh/uv/) and run 'uv sync' manually in:");
+      console.warn(`  ${pythonWorkdir}`);
+      return;
+    }
+    uvBin = which.stdout.trim() || "uv";
+  } catch {
+    // fall through with default "uv"
+  }
+
+  console.log(`Setting up Python dependencies in ${pythonWorkdir} ...`);
+  const result = spawnSync(uvBin, ["sync"], { cwd: pythonWorkdir, stdio: "inherit" });
+  if (result.error) {
+    console.warn(`Warning: failed to run uv sync: ${result.error.message}`);
+    console.warn("Please run 'uv sync' manually in:");
+    console.warn(`  ${pythonWorkdir}`);
+    return;
+  }
+  if (result.status !== 0) {
+    console.warn(`Warning: uv sync exited with status ${result.status}`);
+    console.warn("Please check the output above and run 'uv sync' manually if needed in:");
+    console.warn(`  ${pythonWorkdir}`);
+    return;
+  }
+  console.log("Python dependencies installed successfully.");
+}
+
 async function configureOpenClaw(options: CliOptions): Promise<void> {
   const configPath = resolveOpenClawConfigPath(options.configPath);
   const stateDir = resolveStateDir(configPath);
@@ -587,10 +747,14 @@ async function configureOpenClaw(options: CliOptions): Promise<void> {
   const root = await readConfigFile(configPath);
   const target = inferAllowTarget(root, options);
   const existing = getExistingPluginConfig(root);
-  const config = await promptForConfig(options, existing, pluginDir);
+  const config = await promptForConfig(options, existing, pluginDir, configPath);
 
   await ensurePathNotice(config.calendarFile, "calendarFile");
   await ensurePathNotice(config.pythonWorkdir, "pythonWorkdir");
+
+  if (options.pythonSetup) {
+    setupPythonDeps(config.pythonWorkdir);
+  }
 
   applyPluginConfig(root, config, target);
   const backupPath = await writeConfig(configPath, root);

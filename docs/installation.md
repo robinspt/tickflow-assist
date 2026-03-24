@@ -39,11 +39,31 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 - 安装并启用 `tickflow-assist`
 - 重启 OpenClaw Gateway
 
-如果你只是日常升级，重新运行同一条命令并在菜单里选择“升级”即可。更具体的升级与重装说明见下文 [6.2 升级](#62-升级) 与 [6.3 禁用重装与清理](#63-禁用重装与清理)。
+如果你只是日常升级，重新运行同一条命令并在菜单里选择“升级”即可。更具体的升级与重装说明见下文 [7.2 升级](#72-升级) 与 [7.3 禁用重装与清理](#73-禁用重装与清理)。
 
-## 3. 手动安装
+## 3. 社区安装（推荐）
 
-### 3.1 拉取源码
+如果你不需改动源码，可直接通过 OpenClaw 插件市场或 npm 安装：
+
+```bash
+openclaw plugins install tickflow-assist
+npx -y tickflow-assist configure-openclaw
+```
+
+第二条命令会自动：
+
+- 安装 Python 依赖（`uv sync`）
+- 写入 `plugins.entries["tickflow-assist"].config`
+- 给顶层 `tools.allow` 或推断出的目标 Agent 补 `tickflow-assist` allowlist
+- 执行 `openclaw plugins enable tickflow-assist`
+- 执行 `openclaw config validate`
+- 执行 `openclaw gateway restart`
+
+如果你已经手动启用插件，或暂时不想重启 Gateway，可追加 `--no-enable` 或 `--no-restart`。如果 Python 已经装好或不需要自动安装，可追加 `--no-python-setup`。
+
+## 4. 源码安装
+
+### 4.1 拉取源码
 
 推荐把项目放在普通开发目录，不要放到 `~/.openclaw/workspace/...` 下面。
 
@@ -53,7 +73,7 @@ git clone https://github.com/robinspt/tickflow-assist.git
 cd tickflow-assist
 ```
 
-### 3.2 安装依赖并构建
+### 4.2 安装依赖并构建
 
 ```bash
 npm install
@@ -64,33 +84,14 @@ npm run check
 npm run build
 ```
 
-### 3.3 安装并启用插件（源码安装）
+### 4.3 安装并启用插件（源码安装）
 
 ```bash
 openclaw plugins install -l /path/to/tickflow-assist
 openclaw plugins enable tickflow-assist
 ```
 
-### 3.4 社区安装（npm / 社区插件）
-
-发布到 npm 后，社区安装不需要源码目录，也不需要 `setup-tickflow.sh`：
-
-```bash
-openclaw plugins install tickflow-assist
-npx -y tickflow-assist configure-openclaw
-```
-
-第二条命令会自动：
-
-- 写入 `plugins.entries["tickflow-assist"].config`
-- 给顶层 `tools.allow` 或推断出的目标 Agent 补 `tickflow-assist` allowlist
-- 执行 `openclaw plugins enable tickflow-assist`
-- 执行 `openclaw config validate`
-- 执行 `openclaw gateway restart`
-
-如果你已经手动启用插件，或暂时不想重启 Gateway，可追加 `--no-enable` 或 `--no-restart`。
-
-## 4. 插件配置
+## 5. 插件配置
 
 正式插件运行读取：
 
@@ -243,7 +244,7 @@ openclaw gateway restart
 
 </details>
 
-## 5. 消息通道配置（可选）
+## 6. 消息通道配置（可选）
 
 TickFlow Assist 当前通过 `openclaw message send` 投递告警，因此前提是目标通道本身已经能在 OpenClaw 中正常工作。
 
@@ -266,6 +267,7 @@ TickFlow Assist 当前通过 `openclaw message send` 投递告警，因此前提
 | 通道 | 官方项目 / 接入方式 | `alertAccount` | `alertTarget` 示例 | 说明 |
 |---|---|---|---|---|
 | `telegram` | `openclaw channels add --channel telegram` | 通常留空 | `-1001234567890` | 直接使用群组 / 会话 ID |
+| `discord` | `openclaw channels add --channel discord` | 通常留空 | `user:1234567890` | 优先在目标会话发送 `/whoami`，读取 `User id`，拼装成 `user:User id` |
 | `qqbot`（QQ机器人） | [@tencent-connect/openclaw-qqbot](https://www.npmjs.com/package/@tencent-connect/openclaw-qqbot) | 推荐 `default` | `qqbot:c2c:YOUR_OPENID` | 优先在目标会话发送 `/whoami`，读取 `User id` |
 | `wecom`（企业微信） | [@wecom/wecom-openclaw-plugin](https://www.npmjs.com/package/@wecom/wecom-openclaw-plugin) | 常见为 `default` | `YOUR_USER_ID_OR_CHAT_ID` | 优先在目标会话发送 `/whoami`，再区分单聊 `userId` / 群聊 `chatId` |
 | `weixin`（微信） | [@tencent-weixin/openclaw-weixin](https://www.npmjs.com/package/@tencent-weixin/openclaw-weixin) | 视插件配置 | `YOUR_TARGET` | 预留通道，当前 TickFlow Assist 尚未做专门适配，建议先用 `test_alert` 验证 |
@@ -316,9 +318,9 @@ TickFlow Assist 当前通过 `openclaw message send` 投递告警，因此前提
 
 </details>
 
-## 6. 运维与日常管理
+## 7. 运维与日常管理
 
-### 6.1 重启与验收
+### 7.1 重启与验收
 
 完成安装或修改配置后，建议按下面顺序做一次验收：
 
@@ -338,7 +340,7 @@ npm run tool -- test_alert
 
 或者直接在 OpenClaw 对话里发送“测试告警”。
 
-### 6.2 升级
+### 7.2 升级
 
 推荐继续使用安装向导，在菜单里选择“升级”。
 
@@ -360,7 +362,7 @@ openclaw plugins enable tickflow-assist
 openclaw gateway restart
 ```
 
-### 6.3 禁用、重装与清理
+### 7.3 禁用、重装与清理
 
 禁用插件：
 
