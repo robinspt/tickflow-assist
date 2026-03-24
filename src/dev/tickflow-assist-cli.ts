@@ -386,13 +386,16 @@ async function promptSelect(
   defaultValue: string,
 ): Promise<string> {
   const defaultIndex = Math.max(0, choices.findIndex((c) => c.value === defaultValue));
-  console.log(`  ${label}`);
+
+  let promptText = `\n  ${label}\n`;
   for (let i = 0; i < choices.length; i++) {
     const marker = i === defaultIndex ? " (默认)" : "";
-    console.log(`    ${i + 1}) ${choices[i].label}${marker}`);
+    promptText += `    ${i + 1}) ${choices[i].label}${marker}\n`;
   }
+  promptText += `  请选择 (1-${choices.length}) [${defaultIndex + 1}]: `;
+
   while (true) {
-    const answer = (await rl.question(`  请选择 (1-${choices.length}) [${defaultIndex + 1}]: `)).trim();
+    const answer = (await rl.question(promptText)).trim();
     if (!answer) {
       return choices[defaultIndex].value;
     }
@@ -414,13 +417,12 @@ async function promptAlertChannel(
   let selectedChannel = defaultChannel;
 
   if (configured.length > 0) {
-    console.log("  检测到 openclaw.json 中已有通道配置：");
     const choices = configured.map((c) => {
       const acctLabel = c.accounts.length > 0 ? ` (accounts: ${c.accounts.join(", ")})` : "";
       return { value: c.channel, label: `${c.channel}${acctLabel}` };
     });
     choices.push({ value: "__manual__", label: "手动输入其他通道" });
-    selectedChannel = await promptSelect(rl, "推送通道", choices, defaultChannel);
+    selectedChannel = await promptSelect(rl, "检测到 openclaw.json 中已有配置，请选择推送通道", choices, defaultChannel);
     if (selectedChannel === "__manual__") {
       selectedChannel = await promptString(rl, "Alert Channel", defaultChannel, true);
     }
@@ -524,12 +526,15 @@ async function promptForConfig(
     const alertResult = await promptAlertChannel(rl, configPath, seed.alertChannel);
     seed.alertChannel = alertResult.channel;
     seed.alertAccount = alertResult.account;
-    console.log(`  已选择通道: ${seed.alertChannel}`);
+
+    let targetLabel = "Alert Target";
     if (seed.alertAccount) {
-      console.log(`  已选择账号: ${seed.alertAccount}`);
+      targetLabel = `已选通道 [${seed.alertChannel}] 及账号 [${seed.alertAccount}]，请输入 Alert Target`;
+    } else {
+      targetLabel = `已选通道 [${seed.alertChannel}]，请输入 Alert Target`;
     }
 
-    seed.alertTarget = await promptString(rl, "Alert Target", seed.alertTarget, true);
+    seed.alertTarget = await promptString(rl, targetLabel, seed.alertTarget, true);
     seed.requestInterval = await promptInteger(rl, "Request Interval (seconds)", seed.requestInterval, 5);
     seed.dailyUpdateNotify = await promptBoolean(rl, "Daily Update Notify", seed.dailyUpdateNotify);
   } finally {
