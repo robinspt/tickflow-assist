@@ -12,7 +12,7 @@ interface WatchlistProfileJson {
   confidence?: unknown;
 }
 
-const MAX_THEMES = 20;
+const MAX_THEMES = 10;
 const GENERIC_THEME_LABELS = new Set([
   "公司新闻",
   "最新公告",

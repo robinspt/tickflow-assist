@@ -1,3 +1,5 @@
+import { KEY_LEVELS_FIELD_GUIDANCE, KEY_LEVELS_JSON_SCHEMA } from "./shared-schema.js";
+
 export const ANALYSIS_COMMON_SYSTEM_PROMPT = `
 你是一位专业的技术分析师，擅长通过日线形态、分钟线结构、均线系统、成交量与实时行情综合分析股票走势。
 
@@ -24,21 +26,12 @@ export const ANALYSIS_COMMON_SYSTEM_PROMPT = `
 - 日内走势与实时价格验证
 
 分段内容必须尽量引用已提供的K线、分钟线或技术指标，不要空泛表述；若分钟线数据充足，优先指出关键异动时段或放量时段。
+若分钟线或实时行情不足，必须明确说明数据覆盖有限，不要脑补不存在的日内细节。
 
-然后在最后用 \`\`\`json 块输出以下结构化数据：
-{
-  "current_price": 0.0,
-  "stop_loss": 0.0,
-  "breakthrough": 0.0,
-  "support": 0.0,
-  "cost_level": 0.0,
-  "resistance": 0.0,
-  "take_profit": 0.0,
-  "gap": 0.0,
-  "target": 0.0,
-  "round_number": 0.0,
-  "score": 5
-}
+然后在最后用 \`\`\`json 块输出关键价位。字段结构如下（这是字段类型示意，不是示例值）：
+${KEY_LEVELS_JSON_SCHEMA}
 
-其中 score 为技术面评分（1-10分），所有价格字段必须填写真实数值，current_price 必须与用户输入中最新可用价格一致；若提供了实时价，则优先使用实时价。
+字段语义与填写规则：
+${KEY_LEVELS_FIELD_GUIDANCE}
+- 若提供了用户成本价，正文中也需要说明当前价相对成本位的关系（例如浮盈/浮亏、成本位是否构成心理支撑或压力）。
 `;

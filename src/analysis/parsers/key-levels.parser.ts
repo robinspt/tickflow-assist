@@ -1,4 +1,5 @@
 import type { KeyLevels } from "../../types/domain.js";
+import { parseJsonBlock } from "./json-block.parser.js";
 
 type PriceFieldKey =
   | "current_price"
@@ -26,17 +27,7 @@ const PRICE_FIELDS: Array<[string, PriceFieldKey]> = [
 ];
 
 export function parseKeyLevels(responseText: string): KeyLevels | null {
-  const fenced = responseText.match(/```json\s*([\s\S]*?)\s*```/);
-  const candidate = fenced?.[1] ?? responseText.match(/\{[\s\S]*"current_price"[\s\S]*\}/)?.[0];
-  if (!candidate) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(candidate) as KeyLevels;
-  } catch {
-    return null;
-  }
+  return parseJsonBlock<KeyLevels>(responseText, { requiredKeys: ["current_price", "score"] });
 }
 
 export function extractAnalysisConclusion(analysisText: string): string {

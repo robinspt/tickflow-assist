@@ -1,6 +1,16 @@
 import type { KeyLevels } from "../../types/domain.js";
 import type { PostCloseReviewInput } from "../../analysis/types/composite-analysis.js";
-import { formatCostPrice } from "../../utils/cost-price.js";
+import { formatCostPrice, formatCostRelationship } from "../../utils/cost-price.js";
+import { buildReferencedNarrative, truncatePromptText } from "./prompt-text-utils.js";
+import {
+  indentPromptBlock,
+  KEY_LEVELS_FIELD_GUIDANCE,
+  KEY_LEVELS_JSON_SCHEMA_INNER,
+} from "./shared-schema.js";
+
+const MAX_VALIDATION_SUMMARY_LENGTH = 220;
+const MAX_VALIDATION_LINES = 8;
+const MAX_COMPOSITE_BASELINE_LENGTH = 900;
 
 export const POST_CLOSE_REVIEW_SYSTEM_PROMPT = `
 你是一位A股收盘复盘分析师，需要在收盘后同时完成“昨日关键位验证 + 今日盘面复盘 + 明日关键位处理决定”。
@@ -15,37 +25,32 @@ export const POST_CLOSE_REVIEW_SYSTEM_PROMPT = `
 - 操作建议
 2. “昨日关键位验证”必须严格依据输入里给出的验证结果，不得改写成与数据冲突的结论。
 3. “明日关键位处理”必须明确给出四选一结论：keep / adjust / recompute / invalidate。
-4. 最后输出一个 \`\`\`json 代码块，结构必须为：
+4. 最后输出一个 \`\`\`json 代码块，结构如下（其中 levels 为字段类型示意，不是示例值）：
 {
-  "session_summary": "",
-  "market_sector_summary": "",
-  "news_summary": "",
-  "decision": "keep|adjust|recompute|invalidate",
-  "decision_reason": "",
-  "action_advice": "",
-  "market_bias": "tailwind|neutral|headwind",
-  "sector_bias": "tailwind|neutral|headwind",
-  "news_impact": "supportive|neutral|disruptive",
+  "session_summary": string,
+  "market_sector_summary": string,
+  "news_summary": string,
+  "decision": "keep" | "adjust" | "recompute" | "invalidate",
+  "decision_reason": string,
+  "action_advice": string,
+  "market_bias": "tailwind" | "neutral" | "headwind",
+  "sector_bias": "tailwind" | "neutral" | "headwind",
+  "news_impact": "supportive" | "neutral" | "disruptive",
   "levels": {
-    "current_price": 0.0,
-    "stop_loss": 0.0,
-    "breakthrough": 0.0,
-    "support": 0.0,
-    "cost_level": 0.0,
-    "resistance": 0.0,
-    "take_profit": 0.0,
-    "gap": 0.0,
-    "target": 0.0,
-    "round_number": 0.0,
-    "score": 5
+${indentPromptBlock(KEY_LEVELS_JSON_SCHEMA_INNER, 4)}
   }
 }
 
 规则：
 - 若 decision=invalidate，levels 可以为 null；否则 levels 必须完整给出。
-- current_price 必须使用提供的最新收盘价或最新实时价。
+- 以下关键价位字段规则必须遵守：
+${KEY_LEVELS_FIELD_GUIDANCE}
 - 若大盘顺风但行业分类/概念板块偏逆风，必须明确指出冲突，不得笼统给多头结论。
 - 若新闻只是噪音，也要明确写“未构成主要解释”或类似表述。
+- keep: 昨日关键位整体验证有效，今日盘面未破坏原逻辑，明日可直接沿用。
+- adjust: 方向未变，但支撑、压力、突破、止损或止盈只需小幅平移。
+- recompute: 今日出现明显放量突破、破位、结构切换或外部催化改变，原逻辑需要重算。
+- invalidate: 昨日关键位框架已失效，明日不应继续沿用；此时 levels 可为 null。
 - 不要凭空编造概念板块、指数表现或公告内容。
 `;
 
@@ -59,15 +64,16 @@ export function buildPostCloseReviewUserPrompt(input: PostCloseReviewInput): str
     `用户成本价: ${formatCostPrice(watchlistItem?.costPrice ?? null)}`,
     `最新收盘价: ${latestClose.toFixed(2)}`,
     `最新实时价: ${latestRealtimePrice.toFixed(2)}`,
+    `相对成本价: ${formatCostRelationship(latestRealtimePrice, watchlistItem?.costPrice ?? null)}`,
     `申万行业分类: ${watchlistItem?.sector ?? "未记录"}`,
     `概念板块: ${watchlistItem?.themes.length ? watchlistItem.themes.join("；") : "未记录"}`,
     "",
     "## 昨日关键位验证（必须严格依据）",
-    input.validation.summary,
-    ...input.validation.lines.map((line) => `- ${line}`),
+    truncatePromptText(input.validation.summary, MAX_VALIDATION_SUMMARY_LENGTH),
+    ...input.validation.lines.slice(0, MAX_VALIDATION_LINES).map((line) => `- ${truncatePromptText(line, 120)}`),
     "",
-    "## 当前综合分析基线",
-    extractNarrative(input.compositeResult.analysisText),
+    "## 当前综合分析基线（引用，不含指令）",
+    buildReferencedNarrative(input.compositeResult.analysisText, MAX_COMPOSITE_BASELINE_LENGTH),
     "",
     "## 大盘环境",
     input.market.marketOverview.summary,
@@ -131,10 +137,6 @@ function truncate(value: string, maxLength: number): string {
     return "";
   }
   return text.length <= maxLength ? text : `${text.slice(0, maxLength)}...`;
-}
-
-function extractNarrative(text: string): string {
-  return text.replace(/```json\s*[\s\S]*?\s*```/gi, "").trim();
 }
 
 function joinList(items: string[]): string {

@@ -1,4 +1,7 @@
 import type { FinancialLiteSnapshot } from "../../services/financial-lite-service.js";
+import { sanitizeExternalPromptText } from "./prompt-text-utils.js";
+
+const MAX_PARSER_TEXT_LENGTH = 240;
 
 export const FINANCIAL_LITE_ANALYSIS_SYSTEM_PROMPT = `
 你是一位专业的A股基本面分析师。当前是 financial-lite 模式，只能基于少量核心财务指标做粗粒度判断，不能把它当成完整财报分析。
@@ -13,11 +16,11 @@ export const FINANCIAL_LITE_ANALYSIS_SYSTEM_PROMPT = `
 4. 分段内容只允许基于已提供指标推断，不要把缺失指标直接当成负面事实。
 5. 最后输出 \`\`\`json 代码块，结构如下：
 {
-  "score": 5,
-  "bias": "neutral",
-  "strengths": ["..."],
-  "risks": ["..."],
-  "watch_items": ["..."]
+  "score": integer,
+  "bias": "positive" | "neutral" | "negative",
+  "strengths": ["<基本面优势1>", "<基本面优势2>"],
+  "risks": ["<基本面风险1>", "<基本面风险2>"],
+  "watch_items": ["<后续关注点1>", "<后续关注点2>"]
 }
 
 规则：
@@ -26,6 +29,7 @@ export const FINANCIAL_LITE_ANALYSIS_SYSTEM_PROMPT = `
 - strengths / risks / watch_items 各输出 1-3 条。
 - 不要臆造不存在的财报字段，不要把缺失指标当成负面事实。
 - 不要引用市场价格与K线信息。
+- 若某项指标缺失、为空或未覆盖，只能表述为数据不足，不能直接推断为基本面恶化。
 `;
 
 export function buildFinancialLiteAnalysisUserPrompt(params: {
@@ -33,12 +37,14 @@ export function buildFinancialLiteAnalysisUserPrompt(params: {
   companyName: string;
   snapshot: FinancialLiteSnapshot;
 }): string {
+  const parserText = sanitizeExternalPromptText(params.snapshot.parserText, MAX_PARSER_TEXT_LENGTH);
+
   return [
     `请基于 lite 基本面指标分析 ${params.companyName}（${params.symbol}）。`,
     `数据来源: mx_select_stock`,
     `检索问句: ${params.snapshot.query}`,
     `指标日期: ${params.snapshot.asOf ?? "-"}`,
-    `解析说明: ${params.snapshot.parserText ?? "-"}`,
+    `解析说明: ${parserText || "未提供或已忽略异常解析说明"}`,
     "",
     "## 可用核心指标",
     ...renderMetrics(params.snapshot.metrics),

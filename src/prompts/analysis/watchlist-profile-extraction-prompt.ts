@@ -2,6 +2,7 @@ import type { MxSearchDocument } from "../../types/mx-search.js";
 
 const MAX_PROMPT_DOCUMENTS = 8;
 const MAX_TRUNK_LENGTH = 600;
+const MAX_THEME_COUNT = 10;
 
 export const WATCHLIST_PROFILE_EXTRACTION_SYSTEM_PROMPT = [
   "你是A股证券资料结构化抽取助手。",
@@ -18,11 +19,11 @@ export const WATCHLIST_PROFILE_EXTRACTION_SYSTEM_PROMPT = [
   '  "confidence": "low" | "medium" | "high"',
   "}",
   "4. sector 优先提取申万行业/行业分类，保留完整层级；没有可靠信息时填 null。",
-  "5. themes 尽量完整列出概念板块，去重后输出数组；优先保留明确的概念/题材/板块名称。",
+  `5. themes 尽量完整列出概念板块，去重后输出数组；优先保留明确的概念/题材/板块名称，最多保留 ${MAX_THEME_COUNT} 个。`,
   "6. themes 中不要输出泛词，例如公司新闻、最新公告、市场快讯；也不要输出等。",
   "7. 若资料中是组合表达，拆成独立概念更优，例如华为昇腾 / 华为昇思应拆成两个数组项。",
   "8. 若资料仅出现业务描述而没有足够证据支持概念标签，不要强行扩写。",
-  "9. confidence 仅反映你对提取结果的把握，不要附加解释。",
+  "9. confidence 仅反映你对提取结果的把握，不要附加解释；high 表示多条资料交叉印证，medium 表示有较明确来源但证据有限，low 表示仅能做保守提取。",
 ].join("\n");
 
 export function buildWatchlistProfileExtractionUserPrompt(input: {
