@@ -1,6 +1,6 @@
 {
   "name": "tickflow-assist",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "OpenClaw plugin for TickFlow-based A-share analysis, monitoring, and alerting.",
   "license": "MIT",
   "type": "module",
@@ -10,7 +10,6 @@
   },
   "files": [
     "dist",
-    "docs",
     "skills",
     "python",
     "day_future.txt",
@@ -25,9 +24,11 @@
     "lancedb"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node ./scripts/clean-dist.mjs && tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "dev": "tsc -p tsconfig.json --watch",
+    "prepack": "npm run build && node ./scripts/prepare-package-assets.mjs",
+    "postpack": "node ./scripts/restore-package-assets.mjs",
     "test": "npm run build && node --test dist/plugin-registration.test.js",
     "community-setup": "node dist/dev/tickflow-assist-cli.js configure-openclaw",
     "tool": "node dist/dev/run-tool.js",
@@ -36,6 +37,11 @@
     "validate:mx-search": "npm run build && node dist/dev/validate-mx-search.js"
   },
   "openclaw": {
+    "compat": {
+      "pluginApi": "1.2.0",
+      "minGatewayVersion": "2026.3.22",
+      "builtWithOpenClawVersion": "2026.3.22"
+    },
     "extensions": [
       "dist/plugin.js"
     ]

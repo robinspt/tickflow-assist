@@ -98,9 +98,6 @@ export function validatePluginConfig(config: PluginConfig): string[] {
   if (!config.llmApiKey) {
     errors.push("llmApiKey is required");
   }
-  if (!config.alertTarget) {
-    errors.push("alertTarget is required");
-  }
   if (!config.tickflowApiUrl.startsWith("http://") && !config.tickflowApiUrl.startsWith("https://")) {
     errors.push("tickflowApiUrl must be an absolute http(s) URL");
   }

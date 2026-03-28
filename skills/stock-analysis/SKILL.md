@@ -5,7 +5,10 @@ metadata:
   openclaw:
     skillKey: stock_analysis
     requires:
-      config: true
+      config:
+        - plugins.entries.tickflow-assist.enabled
+        - plugins.entries.tickflow-assist.config.tickflowApiKey
+        - plugins.entries.tickflow-assist.config.llmApiKey
 ---
 # 股票分析与监控
 

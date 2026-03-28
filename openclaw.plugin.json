@@ -1,7 +1,7 @@
 {
   "id": "tickflow-assist",
   "name": "TickFlow Assist",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "A-share watchlist analysis, monitoring, and alert delivery powered by TickFlow and OpenClaw.",
   "skills": [
     "skills"
@@ -9,54 +9,69 @@
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
+    "required": ["tickflowApiKey", "llmApiKey"],
     "properties": {
       "tickflowApiUrl": {
         "type": "string",
-        "default": "https://api.tickflow.org"
+        "default": "https://api.tickflow.org",
+        "description": "TickFlow API base URL."
       },
       "tickflowApiKey": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1,
+        "description": "Required. TickFlow API key used for market and financial data."
       },
       "tickflowApiKeyLevel": {
         "type": "string",
         "enum": ["Free", "Start", "Pro", "Expert"],
-        "default": "Free"
+        "default": "Free",
+        "description": "TickFlow subscription level. Pro and Expert enable intraday K-line fetching."
       },
       "mxSearchApiUrl": {
         "type": "string",
-        "default": "https://mkapi2.dfcfs.com/finskillshub/api/claw"
+        "default": "https://mkapi2.dfcfs.com/finskillshub/api/claw",
+        "description": "MX Search API base URL."
       },
       "mxSearchApiKey": {
         "type": "string",
-        "default": ""
+        "default": "",
+        "description": "Optional. Enables mx_search, mx_select_stock, and non-Expert financial fallback."
       },
       "llmBaseUrl": {
         "type": "string",
-        "default": "https://api.openai.com/v1"
+        "default": "https://api.openai.com/v1",
+        "description": "OpenAI-compatible LLM API base URL."
       },
       "llmApiKey": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1,
+        "description": "Required. API key for the analysis model endpoint configured in llmBaseUrl."
       },
       "llmModel": {
         "type": "string",
-        "default": "gpt-4o"
+        "default": "gpt-4o",
+        "description": "Model name used for analysis."
       },
       "databasePath": {
         "type": "string",
-        "default": "./data/lancedb"
+        "default": "./data/lancedb",
+        "description": "Local LanceDB data directory."
       },
       "calendarFile": {
         "type": "string",
-        "default": "./day_future.txt"
+        "default": "./day_future.txt",
+        "description": "Trading calendar file path."
       },
       "requestInterval": {
         "type": "integer",
         "minimum": 5,
-        "default": 30
+        "default": 30,
+        "description": "Realtime monitoring polling interval in seconds."
       },
       "dailyUpdateNotify": {
         "type": "boolean",
-        "default": true
+        "default": true,
+        "description": "Whether scheduled daily update and post-close review send notifications."
       },
       "alertChannel": {
         "type": "string",
@@ -73,44 +88,74 @@
       },
       "alertTarget": {
         "type": "string",
-        "description": "Channel target, e.g. Telegram chat ID, qqbot:c2c:OPENID, or WeCom userId/chatId",
+        "description": "Optional. Channel target for test_alert, monitoring alerts, and scheduled notifications.",
         "default": ""
       },
       "pythonBin": {
         "type": "string",
-        "default": "uv"
+        "default": "uv",
+        "description": "Python launcher used for indicator calculation."
       },
       "pythonArgs": {
         "type": "array",
         "items": {
           "type": "string"
         },
-        "default": ["run", "python"]
+        "default": ["run", "python"],
+        "description": "Arguments passed to pythonBin before indicator_runner.py."
       },
       "pythonWorkdir": {
         "type": "string",
-        "default": "./python"
+        "default": "./python",
+        "description": "Working directory for the Python indicator bridge."
       }
     }
   },
   "uiHints": {
     "tickflowApiKey": {
       "label": "TickFlow API Key",
+      "help": "Required for TickFlow market and financial data.",
       "sensitive": true
     },
     "tickflowApiKeyLevel": {
-      "label": "TickFlow API Key Level"
+      "label": "TickFlow API Key Level",
+      "help": "Set this to your actual TickFlow subscription level."
     },
     "mxSearchApiKey": {
       "label": "MX Search API Key",
+      "help": "Optional. Enables mx_search, mx_select_stock, and lite financial fallback.",
       "sensitive": true
+    },
+    "llmBaseUrl": {
+      "label": "LLM Base URL",
+      "help": "OpenAI-compatible analysis endpoint."
     },
     "llmApiKey": {
       "label": "LLM API Key",
+      "help": "Required for analysis model requests.",
       "sensitive": true
     },
+    "llmModel": {
+      "label": "LLM Model",
+      "help": "Model name used for stock analysis."
+    },
+    "alertChannel": {
+      "label": "Alert Channel",
+      "help": "Default delivery channel for alert messages."
+    },
     "alertTarget": {
-      "label": "Alert Target"
+      "label": "Alert Target",
+      "help": "Optional. Configure this if you want test_alert, monitoring alerts, or scheduled notifications."
+    },
+    "databasePath": {
+      "label": "Database Path",
+      "help": "Local LanceDB storage directory.",
+      "advanced": true
+    },
+    "calendarFile": {
+      "label": "Calendar File",
+      "help": "Trading calendar file path.",
+      "advanced": true
     }
   }
 }

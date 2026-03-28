@@ -534,7 +534,7 @@ async function promptForConfig(
       targetLabel = `已选通道 [${seed.alertChannel}]，请输入 Alert Target`;
     }
 
-    seed.alertTarget = await promptString(rl, targetLabel, seed.alertTarget, true);
+    seed.alertTarget = await promptString(rl, targetLabel, seed.alertTarget, false);
     seed.requestInterval = await promptInteger(rl, "Request Interval (seconds)", seed.requestInterval, 5);
     seed.dailyUpdateNotify = await promptBoolean(rl, "Daily Update Notify", seed.dailyUpdateNotify);
   } finally {
@@ -604,9 +604,6 @@ function assertRequired(config: PluginConfigInput): void {
   }
   if (!config.llmApiKey) {
     throw new Error("llmApiKey is required");
-  }
-  if (!config.alertTarget) {
-    throw new Error("alertTarget is required");
   }
 }
 
@@ -718,50 +715,10 @@ async function setupPythonDeps(pythonWorkdir: string, nonInteractive: boolean): 
   try {
     const which = spawnSync("which", ["uv"], { encoding: "utf-8" });
     if (which.status !== 0) {
-      console.log("\n  ⚠️ 找不到 uv (Python 包管理工具)。");
-
-      let shouldInstall = false;
-      if (!nonInteractive) {
-        const rl = createInterface({ input: process.stdin, output: process.stdout });
-        const answer = (await rl.question("  是否自动下载并安装 uv？(y/n) [y]: ")).trim().toLowerCase();
-        rl.close();
-        if (!answer || ["y", "yes", "1", "true"].includes(answer)) {
-          shouldInstall = true;
-        }
-      }
-
-      if (shouldInstall) {
-        console.log("  正在安装 uv...");
-        const installResult = spawnSync("sh", ["-c", "curl -LsSf https://astral.sh/uv/install.sh | sh"], { stdio: "inherit" });
-        if (installResult.status !== 0) {
-          console.warn("  uv 安装失败，跳过 Python 依赖安装。");
-          return;
-        }
-
-        let foundUv = false;
-        let installedLoc = "";
-        for (const loc of [path.join(os.homedir(), ".local", "bin", "uv"), path.join(os.homedir(), ".cargo", "bin", "uv")]) {
-          try {
-            await access(loc);
-            uvBin = loc;
-            installedLoc = loc;
-            foundUv = true;
-            break;
-          } catch {
-            // ignore
-          }
-        }
-        if (!foundUv) {
-          uvBin = "uv";
-        } else {
-          console.log(`\n  ✅ uv 已自动安装到 ${installedLoc}`);
-          console.log("  ⚠️ 温馨提示：为了在终端能直接使用 uv 命令，您可能需要执行 `source $HOME/.local/bin/env` \n  或自行将其所在目录添加入系统的 PATH 环境变量中。\n");
-        }
-      } else {
-        console.warn("\n  ⚠️ 跳过 Python 依赖安装。请手动安装 uv (https://docs.astral.sh/uv/) 并执行 'uv sync'，路径：");
-        console.warn(`  ${pythonWorkdir}`);
-        return;
-      }
+      console.warn("\n  ⚠️ 找不到 uv (Python 包管理工具)，已跳过 Python 依赖安装。");
+      console.warn("  请先手动安装 uv，再在以下目录执行 `uv sync`：");
+      console.warn(`  ${pythonWorkdir}`);
+      return;
     } else {
       uvBin = which.stdout.trim() || "uv";
     }

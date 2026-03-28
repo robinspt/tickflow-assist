@@ -5,7 +5,8 @@ metadata:
   openclaw:
     skillKey: database_query
     requires:
-      config: true
+      config:
+        - plugins.entries.tickflow-assist.enabled
 ---
 # LanceDB 数据查询
 
