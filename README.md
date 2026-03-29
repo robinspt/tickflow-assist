@@ -167,6 +167,7 @@ tickflow-assist/
 - `2026-03-27`：发布 `v0.2.5`，优化分析 prompt 并增强结构化 JSON 解析容错。
 - `2026-03-28`：发布 `v0.2.6`，补充 ClawHub 合规打包与 OpenClaw 插件兼容声明。
 - `2026-03-29`：发布 `v0.2.7`，移除过时的 `openclaw.compat.pluginApi` 元数据并升级开发依赖到 OpenClaw `v2026.3.28`。
+- `2026-03-29`：发布 `v0.2.8`，恢复 ClawHub 仍要求的 `openclaw.compat` 字段，并声明插件 API / 最低网关兼容线为 `2026.3.22`。
 
 ## 🙏 鸣谢
 
