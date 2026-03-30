@@ -10,7 +10,7 @@
 
 兼容性要求：
 
-- TickFlow Assist `0.2.0` 起面向 OpenClaw `v2026.3.22+` 的新版 plugin SDK
+- TickFlow Assist 当前社区发布版本面向 OpenClaw `v2026.3.28+`
 - 建议 Node `>=22.14.0`，这是 OpenClaw `v2026.3.28` 上游声明的运行时要求
 
 ## 🧭 项目简介
@@ -168,6 +168,7 @@ tickflow-assist/
 - `2026-03-28`：发布 `v0.2.6`，补充 ClawHub 合规打包与 OpenClaw 插件兼容声明。
 - `2026-03-29`：发布 `v0.2.7`，移除过时的 `openclaw.compat.pluginApi` 元数据并升级开发依赖到 OpenClaw `v2026.3.28`。
 - `2026-03-29`：发布 `v0.2.8`，恢复 ClawHub 仍要求的 `openclaw.compat` 字段，并声明插件 API / 最低网关兼容线为 `2026.3.22`。
+- `2026-03-30`：发布 `v0.2.9`，将 `openclaw.compat.pluginApi` 与最低网关兼容线上调到 `2026.3.28`，修复 ClawHub 安装器与 runtime 版本比对失败的问题。
 
 ## 🙏 鸣谢
 
