@@ -1,6 +1,6 @@
 {
   "name": "tickflow-assist",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "OpenClaw plugin for TickFlow-based A-share analysis, monitoring, and alerting.",
   "license": "MIT",
   "type": "module",
@@ -37,6 +37,9 @@
     "validate:mx-search": "npm run build && node dist/dev/validate-mx-search.js"
   },
   "openclaw": {
+    "build": {
+      "openclawVersion": "2026.3.28"
+    },
     "compat": {
       "pluginApi": "2026.3.28",
       "minGatewayVersion": "2026.3.28",
