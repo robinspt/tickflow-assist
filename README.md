@@ -48,6 +48,7 @@ npx -y tickflow-assist configure-openclaw
 ```
 
 社区安装时允许先完成插件安装，再通过第二条命令写入 `tickflowApiKey`、`llmApiKey` 等正式配置。
+在 Linux 上，`configure-openclaw` 还会 best-effort 安装 PNG 告警卡所需的中文字体；如需跳过，可追加 `--no-font-setup`。
 
 ### 一键安装脚本
 
@@ -58,6 +59,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 ```
 
 向导会自动完成源码更新、依赖安装、配置写入、插件安装与 Gateway 重启。完整流程见 [docs/installation.md](docs/installation.md)。
+在 Linux 上，向导也会 best-effort 安装 PNG 告警卡所需的中文字体。
 
 如果你已经装过旧版本，优先直接执行“升级”。具体升级与重装边界见 [docs/installation.md](docs/installation.md)。
 
@@ -159,6 +161,12 @@ tickflow-assist/
 - AI 模型、自动化分析与回测结果都可能存在偏差、遗漏或失效，不应作为单一决策依据。
 - 使用前请结合自身资金情况、风险承受能力与独立判断审慎评估，并自行承担相应风险。
 
+## 🖼 效果预览
+
+`/ta_testalert` 与 `test_alert` 现在会同时验证文本和 PNG 告警卡链路。下图为当前测试告警样式示例：
+
+![TickFlow Assist 测试告警 PNG 示例](docs/images/test-alert-demo.png)
+
 ## 📝 更新日志
 
 - `2026-03-17`：统一后台托管循环
@@ -174,6 +182,7 @@ tickflow-assist/
 - `2026-03-30`：发布 `v0.2.10`，补充 ClawHub 发布器要求的 `openclaw.build.openclawVersion` 元数据。
 - `2026-03-31`：发布 `v0.2.11`，优化复盘/告警文本样式，接入 PNG 告警卡发送与临时文件清理，并按 A 股习惯调整涨跌主色。
 - `2026-03-31`：发布 `v0.2.12`，调整社区安装清单，允许先安装插件再执行 `configure-openclaw` 写入密钥配置；同时将 `test_alert` 升级为文本 + PNG 告警卡链路测试。
+- `2026-03-31`：发布 `v0.2.13`，在 `configure-openclaw` 与一键安装脚本中加入 Linux 中文字体自动安装，减少 VPS 上 PNG 告警卡中文乱码；并补充 GitHub README 效果预览图。
 
 ## 🙏 鸣谢
 

@@ -2,7 +2,7 @@
 
 基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件。它使用 [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 获取行情与财务数据，结合 LLM 生成技术面、基本面、资讯面的综合判断，并把结果持久化到本地 LanceDB。
 
-最近更新：`v0.2.12` 调整社区安装清单，允许先安装插件再执行 `configure-openclaw` 写入密钥配置；同时将 `test_alert` 升级为文本 + PNG 告警卡链路测试。
+最近更新：`v0.2.13` 在 `configure-openclaw` 与一键安装脚本中加入 Linux 中文字体自动安装，减少 VPS 上 PNG 告警卡中文乱码；并补充 GitHub README 效果预览图。
 
 ## 安装
 
@@ -14,6 +14,7 @@ npx -y tickflow-assist configure-openclaw
 ```
 
 安装阶段允许先落插件，再通过第二条命令写入 `tickflowApiKey`、`llmApiKey` 等正式配置。
+在 Linux 上，`configure-openclaw` 还会 best-effort 安装 PNG 告警卡所需的中文字体；如需跳过，可追加 `--no-font-setup`。
 
 第二条命令会写入 `~/.openclaw/openclaw.json` 中的 `plugins.entries["tickflow-assist"].config`，并默认执行：
 

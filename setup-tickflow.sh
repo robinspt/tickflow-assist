@@ -753,6 +753,154 @@ ensure_uv() {
   success "uv 安装完成"
 }
 
+has_chinese_fonts() {
+  command_installed fc-list || return 1
+  fc-list :lang=zh family 2>/dev/null | grep -q .
+}
+
+detect_linux_distro() {
+  local ids=()
+  local id_like=""
+
+  if [[ ! -f /etc/os-release ]]; then
+    printf '%s\n' "unknown"
+    return 0
+  fi
+
+  # shellcheck disable=SC1091
+  . /etc/os-release
+  ids+=("${ID:-}")
+  id_like="${ID_LIKE:-}"
+  if [[ -n "$id_like" ]]; then
+    # shellcheck disable=SC2206
+    ids+=($id_like)
+  fi
+
+  for item in "${ids[@]}"; do
+    case "${item,,}" in
+      debian|ubuntu) printf '%s\n' "debian"; return 0 ;;
+      rhel|fedora|centos|rocky|almalinux) printf '%s\n' "rhel"; return 0 ;;
+      arch|manjaro) printf '%s\n' "arch"; return 0 ;;
+      alpine) printf '%s\n' "alpine"; return 0 ;;
+    esac
+  done
+
+  printf '%s\n' "unknown"
+}
+
+run_font_setup_command() {
+  local description="$1"
+  shift
+
+  if $DRY_RUN; then
+    dry "$*"
+    return 0
+  fi
+
+  info "$description"
+  if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+    "$@"
+  elif command_installed sudo; then
+    sudo "$@"
+  else
+    return 1
+  fi
+}
+
+print_manual_font_help() {
+  local distro="$1"
+  warn "自动安装中文字体失败，PNG 告警卡中的中文可能显示异常。"
+  echo "  可手动执行："
+  case "$distro" in
+    debian)
+      echo "    sudo apt-get update"
+      echo "    sudo apt-get install -y fontconfig fonts-noto-cjk"
+      echo "    fc-cache -fv"
+      ;;
+    rhel)
+      echo "    sudo dnf install -y fontconfig google-noto-sans-cjk-ttc-fonts"
+      echo "    fc-cache -fv"
+      ;;
+    arch)
+      echo "    sudo pacman -Sy --noconfirm fontconfig noto-fonts-cjk"
+      echo "    fc-cache -fv"
+      ;;
+    alpine)
+      echo "    sudo apk add fontconfig font-noto-cjk"
+      echo "    fc-cache -fv"
+      ;;
+    *)
+      echo "    请安装 fontconfig 和任意可用的中文字体包（例如 Noto Sans CJK）"
+      echo "    安装后执行: fc-cache -fv"
+      ;;
+  esac
+}
+
+ensure_alert_fonts() {
+  local distro="unknown"
+  local attempted="no"
+
+  if [[ "${OSTYPE:-}" != linux* ]]; then
+    return 0
+  fi
+
+  if has_chinese_fonts; then
+    success "已检测到中文字体，可正常渲染 PNG 告警卡"
+    return 0
+  fi
+
+  distro=$(detect_linux_distro)
+  warn "未检测到可用的中文字体，开始尝试安装 Noto CJK 字体（用于 PNG 告警卡）..."
+
+  case "$distro" in
+    debian)
+      attempted="yes"
+      run_font_setup_command "更新 apt 软件索引..." apt-get update || true
+      run_font_setup_command "安装 fontconfig 与 Noto CJK 字体..." apt-get install -y fontconfig fonts-noto-cjk || true
+      ;;
+    rhel)
+      attempted="yes"
+      if command_installed dnf; then
+        run_font_setup_command "安装 fontconfig 与 Noto CJK 字体..." dnf install -y fontconfig google-noto-sans-cjk-ttc-fonts || true
+        if ! has_chinese_fonts; then
+          run_font_setup_command "尝试备用字体包..." dnf install -y fontconfig google-noto-cjk-fonts || true
+        fi
+      elif command_installed yum; then
+        run_font_setup_command "安装 fontconfig 与 Noto CJK 字体..." yum install -y fontconfig google-noto-sans-cjk-ttc-fonts || true
+        if ! has_chinese_fonts; then
+          run_font_setup_command "尝试备用字体包..." yum install -y fontconfig google-noto-cjk-fonts || true
+        fi
+      fi
+      ;;
+    arch)
+      attempted="yes"
+      run_font_setup_command "安装 fontconfig 与 Noto CJK 字体..." pacman -Sy --noconfirm fontconfig noto-fonts-cjk || true
+      ;;
+    alpine)
+      attempted="yes"
+      run_font_setup_command "安装 fontconfig 与 Noto CJK 字体..." apk add fontconfig font-noto-cjk || true
+      ;;
+  esac
+
+  if command_installed fc-cache; then
+    if $DRY_RUN; then
+      dry "fc-cache -fv"
+    else
+      fc-cache -fv >/dev/null 2>&1 || true
+    fi
+  fi
+
+  if has_chinese_fonts || $DRY_RUN; then
+    success "中文字体已就绪（PNG 告警卡）"
+    return 0
+  fi
+
+  if [[ "$attempted" == "no" ]]; then
+    warn "当前系统发行版未匹配到自动安装方案。"
+  fi
+  print_manual_font_help "$distro"
+}
+
 prompt_plugin_dir() {
   local mode="$1"
   local default_dir="$PLUGIN_DIR"
@@ -817,6 +965,7 @@ install_dependencies_and_build() {
   if $DRY_RUN; then
     dry "cd \"$PLUGIN_DIR\" && npm install"
     dry "cd \"$PLUGIN_DIR/python\" && uv sync"
+    dry "install Chinese fonts for PNG alerts if missing"
     dry "cd \"$PLUGIN_DIR\" && npm run build"
     return
   fi
@@ -829,7 +978,9 @@ install_dependencies_and_build() {
     cd python
     uv sync
     cd ..
-    info "3) npm run build..."
+    info "3) ensure Chinese fonts for PNG alerts..."
+    ensure_alert_fonts
+    info "4) npm run build..."
     npm run build
   )
   success "依赖安装与构建完成"

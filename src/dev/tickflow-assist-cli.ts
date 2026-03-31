@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -21,6 +22,7 @@ type CliOptions = {
   restart: boolean;
   enable: boolean;
   pythonSetup: boolean;
+  fontSetup: boolean;
   openclawBin: string;
   overrides: Partial<PluginConfigInput>;
 };
@@ -80,6 +82,7 @@ Options:
   --no-enable                 Do not run 'openclaw plugins enable'
   --no-restart                Do not run 'openclaw gateway restart'
   --no-python-setup           Do not run 'uv sync' for Python dependencies
+  --no-font-setup             Do not try to install Linux Chinese fonts for PNG alerts
   --openclaw-bin <path>       OpenClaw CLI binary, default: openclaw
   --tickflow-api-key <key>
   --tickflow-api-key-level <Free|Start|Pro|Expert>
@@ -104,6 +107,7 @@ function parseArgs(argv: string[]): CliOptions {
     restart: true,
     enable: true,
     pythonSetup: true,
+    fontSetup: true,
     openclawBin: DEFAULTS.openclawCliBin,
     overrides: {},
   };
@@ -158,6 +162,9 @@ function parseArgs(argv: string[]): CliOptions {
         break;
       case "--no-python-setup":
         options.pythonSetup = false;
+        break;
+      case "--no-font-setup":
+        options.fontSetup = false;
         break;
       case "--no-enable":
         options.enable = false;
@@ -743,6 +750,181 @@ async function setupPythonDeps(pythonWorkdir: string, nonInteractive: boolean): 
   console.log("Python dependencies installed successfully.");
 }
 
+type LinuxDistro = "debian" | "rhel" | "arch" | "alpine" | "unknown";
+
+function isCommandAvailable(command: string): boolean {
+  const result = spawnSync("which", [command], { stdio: "ignore" });
+  return result.status === 0;
+}
+
+function isRootUser(): boolean {
+  return typeof process.getuid === "function" && process.getuid() === 0;
+}
+
+function hasChineseFonts(): boolean {
+  const result = spawnSync("fc-list", [":lang=zh", "family"], { encoding: "utf-8" });
+  return result.status === 0 && Boolean(result.stdout.trim());
+}
+
+function detectLinuxDistro(): LinuxDistro {
+  try {
+    const raw = readFileSync("/etc/os-release", "utf-8");
+    const record = Object.fromEntries(
+      raw
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .filter((line) => !line.startsWith("#") && line.includes("="))
+        .map((line) => {
+          const index = line.indexOf("=");
+          const key = line.slice(0, index);
+          const value = line.slice(index + 1).replace(/^"/, "").replace(/"$/, "");
+          return [key, value];
+        }),
+    );
+    const ids = [
+      String(record.ID ?? "").toLowerCase(),
+      ...String(record.ID_LIKE ?? "")
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean),
+    ];
+
+    if (ids.some((value) => ["debian", "ubuntu"].includes(value))) {
+      return "debian";
+    }
+    if (ids.some((value) => ["rhel", "fedora", "centos", "rocky", "almalinux"].includes(value))) {
+      return "rhel";
+    }
+    if (ids.some((value) => ["arch", "manjaro"].includes(value))) {
+      return "arch";
+    }
+    if (ids.includes("alpine")) {
+      return "alpine";
+    }
+  } catch {
+    // fall through
+  }
+  return "unknown";
+}
+
+function getManualFontCommands(distro: LinuxDistro): string[] {
+  switch (distro) {
+    case "debian":
+      return ["sudo apt-get update", "sudo apt-get install -y fontconfig fonts-noto-cjk", "fc-cache -fv"];
+    case "rhel":
+      return [
+        "sudo dnf install -y fontconfig google-noto-sans-cjk-ttc-fonts",
+        "fc-cache -fv",
+      ];
+    case "arch":
+      return ["sudo pacman -Sy --noconfirm fontconfig noto-fonts-cjk", "fc-cache -fv"];
+    case "alpine":
+      return ["sudo apk add fontconfig font-noto-cjk", "fc-cache -fv"];
+    default:
+      return [
+        "请安装 fontconfig 和任意可用的中文字体包，例如 Noto Sans CJK",
+        "安装后执行: fc-cache -fv",
+      ];
+  }
+}
+
+function buildPrivilegedCommand(argv: string[], nonInteractive: boolean): string[] | null {
+  if (isRootUser()) {
+    return argv;
+  }
+  if (!isCommandAvailable("sudo")) {
+    return null;
+  }
+  return nonInteractive ? ["sudo", "-n", ...argv] : ["sudo", ...argv];
+}
+
+function runSetupCommand(argv: string[], description: string): boolean {
+  console.log(description);
+  const result = spawnSync(argv[0]!, argv.slice(1), { stdio: "inherit" });
+  if (result.error) {
+    console.warn(`Warning: failed to run ${description}: ${result.error.message}`);
+    return false;
+  }
+  if (result.status !== 0) {
+    console.warn(`Warning: ${description} exited with status ${result.status}`);
+    return false;
+  }
+  return true;
+}
+
+async function setupLinuxChineseFonts(nonInteractive: boolean): Promise<void> {
+  if (process.platform !== "linux") {
+    return;
+  }
+
+  if (!isCommandAvailable("fc-list")) {
+    console.warn("Warning: fontconfig is not installed; PNG alerts may not render Chinese text correctly.");
+  } else if (hasChineseFonts()) {
+    console.log("Chinese fonts detected for PNG alert cards.");
+    return;
+  }
+
+  const distro = detectLinuxDistro();
+  console.log("Chinese fonts not detected. TickFlow Assist will try to install Noto CJK fonts for PNG alert cards.");
+
+  const attempts: string[][] = [];
+  switch (distro) {
+    case "debian":
+      attempts.push(["apt-get", "update"]);
+      attempts.push(["apt-get", "install", "-y", "fontconfig", "fonts-noto-cjk"]);
+      break;
+    case "rhel":
+      attempts.push(["dnf", "install", "-y", "fontconfig", "google-noto-sans-cjk-ttc-fonts"]);
+      attempts.push(["dnf", "install", "-y", "fontconfig", "google-noto-cjk-fonts"]);
+      attempts.push(["yum", "install", "-y", "fontconfig", "google-noto-sans-cjk-ttc-fonts"]);
+      attempts.push(["yum", "install", "-y", "fontconfig", "google-noto-cjk-fonts"]);
+      break;
+    case "arch":
+      attempts.push(["pacman", "-Sy", "--noconfirm", "fontconfig", "noto-fonts-cjk"]);
+      break;
+    case "alpine":
+      attempts.push(["apk", "add", "fontconfig", "font-noto-cjk"]);
+      break;
+    default:
+      break;
+  }
+
+  let attemptedInstall = false;
+  for (const baseArgv of attempts) {
+    if (!isCommandAvailable(baseArgv[0]!)) {
+      continue;
+    }
+
+    const argv = buildPrivilegedCommand(baseArgv, nonInteractive);
+    if (!argv) {
+      break;
+    }
+
+    attemptedInstall = true;
+    if (!runSetupCommand(argv, `Running ${argv.join(" ")}`)) {
+      continue;
+    }
+
+    if (isCommandAvailable("fc-cache")) {
+      runSetupCommand(["fc-cache", "-fv"], "Refreshing font cache with fc-cache -fv");
+    }
+    if (isCommandAvailable("fc-list") && hasChineseFonts()) {
+      console.log("Chinese fonts installed successfully.");
+      return;
+    }
+  }
+
+  console.warn("Warning: automatic Chinese font setup did not complete.");
+  if (!attemptedInstall && nonInteractive) {
+    console.warn("Non-interactive mode skipped any sudo password prompt.");
+  }
+  console.warn("Manual install examples:");
+  for (const command of getManualFontCommands(distro)) {
+    console.warn(`  ${command}`);
+  }
+}
+
 async function configureOpenClaw(options: CliOptions): Promise<void> {
   const configPath = resolveOpenClawConfigPath(options.configPath);
   const stateDir = resolveStateDir(configPath);
@@ -757,6 +939,9 @@ async function configureOpenClaw(options: CliOptions): Promise<void> {
 
   if (options.pythonSetup) {
     await setupPythonDeps(config.pythonWorkdir, options.nonInteractive);
+  }
+  if (options.fontSetup) {
+    await setupLinuxChineseFonts(options.nonInteractive);
   }
 
   applyPluginConfig(root, config, target);

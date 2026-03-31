@@ -34,6 +34,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 
 - 拉取或更新源码
 - 安装 Node 与 Python 依赖
+- 在 Linux 上尝试安装 PNG 告警卡所需的中文字体
 - 生成或复用 `local.config.json`
 - 写入 `~/.openclaw/openclaw.json` 中的插件配置
 - 安装并启用 `tickflow-assist`
@@ -51,10 +52,12 @@ npx -y tickflow-assist configure-openclaw
 ```
 
 社区安装阶段允许先完成插件安装，再通过 `configure-openclaw` 补写 `tickflowApiKey`、`llmApiKey` 等正式配置。
+在 Linux 上，`configure-openclaw` 会 best-effort 安装 PNG 告警卡所需的中文字体；如需跳过，可追加 `--no-font-setup`。
 
 第二条命令会自动：
 
 - 安装 Python 依赖（`uv sync`）
+- 在 Linux 上尝试安装 PNG 告警卡所需的中文字体
 - 写入 `plugins.entries["tickflow-assist"].config`
 - 给顶层 `tools.allow` 或推断出的目标 Agent 补 `tickflow-assist` allowlist
 - 执行 `openclaw plugins enable tickflow-assist`
