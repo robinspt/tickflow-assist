@@ -57,7 +57,7 @@
 | `TickFlow日更状态` | 查看日更进程状态与最近执行结果 |
 | `停止定时日更` | 停止日更进程 |
 | `停止监控` | 停止实时监控 |
-| `测试告警` | 验证 OpenClaw channel 投递链路 |
+| `测试告警` | 验证 OpenClaw channel 的文本与 PNG 告警卡投递链路 |
 | `使用帮助` | 查看插件常用指令 |
 | `数据库里有哪些表` | 查看 LanceDB 当前数据表 |
 | `看技术指标表结构` | 查看数据库表字段结构 |
@@ -96,7 +96,7 @@
 | `/ta_stopdailyupdate` | 停止定时日更 |
 | `/ta_updateall` | 立即执行一次完整日更 |
 | `/ta_dailyupdatestatus` | 查看定时日更状态 |
-| `/ta_testalert` | 发送一条测试告警 |
+| `/ta_testalert` | 发送一条文本 + PNG 测试告警 |
 | `/ta_debug` | 查看插件进程当前看到的配置来源、数据库路径与 watchlist 快照 |
 
 常用示例：

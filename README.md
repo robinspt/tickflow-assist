@@ -47,6 +47,8 @@ openclaw plugins install tickflow-assist
 npx -y tickflow-assist configure-openclaw
 ```
 
+社区安装时允许先完成插件安装，再通过第二条命令写入 `tickflowApiKey`、`llmApiKey` 等正式配置。
+
 ### 一键安装脚本
 
 如果你已经安装了 `git`、`node`、`npm`、`uv`、`openclaw` 与 `jq`，并且想要从源码运行，可以直接运行安装向导：
@@ -171,6 +173,7 @@ tickflow-assist/
 - `2026-03-30`：发布 `v0.2.9`，将 `openclaw.compat.pluginApi` 与最低网关兼容线上调到 `2026.3.28`，修复 ClawHub 安装器与 runtime 版本比对失败的问题。
 - `2026-03-30`：发布 `v0.2.10`，补充 ClawHub 发布器要求的 `openclaw.build.openclawVersion` 元数据。
 - `2026-03-31`：发布 `v0.2.11`，优化复盘/告警文本样式，接入 PNG 告警卡发送与临时文件清理，并按 A 股习惯调整涨跌主色。
+- `2026-03-31`：发布 `v0.2.12`，调整社区安装清单，允许先安装插件再执行 `configure-openclaw` 写入密钥配置；同时将 `test_alert` 升级为文本 + PNG 告警卡链路测试。
 
 ## 🙏 鸣谢
 

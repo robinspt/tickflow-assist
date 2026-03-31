@@ -229,7 +229,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
     },
     {
       name: "ta_testalert",
-      description: "发送一条测试告警，不经过 AI 对话。",
+      description: "发送一条文本 + PNG 测试告警，不经过 AI 对话。",
       requireAuth: true,
       handler: async () => ({
         text: await runToolText(testAlert),

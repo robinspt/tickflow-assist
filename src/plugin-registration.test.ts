@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
@@ -135,4 +136,15 @@ test("plugin registration marks state-changing tools as optional", () => {
     hookEvents.includes("before_prompt_build"),
     "stock-agent prompt hook should remain registered",
   );
+});
+
+test("community install manifest does not require secrets before setup", () => {
+  const manifestPath = path.resolve(process.cwd(), "openclaw.plugin.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as {
+    configSchema?: { required?: string[] };
+  };
+
+  const required = manifest.configSchema?.required ?? [];
+  assert.ok(!required.includes("tickflowApiKey"));
+  assert.ok(!required.includes("llmApiKey"));
 });

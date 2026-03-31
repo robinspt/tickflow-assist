@@ -50,6 +50,8 @@ openclaw plugins install tickflow-assist
 npx -y tickflow-assist configure-openclaw
 ```
 
+社区安装阶段允许先完成插件安装，再通过 `configure-openclaw` 补写 `tickflowApiKey`、`llmApiKey` 等正式配置。
+
 第二条命令会自动：
 
 - 安装 Python 依赖（`uv sync`）

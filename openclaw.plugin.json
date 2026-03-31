@@ -1,7 +1,7 @@
 {
   "id": "tickflow-assist",
   "name": "TickFlow Assist",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "description": "A-share watchlist analysis, monitoring, and alert delivery powered by TickFlow and OpenClaw.",
   "skills": [
     "skills"
@@ -9,7 +9,6 @@
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["tickflowApiKey", "llmApiKey"],
     "properties": {
       "tickflowApiUrl": {
         "type": "string",
@@ -19,7 +18,7 @@
       "tickflowApiKey": {
         "type": "string",
         "minLength": 1,
-        "description": "Required. TickFlow API key used for market and financial data."
+        "description": "TickFlow API key used for market and financial data. Required before using the plugin."
       },
       "tickflowApiKeyLevel": {
         "type": "string",
@@ -45,7 +44,7 @@
       "llmApiKey": {
         "type": "string",
         "minLength": 1,
-        "description": "Required. API key for the analysis model endpoint configured in llmBaseUrl."
+        "description": "API key for the analysis model endpoint configured in llmBaseUrl. Required before using analysis features."
       },
       "llmModel": {
         "type": "string",
@@ -114,7 +113,7 @@
   "uiHints": {
     "tickflowApiKey": {
       "label": "TickFlow API Key",
-      "help": "Required for TickFlow market and financial data.",
+      "help": "Required before using TickFlow market and financial data.",
       "sensitive": true
     },
     "tickflowApiKeyLevel": {
@@ -132,7 +131,7 @@
     },
     "llmApiKey": {
       "label": "LLM API Key",
-      "help": "Required for analysis model requests.",
+      "help": "Required before using analysis model requests.",
       "sensitive": true
     },
     "llmModel": {
