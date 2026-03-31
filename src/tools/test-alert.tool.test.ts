@@ -65,6 +65,7 @@ test("test_alert sends text plus png when media delivery succeeds", async () => 
   const tool = testAlertTool(
     alert.service as never,
     media.service as never,
+    "openclaw_plugin",
   );
 
   const result = await tool.run();
@@ -79,7 +80,7 @@ test("test_alert sends text plus png when media delivery succeeds", async () => 
   assert.deepEqual(media.removed, ["/tmp/test-alert-card.png"]);
 });
 
-test("test_alert reports text-only fallback when png delivery fails", async () => {
+test("test_alert reports text-only fallback when png delivery fails in plugin mode", async () => {
   const alert = createAlertServiceStub([
     {
       ok: true,
@@ -93,11 +94,42 @@ test("test_alert reports text-only fallback when png delivery fails", async () =
   const tool = testAlertTool(
     alert.service as never,
     media.service as never,
+    "openclaw_plugin",
   );
 
   const result = await tool.run();
 
   assert.equal(result, "⚠️ 测试告警文本已发送，但 PNG 未送达，已回退为纯文本\n原因: media upload failed");
+  assert.equal(alert.calls.length, 1);
+  assert.equal(alert.calls[0]?.mediaPath, "/tmp/test-alert-card.png");
+  assert.deepEqual(media.removed, ["/tmp/test-alert-card.png"]);
+});
+
+test("test_alert treats png fallback as expected in local command mode", async () => {
+  const alert = createAlertServiceStub([
+    {
+      ok: true,
+      mediaAttempted: true,
+      mediaDelivered: false,
+      error: "LocalMediaAccessError: Local media path is not under an allowed directory",
+    },
+  ]);
+  const media = createAlertMediaStub();
+
+  const tool = testAlertTool(
+    alert.service as never,
+    media.service as never,
+    "local_config",
+  );
+
+  const result = await tool.run();
+
+  assert.equal(
+    result,
+    "✅ 测试告警文本已发送（本地命令模式）\n"
+      + "说明: `npm run tool -- test_alert` 下 PNG 回退属预期，请通过 `/ta_testalert` 验证图片链路。\n"
+      + "原因: LocalMediaAccessError: Local media path is not under an allowed directory",
+  );
   assert.equal(alert.calls.length, 1);
   assert.equal(alert.calls[0]?.mediaPath, "/tmp/test-alert-card.png");
   assert.deepEqual(media.removed, ["/tmp/test-alert-card.png"]);

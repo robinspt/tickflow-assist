@@ -310,7 +310,7 @@ export function createAppContext(
       startMonitorTool(monitorService, runtime),
       stopDailyUpdateTool(dailyUpdateWorker, runtime),
       stopMonitorTool(monitorService, runtime),
-      testAlertTool(alertService, alertMediaService),
+      testAlertTool(alertService, alertMediaService, runtime.configSource),
       updateAllTool(dailyUpdateWorker),
       viewAnalysisTool(analysisViewService),
     ],

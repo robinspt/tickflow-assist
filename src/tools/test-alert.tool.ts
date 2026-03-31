@@ -2,7 +2,11 @@ import { AlertService } from "../services/alert-service.js";
 import { AlertMediaService } from "../services/alert-media-service.js";
 import { formatChinaDateTime } from "../utils/china-time.js";
 
-export function testAlertTool(alertService: AlertService, alertMediaService: AlertMediaService) {
+export function testAlertTool(
+  alertService: AlertService,
+  alertMediaService: AlertMediaService,
+  configSource: "openclaw_plugin" | "local_config" = "openclaw_plugin",
+) {
   return {
     name: "test_alert",
     description: "Send a text plus PNG test alert through the configured OpenClaw alert delivery path.",
@@ -57,6 +61,13 @@ export function testAlertTool(alertService: AlertService, alertMediaService: Ale
         }
 
         if (result.ok) {
+          if (configSource === "local_config") {
+            return [
+              "✅ 测试告警文本已发送（本地命令模式）",
+              "说明: `npm run tool -- test_alert` 下 PNG 回退属预期，请通过 `/ta_testalert` 验证图片链路。",
+              ...(result.error ? [`原因: ${result.error}`] : []),
+            ].join("\n");
+          }
           return result.error
             ? `⚠️ 测试告警文本已发送，但 PNG 未送达，已回退为纯文本\n原因: ${result.error}`
             : "⚠️ 测试告警文本已发送，但 PNG 未送达，已回退为纯文本";
