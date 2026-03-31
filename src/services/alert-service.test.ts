@@ -86,3 +86,61 @@ test("buildCliArgs includes media path when sending image alerts", () => {
     "/tmp/alert-card.png",
   ]);
 });
+
+test("buildCliArgs omits --message for media-only sends", () => {
+  const args = (alertService as unknown as {
+    buildCliArgs: (input: { message: string; mediaPath: string }) => string[];
+  }).buildCliArgs({
+    message: "",
+    mediaPath: "/tmp/alert-card.png",
+  });
+
+  assert.deepEqual(args, [
+    "openclaw",
+    "message",
+    "send",
+    "--channel",
+    "telegram",
+    "--media",
+    "/tmp/alert-card.png",
+  ]);
+});
+
+test("sendWithResult retries media-only before falling back to text-only", async () => {
+  const calls: Array<{ message: string; mediaPath?: string }> = [];
+  const service = new AlertService({
+    openclawCliBin: "openclaw",
+    channel: "telegram",
+    account: "",
+    target: "",
+  });
+  const runtimeService = service as unknown as {
+    trySendPayload: (input: { message: string; mediaPath?: string }) => Promise<string | null>;
+    sendWithResult: AlertService["sendWithResult"];
+  };
+
+  runtimeService.trySendPayload = async (payload: { message: string; mediaPath?: string }) => {
+    calls.push({ message: payload.message, mediaPath: payload.mediaPath });
+    if (payload.mediaPath && payload.message === "caption") {
+      return "caption with media failed";
+    }
+    return null;
+  };
+
+  const result = await runtimeService.sendWithResult({
+    message: "caption",
+    mediaPath: "/tmp/alert-card.png",
+  });
+
+  assert.deepEqual(calls, [
+    { message: "caption", mediaPath: "/tmp/alert-card.png" },
+    { message: "", mediaPath: "/tmp/alert-card.png" },
+    { message: "caption", mediaPath: undefined },
+  ]);
+  assert.deepEqual(result, {
+    ok: true,
+    mediaAttempted: true,
+    mediaDelivered: true,
+    error: null,
+  });
+});

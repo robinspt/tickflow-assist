@@ -85,7 +85,7 @@ test("test_alert reports text-only fallback when png delivery fails", async () =
       ok: true,
       mediaAttempted: true,
       mediaDelivered: false,
-      error: null,
+      error: "media upload failed",
     },
   ]);
   const media = createAlertMediaStub();
@@ -97,7 +97,7 @@ test("test_alert reports text-only fallback when png delivery fails", async () =
 
   const result = await tool.run();
 
-  assert.equal(result, "⚠️ 测试告警文本已发送，但 PNG 未送达，已回退为纯文本");
+  assert.equal(result, "⚠️ 测试告警文本已发送，但 PNG 未送达，已回退为纯文本\n原因: media upload failed");
   assert.equal(alert.calls.length, 1);
   assert.equal(alert.calls[0]?.mediaPath, "/tmp/test-alert-card.png");
   assert.deepEqual(media.removed, ["/tmp/test-alert-card.png"]);

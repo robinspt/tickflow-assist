@@ -61,6 +61,22 @@ export class AlertService {
     }
 
     if (payload.mediaPath) {
+      if (payload.message.trim()) {
+        const mediaOnlyError = await this.trySendPayload({
+          ...payload,
+          message: "",
+        });
+        if (mediaOnlyError === null) {
+          const textFollowupError = await this.trySendPayload({ message: payload.message });
+          return {
+            ok: textFollowupError === null,
+            mediaAttempted: true,
+            mediaDelivered: true,
+            error: textFollowupError,
+          };
+        }
+      }
+
       const textFallback = normalizeSendInput(payload.message);
       const textFallbackError = await this.trySendPayload(textFallback);
       if (textFallbackError === null) {
@@ -68,7 +84,7 @@ export class AlertService {
           ok: true,
           mediaAttempted: true,
           mediaDelivered: false,
-          error: null,
+          error: primaryError,
         };
       }
 
@@ -345,9 +361,11 @@ export class AlertService {
       "send",
       "--channel",
       this.channel,
-      "--message",
-      payload.message,
     ];
+
+    if (payload.message) {
+      args.push("--message", payload.message);
+    }
 
     if (payload.mediaPath) {
       args.push("--media", payload.mediaPath);

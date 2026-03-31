@@ -47,11 +47,19 @@ export function testAlertTool(alertService: AlertService, alertMediaService: Ale
         });
 
         if (result.ok && result.mediaDelivered) {
+          if (result.error) {
+            return [
+              "⚠️ PNG 告警卡已发送，但文本补发失败",
+              `原因: ${result.error}`,
+            ].join("\n");
+          }
           return "✅ 测试告警发送成功（文本 + PNG）";
         }
 
         if (result.ok) {
-          return "⚠️ 测试告警文本已发送，但 PNG 未送达，已回退为纯文本";
+          return result.error
+            ? `⚠️ 测试告警文本已发送，但 PNG 未送达，已回退为纯文本\n原因: ${result.error}`
+            : "⚠️ 测试告警文本已发送，但 PNG 未送达，已回退为纯文本";
         }
 
         const detail = result.error ?? alertService.getLastError();
