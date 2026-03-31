@@ -20,29 +20,72 @@ interface AlertServiceOptions {
   runtime?: AlertRuntimeContext;
 }
 
+export interface AlertSendInput {
+  message: string;
+  mediaPath?: string;
+  mediaLocalRoots?: readonly string[];
+  filename?: string;
+}
+
+export interface AlertSendResult {
+  ok: boolean;
+  mediaAttempted: boolean;
+  mediaDelivered: boolean;
+  error: string | null;
+}
+
 export class AlertService {
   private lastError: string | null = null;
 
   constructor(private readonly options: AlertServiceOptions) {}
 
-  async send(message: string): Promise<boolean> {
+  async send(input: string | AlertSendInput): Promise<boolean> {
+    const result = await this.sendWithResult(input);
+    this.lastError = result.ok ? null : result.error;
+    return result.ok;
+  }
+
+  async sendWithResult(input: string | AlertSendInput): Promise<AlertSendResult> {
     this.lastError = null;
+    const payload = normalizeSendInput(input);
 
-    const runtimeError = await this.trySendViaRuntime(message);
-    if (runtimeError === null) {
-      return true;
+    const mediaAttempted = Boolean(payload.mediaPath);
+    const primaryError = await this.trySendPayload(payload);
+    if (primaryError === null) {
+      return {
+        ok: true,
+        mediaAttempted,
+        mediaDelivered: mediaAttempted,
+        error: null,
+      };
     }
 
-    const fallbackError = this.options.runtime
-      ? await this.trySendViaRuntimeCommand(message)
-      : await this.trySendViaSpawn(message);
+    if (payload.mediaPath) {
+      const textFallback = normalizeSendInput(payload.message);
+      const textFallbackError = await this.trySendPayload(textFallback);
+      if (textFallbackError === null) {
+        return {
+          ok: true,
+          mediaAttempted: true,
+          mediaDelivered: false,
+          error: null,
+        };
+      }
 
-    if (fallbackError === null) {
-      return true;
+      return {
+        ok: false,
+        mediaAttempted: true,
+        mediaDelivered: false,
+        error: this.combineErrors(primaryError, textFallbackError),
+      };
     }
 
-    this.lastError = this.combineErrors(runtimeError, fallbackError);
-    return false;
+    return {
+      ok: false,
+      mediaAttempted: false,
+      mediaDelivered: false,
+      error: primaryError,
+    };
   }
 
   getLastError(): string | null {
@@ -141,7 +184,18 @@ export class AlertService {
     return `${runtimeError}; ${fallbackError}`;
   }
 
-  private async trySendViaRuntime(message: string): Promise<string | null> {
+  private async trySendPayload(payload: AlertSendInput): Promise<string | null> {
+    const runtimeError = await this.trySendViaRuntime(payload);
+    if (runtimeError === null) {
+      return null;
+    }
+
+    return this.options.runtime
+      ? await this.trySendViaRuntimeCommand(payload)
+      : await this.trySendViaSpawn(payload);
+  }
+
+  private async trySendViaRuntime(payload: AlertSendInput): Promise<string | null> {
     const runtimeContext = this.options.runtime;
     if (!runtimeContext || !this.options.target.trim()) {
       return "runtime delivery unavailable";
@@ -150,6 +204,8 @@ export class AlertService {
     const baseOptions = {
       accountId: this.options.account || undefined,
       cfg: runtimeContext.config,
+      mediaUrl: payload.mediaPath,
+      mediaLocalRoots: payload.mediaLocalRoots,
     };
 
     try {
@@ -157,49 +213,60 @@ export class AlertService {
         case "telegram":
           await runtimeContext.runtime.channel.telegram.sendMessageTelegram(
             this.options.target,
-            message,
+            payload.message,
             baseOptions,
           );
           return null;
         case "discord":
           await runtimeContext.runtime.channel.discord.sendMessageDiscord(
             this.options.target,
-            message,
-            baseOptions,
+            payload.message,
+            {
+              ...baseOptions,
+              filename: payload.filename,
+            },
           );
           return null;
         case "slack":
           await runtimeContext.runtime.channel.slack.sendMessageSlack(
             this.options.target,
-            message,
-            baseOptions,
+            payload.message,
+            {
+              ...baseOptions,
+              uploadFileName: payload.filename,
+              uploadTitle: payload.filename,
+            },
           );
           return null;
         case "signal":
           await runtimeContext.runtime.channel.signal.sendMessageSignal(
             this.options.target,
-            message,
+            payload.message,
             baseOptions,
           );
           return null;
         case "imessage":
           await runtimeContext.runtime.channel.imessage.sendMessageIMessage(
             this.options.target,
-            message,
+            payload.message,
             {
               accountId: this.options.account || undefined,
               config: runtimeContext.config,
+              mediaUrl: payload.mediaPath,
+              mediaLocalRoots: payload.mediaLocalRoots,
             },
           );
           return null;
         case "whatsapp":
           await runtimeContext.runtime.channel.whatsapp.sendMessageWhatsApp(
             this.options.target,
-            message,
+            payload.message,
             {
               verbose: false,
               cfg: runtimeContext.config,
               accountId: this.options.account || undefined,
+              mediaUrl: payload.mediaPath,
+              mediaLocalRoots: payload.mediaLocalRoots,
             },
           );
           return null;
@@ -211,7 +278,7 @@ export class AlertService {
     }
   }
 
-  private async trySendViaRuntimeCommand(message: string): Promise<string | null> {
+  private async trySendViaRuntimeCommand(payload: AlertSendInput): Promise<string | null> {
     const runtimeContext = this.options.runtime;
     if (!runtimeContext) {
       return "runtime command unavailable";
@@ -219,7 +286,7 @@ export class AlertService {
 
     try {
       const result = await runtimeContext.runtime.system.runCommandWithTimeout(
-        this.buildCliArgs(message),
+        this.buildCliArgs(payload),
         { timeoutMs: 15_000 },
       );
       if (result.code === 0) {
@@ -236,8 +303,8 @@ export class AlertService {
     }
   }
 
-  private async trySendViaSpawn(message: string): Promise<string | null> {
-    const argv = this.buildCliArgs(message);
+  private async trySendViaSpawn(payload: AlertSendInput): Promise<string | null> {
+    const argv = this.buildCliArgs(payload);
     const [command, ...args] = argv;
 
     return new Promise((resolve) => {
@@ -271,7 +338,7 @@ export class AlertService {
     });
   }
 
-  private buildCliArgs(message: string): string[] {
+  private buildCliArgs(payload: AlertSendInput): string[] {
     const args = [
       this.options.openclawCliBin,
       "message",
@@ -279,9 +346,12 @@ export class AlertService {
       "--channel",
       this.channel,
       "--message",
-      message,
+      payload.message,
     ];
 
+    if (payload.mediaPath) {
+      args.push("--media", payload.mediaPath);
+    }
     if (this.options.target) {
       args.push("--target", this.options.target);
     }
@@ -304,6 +374,12 @@ function formatErrorMessage(error: unknown): string {
   } catch {
     return String(error);
   }
+}
+
+function normalizeSendInput(input: string | AlertSendInput): AlertSendInput {
+  return typeof input === "string"
+    ? { message: input }
+    : input;
 }
 
 function getAlertStyle(ruleCode: string, fallbackTitle: string): { banner: string; label: string } {

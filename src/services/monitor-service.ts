@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { WatchlistItem, KeyLevels } from "../types/domain.js";
-import type { TickFlowQuote } from "../types/tickflow.js";
+import type { TickFlowIntradayKlineRow, TickFlowQuote } from "../types/tickflow.js";
 import type { MonitorState } from "../types/monitor.js";
 import { formatChinaDateTime } from "../utils/china-time.js";
 import { calculateProfitPct, formatCostPrice } from "../utils/cost-price.js";
@@ -12,8 +12,12 @@ import { WatchlistService } from "./watchlist-service.js";
 import { KeyLevelsRepository } from "../storage/repositories/key-levels-repo.js";
 import { AlertLogRepository } from "../storage/repositories/alert-log-repo.js";
 import { KlinesRepository } from "../storage/repositories/klines-repo.js";
-import { AlertService } from "./alert-service.js";
+import { IntradayKlinesRepository } from "../storage/repositories/intraday-klines-repo.js";
+import { AlertService, type AlertSendInput } from "./alert-service.js";
 import type { TradingPhase } from "./trading-calendar-service.js";
+import { KlineService } from "./kline-service.js";
+import { AlertMediaService } from "./alert-media-service.js";
+import type { AlertImageInput, AlertImagePoint, AlertImageTone } from "./alert-image-service.js";
 
 const DEFAULT_STATE: MonitorState = {
   running: false,
@@ -32,6 +36,7 @@ const DEFAULT_STATE: MonitorState = {
   sessionNotificationsDate: null,
   sessionNotificationsSent: [],
 };
+const INTRADAY_PERIOD = "1m";
 
 export class MonitorService {
   constructor(
@@ -44,7 +49,10 @@ export class MonitorService {
     private readonly keyLevelsRepository: KeyLevelsRepository,
     private readonly alertLogRepository: AlertLogRepository,
     private readonly klinesRepository: KlinesRepository,
+    private readonly intradayKlinesRepository: IntradayKlinesRepository,
+    private readonly klineService: KlineService,
     private readonly alertService: AlertService,
+    private readonly alertMediaService: AlertMediaService,
   ) {}
 
   async start(): Promise<string> {
@@ -192,6 +200,7 @@ export class MonitorService {
   }
 
   async runMonitorOnce(): Promise<number> {
+    await this.alertMediaService.maybeCleanupExpired();
     const phase = await this.tradingCalendarService.getTradingPhase();
     let alertCount = await this.maybeSendSessionNotification(phase);
     if (phase !== "trading") {
@@ -213,17 +222,26 @@ export class MonitorService {
       }
 
       const levels = await this.keyLevelsRepository.getBySymbol(item.symbol);
+      let intradayRowsPromise: Promise<TickFlowIntradayKlineRow[]> | null = null;
+      const getIntradayRows = (): Promise<TickFlowIntradayKlineRow[]> => {
+        intradayRowsPromise ??= this.loadIntradayRows(item.symbol);
+        return intradayRowsPromise;
+      };
       if (levels) {
         for (const candidate of buildPriceAlerts(item, quote, levels, this.alertService)) {
-          if (await this.trySendAlert(item.symbol, candidate.ruleName, candidate.message)) {
+          const delivery = await this.buildAlertDelivery(item, quote, candidate, levels, getIntradayRows);
+          if (await this.trySendAlert(item.symbol, candidate.ruleName, delivery)) {
             alertCount += 1;
           }
         }
       }
 
       const changeAlert = buildChangeAlert(item, quote, levels, this.alertService);
-      if (changeAlert && (await this.trySendAlert(item.symbol, changeAlert.ruleName, changeAlert.message))) {
-        alertCount += 1;
+      if (changeAlert) {
+        const delivery = await this.buildAlertDelivery(item, quote, changeAlert, levels, getIntradayRows);
+        if (await this.trySendAlert(item.symbol, changeAlert.ruleName, delivery)) {
+          alertCount += 1;
+        }
       }
 
       const volumeAlert = await this.buildVolumeAlert(item, quote, levels);
@@ -395,17 +413,22 @@ export class MonitorService {
     });
   }
 
-  private async trySendAlert(symbol: string, ruleName: string, message: string): Promise<boolean> {
+  private async trySendAlert(symbol: string, ruleName: string, input: string | AlertSendInput): Promise<boolean> {
     const sessionKey = getSessionKey();
     if (await this.alertLogRepository.isSentThisSession(symbol, ruleName, sessionKey)) {
       return false;
     }
 
-    const ok = await this.alertService.send(message);
-    if (!ok) {
+    const result = await this.alertService.sendWithResult(input);
+    if (!result.ok) {
       return false;
     }
 
+    if (typeof input !== "string" && input.mediaPath && result.mediaDelivered) {
+      await this.alertMediaService.removeFile(input.mediaPath);
+    }
+
+    const message = typeof input === "string" ? input : input.message;
     await this.alertLogRepository.append({
       symbol,
       alert_date: sessionKey,
@@ -414,6 +437,87 @@ export class MonitorService {
       triggered_at: formatChinaDateTime(),
     });
     return true;
+  }
+
+  private async buildAlertDelivery(
+    item: WatchlistItem,
+    quote: TickFlowQuote,
+    candidate: AlertCandidate,
+    levels: KeyLevels | null,
+    getIntradayRows: () => Promise<TickFlowIntradayKlineRow[]>,
+  ): Promise<string | AlertSendInput> {
+    if (!candidate.image || !levels) {
+      return candidate.message;
+    }
+
+    try {
+      const rows = await getIntradayRows();
+      const points = buildAlertImagePoints(rows, quote);
+      if (points.length < 2) {
+        return candidate.message;
+      }
+
+      const currentPrice = Number(quote.last_price);
+      const image: AlertImageInput = {
+        tone: candidate.image.tone,
+        alertLabel: candidate.image.alertLabel,
+        name: item.name,
+        symbol: item.symbol,
+        timestampLabel: `实时告警 | ${formatChinaDateTime().slice(0, 16)}`,
+        currentPrice,
+        triggerPrice: candidate.image.triggerPrice,
+        changePct: getQuoteChangePct(quote),
+        distancePct: candidate.image.triggerPrice > 0
+          ? ((currentPrice - candidate.image.triggerPrice) / candidate.image.triggerPrice) * 100
+          : null,
+        costPrice: item.costPrice,
+        profitPct: calculateProfitPct(currentPrice, item.costPrice),
+        note: candidate.image.note,
+        points,
+        levels: {
+          stopLoss: levels.stop_loss,
+          support: levels.support,
+          resistance: levels.resistance,
+          breakthrough: levels.breakthrough,
+          takeProfit: levels.take_profit,
+        },
+      };
+      const media = await this.alertMediaService.writeAlertCard({
+        symbol: item.symbol,
+        ruleName: candidate.ruleName,
+        image,
+      });
+
+      return {
+        message: candidate.message,
+        mediaPath: media.filePath,
+        mediaLocalRoots: media.mediaLocalRoots,
+        filename: media.filename,
+      };
+    } catch {
+      return candidate.message;
+    }
+  }
+
+  private async loadIntradayRows(symbol: string): Promise<TickFlowIntradayKlineRow[]> {
+    const today = formatChinaDateTime().slice(0, 10);
+    const cachedRows = (await this.intradayKlinesRepository.listBySymbol(symbol, INTRADAY_PERIOD))
+      .filter((row) => row.trade_date === today);
+
+    try {
+      const fetchedRows = await this.klineService.fetchIntradayKlines(symbol, {
+        period: INTRADAY_PERIOD,
+      });
+      const todayRows = fetchedRows.filter((row) => row.trade_date === today);
+      if (todayRows.length > 0) {
+        await this.intradayKlinesRepository.saveAll(symbol, INTRADAY_PERIOD, todayRows);
+        return todayRows;
+      }
+    } catch {
+      // 图片告警是增强能力，分钟线拉取失败时回退纯文本。
+    }
+
+    return cachedRows;
   }
 
   private async buildVolumeAlert(
@@ -451,6 +555,12 @@ export class MonitorService {
 interface AlertCandidate {
   ruleName: string;
   message: string;
+  image?: {
+    tone: AlertImageTone;
+    alertLabel: string;
+    note: string;
+    triggerPrice: number;
+  };
 }
 
 function formatRunningState(state: MonitorState, requestInterval: number): string {
@@ -691,6 +801,12 @@ function buildPriceAlerts(
         dailyChangePct,
         relatedLevels: levels,
       }),
+      image: {
+        tone: resolveAlertImageTone(ruleName),
+        alertLabel: resolveAlertImageLabel(ruleName, title),
+        note: desc,
+        triggerPrice: levelPrice,
+      },
     });
   };
 
@@ -746,7 +862,96 @@ function buildChangeAlert(
       dailyChangePct: changePct,
       relatedLevels: levels,
     }),
+    image: {
+      tone: direction === "涨" ? "breakthrough" : "stop_loss",
+      alertLabel: direction === "涨" ? "涨幅异动" : "跌幅异动",
+      note: `当日${direction}幅 ${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%，超过 5% 阈值`,
+      triggerPrice: prevClose,
+    },
   };
+}
+
+function buildAlertImagePoints(
+  rows: TickFlowIntradayKlineRow[],
+  quote: TickFlowQuote,
+): AlertImagePoint[] {
+  const points = rows.map((row) => ({
+    time: row.trade_time.slice(0, 5),
+    price: row.close,
+  }));
+
+  const currentPrice = Number(quote.last_price ?? 0);
+  if (!(currentPrice > 0)) {
+    return points;
+  }
+
+  const quoteTime = formatQuoteTimestamp(quote.timestamp).slice(0, 5);
+  if (points.length === 0) {
+    return [];
+  }
+
+  const lastPoint = points[points.length - 1];
+  if (!lastPoint) {
+    return points;
+  }
+
+  if (lastPoint.time === quoteTime) {
+    lastPoint.price = currentPrice;
+    return points;
+  }
+
+  if (quoteTime < lastPoint.time) {
+    return points;
+  }
+
+  points.push({
+    time: quoteTime,
+    price: currentPrice,
+  });
+  return points;
+}
+
+function resolveAlertImageTone(ruleName: string): AlertImageTone {
+  switch (ruleName) {
+    case "stop_loss_hit":
+    case "stop_loss_near":
+    case "change_pct_跌":
+      return "stop_loss";
+    case "breakthrough_hit":
+    case "change_pct_涨":
+      return "breakthrough";
+    case "support_near":
+      return "support";
+    case "resistance_near":
+      return "pressure";
+    case "take_profit_hit":
+      return "take_profit";
+    default:
+      return "support";
+  }
+}
+
+function resolveAlertImageLabel(ruleName: string, fallbackTitle: string): string {
+  switch (ruleName) {
+    case "stop_loss_hit":
+      return "止损执行";
+    case "stop_loss_near":
+      return "止损预警";
+    case "breakthrough_hit":
+      return "突破确认";
+    case "support_near":
+      return "支撑观察";
+    case "resistance_near":
+      return "压力试探";
+    case "take_profit_hit":
+      return "止盈兑现";
+    case "change_pct_涨":
+      return "涨幅异动";
+    case "change_pct_跌":
+      return "跌幅异动";
+    default:
+      return fallbackTitle;
+  }
 }
 
 function getQuoteChangePct(quote: TickFlowQuote): number | null {

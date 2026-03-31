@@ -2,7 +2,7 @@
 
 基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件。它使用 [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 获取行情与财务数据，结合 LLM 生成技术面、基本面、资讯面的综合判断，并把结果持久化到本地 LanceDB。
 
-最近更新：`v0.2.11` 优化复盘/告警文本样式与 PNG 告警卡预览，并按 A 股习惯调整涨跌主色。
+最近更新：`v0.2.11` 优化复盘/告警文本样式，接入 PNG 告警卡发送与临时文件清理，并按 A 股习惯调整涨跌主色。
 
 ## 安装
 

@@ -27,6 +27,7 @@ import { QuoteService } from "./services/quote-service.js";
 import { TradingCalendarService } from "./services/trading-calendar-service.js";
 import { MonitorService } from "./services/monitor-service.js";
 import { AlertService } from "./services/alert-service.js";
+import { AlertMediaService } from "./services/alert-media-service.js";
 import { UpdateService } from "./services/update-service.js";
 import { KeyLevelsBacktestService } from "./services/key-levels-backtest-service.js";
 import { PostCloseReviewService } from "./services/post-close-review-service.js";
@@ -149,6 +150,7 @@ export function createAppContext(
           }
         : undefined,
   });
+  const alertMediaService = new AlertMediaService(config.databasePath);
   const indicatorService = new IndicatorService(
     config.pythonBin,
     config.pythonArgs,
@@ -226,7 +228,10 @@ export function createAppContext(
     keyLevelsRepository,
     alertLogRepository,
     klinesRepository,
+    intradayKlinesRepository,
+    klineService,
     alertService,
+    alertMediaService,
   );
   const updateService = new UpdateService(
     klineService,

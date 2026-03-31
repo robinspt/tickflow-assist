@@ -65,3 +65,24 @@ test("formatVolumeAlert renders bold banner and level rail", () => {
   assert.match(message, /⚡ 量比 5\.3倍/);
   assert.match(message, /🧭 位阶图：🛡️支撑 32\.50 → 🚧压力 34\.50 → 💹现价 34\.81/);
 });
+
+test("buildCliArgs includes media path when sending image alerts", () => {
+  const args = (alertService as unknown as {
+    buildCliArgs: (input: { message: string; mediaPath: string }) => string[];
+  }).buildCliArgs({
+    message: "test",
+    mediaPath: "/tmp/alert-card.png",
+  });
+
+  assert.deepEqual(args, [
+    "openclaw",
+    "message",
+    "send",
+    "--channel",
+    "telegram",
+    "--message",
+    "test",
+    "--media",
+    "/tmp/alert-card.png",
+  ]);
+});
