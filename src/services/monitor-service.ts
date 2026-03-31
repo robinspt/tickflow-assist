@@ -221,12 +221,12 @@ export class MonitorService {
         }
       }
 
-      const changeAlert = buildChangeAlert(item, quote, this.alertService);
+      const changeAlert = buildChangeAlert(item, quote, levels, this.alertService);
       if (changeAlert && (await this.trySendAlert(item.symbol, changeAlert.ruleName, changeAlert.message))) {
         alertCount += 1;
       }
 
-      const volumeAlert = await this.buildVolumeAlert(item, quote);
+      const volumeAlert = await this.buildVolumeAlert(item, quote, levels);
       if (volumeAlert && (await this.trySendAlert(item.symbol, volumeAlert.ruleName, volumeAlert.message))) {
         alertCount += 1;
       }
@@ -416,7 +416,11 @@ export class MonitorService {
     return true;
   }
 
-  private async buildVolumeAlert(item: WatchlistItem, quote: TickFlowQuote): Promise<AlertCandidate | null> {
+  private async buildVolumeAlert(
+    item: WatchlistItem,
+    quote: TickFlowQuote,
+    levels: KeyLevels | null,
+  ): Promise<AlertCandidate | null> {
     const klines = await this.klinesRepository.listBySymbol(item.symbol);
     if (klines.length < 5 || !(Number(quote.volume ?? 0) > 0)) {
       return null;
@@ -437,6 +441,8 @@ export class MonitorService {
         currentVolume: Number(quote.volume),
         avgVolume,
         ratio,
+        dailyChangePct: getQuoteChangePct(quote),
+        relatedLevels: levels,
       }),
     };
   }
@@ -667,6 +673,7 @@ function buildPriceAlerts(
 ): AlertCandidate[] {
   const alerts: AlertCandidate[] = [];
   const currentPrice = Number(quote.last_price);
+  const dailyChangePct = getQuoteChangePct(quote);
   const buffer = 0.005;
 
   const push = (ruleName: string, title: string, desc: string, levelPrice: number) => {
@@ -676,10 +683,13 @@ function buildPriceAlerts(
         symbol: item.symbol,
         name: item.name,
         currentPrice,
-        ruleName: title,
+        ruleCode: ruleName,
+        title,
         ruleDescription: desc,
         levelPrice,
         costPrice: item.costPrice,
+        dailyChangePct,
+        relatedLevels: levels,
       }),
     });
   };
@@ -707,16 +717,17 @@ function buildPriceAlerts(
 function buildChangeAlert(
   item: WatchlistItem,
   quote: TickFlowQuote,
+  levels: KeyLevels | null,
   alertService: AlertService,
 ): AlertCandidate | null {
   const currentPrice = Number(quote.last_price);
   const prevClose = Number(quote.prev_close ?? 0);
-  if (!(prevClose > 0)) {
+  const changePct = getQuoteChangePct(quote);
+  if (!(prevClose > 0) || changePct == null) {
     return null;
   }
 
-  const changePct = (currentPrice - prevClose) / prevClose;
-  if (Math.abs(changePct) < 0.05) {
+  if (Math.abs(changePct) < 5) {
     return null;
   }
   const direction = changePct > 0 ? "涨" : "跌";
@@ -726,10 +737,29 @@ function buildChangeAlert(
       symbol: item.symbol,
       name: item.name,
       currentPrice,
-      ruleName: `📊 ${direction}幅异动`,
-      ruleDescription: `当日${direction}幅 ${changePct * 100 >= 0 ? "+" : ""}${(changePct * 100).toFixed(2)}%，超过 5% 阈值`,
+      ruleCode: `change_pct_${direction}`,
+      title: `${direction}幅异动`,
+      ruleDescription: `当日${direction}幅 ${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%，超过 5% 阈值`,
       levelPrice: prevClose,
       costPrice: item.costPrice,
+      referenceLabel: "昨收基准",
+      dailyChangePct: changePct,
+      relatedLevels: levels,
     }),
   };
+}
+
+function getQuoteChangePct(quote: TickFlowQuote): number | null {
+  const tickflowChangePct = quote.ext?.change_pct;
+  if (tickflowChangePct != null && Number.isFinite(Number(tickflowChangePct))) {
+    return Number(tickflowChangePct) * 100;
+  }
+
+  const lastPrice = Number(quote.last_price ?? 0);
+  const prevClose = Number(quote.prev_close ?? 0);
+  if (!(prevClose > 0)) {
+    return null;
+  }
+
+  return ((lastPrice - prevClose) / prevClose) * 100;
 }

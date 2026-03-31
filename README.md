@@ -170,6 +170,7 @@ tickflow-assist/
 - `2026-03-29`：发布 `v0.2.8`，恢复 ClawHub 仍要求的 `openclaw.compat` 字段，并声明插件 API / 最低网关兼容线为 `2026.3.22`。
 - `2026-03-30`：发布 `v0.2.9`，将 `openclaw.compat.pluginApi` 与最低网关兼容线上调到 `2026.3.28`，修复 ClawHub 安装器与 runtime 版本比对失败的问题。
 - `2026-03-30`：发布 `v0.2.10`，补充 ClawHub 发布器要求的 `openclaw.build.openclawVersion` 元数据。
+- `2026-03-31`：发布 `v0.2.11`，优化复盘/告警文本样式与 PNG 告警卡预览，并按 A 股习惯调整涨跌主色。
 
 ## 🙏 鸣谢
 

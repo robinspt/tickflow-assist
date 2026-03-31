@@ -218,7 +218,10 @@ export class PostCloseReviewService {
     const newsImpactCounts = countBy(successEntries.map((entry) => entry.review.newsImpact));
 
     const lines = [
+      formatSectionTitle("🌐", "市场总览"),
       marketOverview?.summary ?? "未获取到大盘总览，本轮仅输出个股复盘。",
+      "",
+      formatSectionTitle("📊", "本轮统计"),
       "",
       `复盘数量: ${entries.length} 只 | 成功 ${successEntries.length} | 失败 ${failureCount}`,
       `关键位验证: 有效 ${validationCounts.validated ?? 0} | 混合 ${validationCounts.mixed ?? 0} | 失效 ${validationCounts.invalidated ?? 0} | 缺样本 ${validationCounts.unavailable ?? 0}`,
@@ -228,7 +231,7 @@ export class PostCloseReviewService {
       `新闻影响: 支持 ${newsImpactCounts.supportive ?? 0} | 中性 ${newsImpactCounts.neutral ?? 0} | 扰动 ${newsImpactCounts.disruptive ?? 0}`,
     ];
 
-    return `🧭 收盘复盘总览\n\n${lines.join("\n")}`.trim();
+    return `**🧭 收盘复盘总览**\n\n${lines.join("\n")}`.trim();
   }
 
   private formatDetailMessage(
@@ -236,44 +239,7 @@ export class PostCloseReviewService {
     validation: PriorKeyLevelValidationContext,
     review: PostCloseReviewResult,
   ): string {
-    const lines = [
-      `📘 收盘复盘 | ${item.name}（${item.symbol}）`,
-      "",
-      "昨日关键位验证",
-      `• ${validation.summary}`,
-      ...validation.lines.map((line) => `• ${line}`),
-      "",
-      "今日盘面",
-      review.sessionSummary || "未生成盘面一句话总结。",
-      "",
-      "大盘与板块",
-      review.marketSectorSummary || "未生成大盘/板块总结。",
-      `风向判断: 大盘${formatMarketBiasLabel(review.marketBias)} | 板块${formatMarketBiasLabel(review.sectorBias)}`,
-      "",
-      "新闻与公告",
-      review.newsSummary || "未生成新闻影响总结。",
-      `新闻影响: ${formatNewsImpactLabel(review.newsImpact)}`,
-      "",
-      "明日关键位处理",
-      `结论: ${formatDecisionLabel(review.decision)}`,
-      review.decisionReason || "未生成处理理由。",
-      "",
-      "更新后关键位",
-    ];
-
-    if (review.decision === "invalidate" || !review.levels) {
-      lines.push("• 已暂停沿用昨日关键位，等待下一轮重算。", "", "操作建议", review.actionAdvice || "明日先观察，等待新的关键位再执行。");
-      return lines.join("\n");
-    }
-
-    lines.push(
-      `• 支撑 ${formatMaybePrice(review.levels.support)} | 压力 ${formatMaybePrice(review.levels.resistance)} | 突破 ${formatMaybePrice(review.levels.breakthrough)}`,
-      `• 止损 ${formatMaybePrice(review.levels.stop_loss)} | 止盈 ${formatMaybePrice(review.levels.take_profit)} | 评分 ${review.levels.score}/10`,
-      "",
-      "操作建议",
-      review.actionAdvice || "按关键位和次日量价配合再决定是否执行。",
-    );
-    return lines.join("\n");
+    return formatPostCloseReviewDetailMessage(item, validation, review);
   }
 
   private formatFailureMessage(
@@ -281,16 +247,88 @@ export class PostCloseReviewService {
     errorMessage: string,
     compositeResult: CompositeAnalysisResult | null,
   ): string {
-    const fallback = compositeResult?.levels
-      ? "已保留综合分析生成的关键位，可稍后用 view_analysis 或 analyze 复核。"
-      : "本轮未生成可用关键位。";
-    return [
-      `⚠️ 收盘复盘 | ${item.name}（${item.symbol}）`,
-      "",
-      `失败原因: ${errorMessage}`,
-      fallback,
-    ].join("\n");
+    return formatPostCloseReviewFailureMessage(item, errorMessage, compositeResult);
   }
+}
+
+export function formatPostCloseReviewDetailMessage(
+  item: WatchlistItem,
+  validation: PriorKeyLevelValidationContext,
+  review: PostCloseReviewResult,
+): string {
+  const lines = [
+    `**📘 收盘复盘｜${item.name}（${item.symbol}）**`,
+    `${formatValidationVerdictBadge(validation.verdict)} 昨日验证：${formatValidationVerdictLabel(validation.verdict)} | ${formatDecisionBadge(review.decision)} 明日处理：${formatDecisionLabel(review.decision)}`,
+    "",
+    formatSectionTitle("📍", "昨日关键位验证"),
+    `• 结论：${validation.summary}`,
+    ...validation.lines.map((line) => `• ${line}`),
+    "",
+    formatSectionTitle("🧭", "今日盘面"),
+    review.sessionSummary || "未生成盘面一句话总结。",
+    "",
+    formatSectionTitle("🌐", "大盘与板块"),
+    `• 风向：大盘 ${formatMarketBiasBadge(review.marketBias)}${formatMarketBiasLabel(review.marketBias)} | 板块 ${formatMarketBiasBadge(review.sectorBias)}${formatMarketBiasLabel(review.sectorBias)}`,
+    review.marketSectorSummary || "未生成大盘/板块总结。",
+    "",
+    formatSectionTitle("📰", "新闻与公告"),
+    `• 影响：${formatNewsImpactBadge(review.newsImpact)}${formatNewsImpactLabel(review.newsImpact)}`,
+    review.newsSummary || "未生成新闻影响总结。",
+    "",
+    formatSectionTitle("🛠️", "明日关键位处理"),
+    `• 结论：${formatDecisionBadge(review.decision)}${formatDecisionLabel(review.decision)}`,
+    review.decisionReason || "未生成处理理由。",
+    "",
+    formatSectionTitle("🎯", "更新后关键位"),
+  ];
+
+  if (review.decision === "invalidate" || !review.levels) {
+    lines.push(
+      "• 已暂停沿用昨日关键位，等待下一轮重算。",
+      "",
+      formatSectionTitle("✅", "操作建议"),
+      review.actionAdvice || "明日先观察，等待新的关键位再执行。",
+    );
+    return lines.join("\n");
+  }
+
+  const levelRail = formatPriceRail([
+    { icon: "⛔", label: "止损", value: review.levels.stop_loss },
+    { icon: "🛡️", label: "支撑", value: review.levels.support },
+    { icon: "💹", label: "现价", value: review.levels.current_price },
+    { icon: "🚧", label: "压力", value: review.levels.resistance },
+    { icon: "🚀", label: "突破", value: review.levels.breakthrough },
+    { icon: "🎯", label: "止盈", value: review.levels.take_profit },
+  ]);
+
+  lines.push(
+    `• 支撑 ${formatMaybePrice(review.levels.support)} | 压力 ${formatMaybePrice(review.levels.resistance)} | 突破 ${formatMaybePrice(review.levels.breakthrough)}`,
+    `• 止损 ${formatMaybePrice(review.levels.stop_loss)} | 止盈 ${formatMaybePrice(review.levels.take_profit)} | 评分 ${review.levels.score}/10`,
+    ...(levelRail ? [`• 价位框架：${levelRail}`] : []),
+    "",
+    formatSectionTitle("✅", "操作建议"),
+    review.actionAdvice || "按关键位和次日量价配合再决定是否执行。",
+  );
+  return lines.join("\n");
+}
+
+export function formatPostCloseReviewFailureMessage(
+  item: WatchlistItem,
+  errorMessage: string,
+  compositeResult: CompositeAnalysisResult | null,
+): string {
+  const fallback = compositeResult?.levels
+    ? "已保留综合分析生成的关键位，可稍后用 view_analysis 或 analyze 复核。"
+    : "本轮未生成可用关键位。";
+  return [
+    `**⚠️ 收盘复盘｜${item.name}（${item.symbol}）**`,
+    "",
+    formatSectionTitle("❌", "失败原因"),
+    errorMessage,
+    "",
+    formatSectionTitle("🧷", "保底处理"),
+    fallback,
+  ].join("\n");
 }
 
 function toHistoryEntry(
@@ -473,6 +511,19 @@ function formatDecisionLabel(value: PostCloseReviewResult["decision"]): string {
   }
 }
 
+function formatDecisionBadge(value: PostCloseReviewResult["decision"]): string {
+  switch (value) {
+    case "keep":
+      return "🟩";
+    case "adjust":
+      return "🟨";
+    case "invalidate":
+      return "⬛";
+    default:
+      return "🟥";
+  }
+}
+
 function formatMarketBiasLabel(value: PostCloseReviewResult["marketBias"]): string {
   switch (value) {
     case "tailwind":
@@ -484,6 +535,17 @@ function formatMarketBiasLabel(value: PostCloseReviewResult["marketBias"]): stri
   }
 }
 
+function formatMarketBiasBadge(value: PostCloseReviewResult["marketBias"]): string {
+  switch (value) {
+    case "tailwind":
+      return "🟩";
+    case "headwind":
+      return "🟥";
+    default:
+      return "🟨";
+  }
+}
+
 function formatNewsImpactLabel(value: PostCloseReviewResult["newsImpact"]): string {
   switch (value) {
     case "supportive":
@@ -492,6 +554,17 @@ function formatNewsImpactLabel(value: PostCloseReviewResult["newsImpact"]): stri
       return "扰动";
     default:
       return "中性";
+  }
+}
+
+function formatNewsImpactBadge(value: PostCloseReviewResult["newsImpact"]): string {
+  switch (value) {
+    case "supportive":
+      return "🟩";
+    case "disruptive":
+      return "🟥";
+    default:
+      return "🟨";
   }
 }
 
@@ -508,6 +581,59 @@ function formatValidationVerdictLabel(value: PriorKeyLevelValidationContext["ver
   }
 }
 
+function formatValidationVerdictBadge(value: PriorKeyLevelValidationContext["verdict"]): string {
+  switch (value) {
+    case "validated":
+      return "🟩";
+    case "invalidated":
+      return "🟥";
+    case "mixed":
+      return "🟨";
+    default:
+      return "⬜";
+  }
+}
+
 function formatMaybePrice(value: number | null | undefined): string {
   return value == null ? "-" : value.toFixed(2);
+}
+
+function formatSectionTitle(icon: string, title: string): string {
+  return `**【${icon} ${title}】**`;
+}
+
+function formatPriceRail(
+  markers: Array<{ icon: string; label: string; value: number | null | undefined }>,
+): string | null {
+  const merged = new Map<string, { value: number; parts: string[] }>();
+
+  for (const marker of markers) {
+    if (!(marker.value != null && Number.isFinite(marker.value) && marker.value > 0)) {
+      continue;
+    }
+
+    const key = marker.value.toFixed(2);
+    const part = `${marker.icon}${marker.label}`;
+    const existing = merged.get(key);
+    if (existing) {
+      if (!existing.parts.includes(part)) {
+        existing.parts.push(part);
+      }
+      continue;
+    }
+
+    merged.set(key, {
+      value: marker.value,
+      parts: [part],
+    });
+  }
+
+  if (merged.size < 2) {
+    return null;
+  }
+
+  return [...merged.values()]
+    .sort((left, right) => left.value - right.value)
+    .map((entry) => `${entry.parts.join("/")} ${entry.value.toFixed(2)}`)
+    .join(" → ");
 }

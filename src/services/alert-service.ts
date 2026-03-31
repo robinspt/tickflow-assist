@@ -4,6 +4,7 @@ import type {
   OpenClawPluginConfig,
   OpenClawPluginRuntime,
 } from "../runtime/plugin-api.js";
+import type { KeyLevels } from "../types/domain.js";
 import { calculateProfitPct, formatCostPrice } from "../utils/cost-price.js";
 
 interface AlertRuntimeContext {
@@ -60,27 +61,43 @@ export class AlertService {
     symbol: string;
     name: string;
     currentPrice: number;
-    ruleName: string;
+    ruleCode: string;
+    title: string;
     ruleDescription: string;
     levelPrice: number;
     costPrice: number | null;
+    referenceLabel?: string;
+    dailyChangePct?: number | null;
+    relatedLevels?: KeyLevels | null;
   }): string {
     const profitPct = calculateProfitPct(params.currentPrice, params.costPrice);
+    const distancePct = params.levelPrice > 0
+      ? ((params.currentPrice - params.levelPrice) / params.levelPrice) * 100
+      : null;
+    const style = getAlertStyle(params.ruleCode, params.title);
+    const levelRail = formatLevelRail(params.currentPrice, params.relatedLevels);
+    const referenceLabel = params.referenceLabel ?? "触发位";
+    const referenceIcon = params.referenceLabel ? "📊" : "🎯";
+    const metrics = [
+      params.dailyChangePct == null
+        ? null
+        : `${params.dailyChangePct >= 0 ? "📈" : "📉"} 当日 ${formatSignedPercent(params.dailyChangePct)}`,
+      distancePct == null ? null : `📏 偏离 ${formatSignedPercent(distancePct)}`,
+    ].filter((value): value is string => Boolean(value));
 
     return [
-      `🚨 ${params.ruleName}告警`,
-      "",
+      `**${style.banner}【${style.label}】**`,
       `📌 ${params.name}（${params.symbol}）`,
-      `💹 当前价: ${params.currentPrice.toFixed(2)}`,
-      `📊 触发价位: ${params.levelPrice.toFixed(2)}`,
-      `📝 ${params.ruleDescription}`,
+      `💹 现价 ${params.currentPrice.toFixed(2)} | ${referenceIcon} ${referenceLabel} ${params.levelPrice.toFixed(2)}`,
+      ...(!metrics.length ? [] : [metrics.join(" | ")]),
+      `📍 信号：${params.ruleDescription}`,
+      ...(levelRail ? [`🧭 位阶图：${levelRail}`] : []),
       ...(profitPct == null
         ? []
         : [
-            `💰 持仓盈亏: ${profitPct >= 0 ? "+" : ""}${profitPct.toFixed(2)}%（成本 ${formatCostPrice(params.costPrice)}）`,
+            `💰 持仓盈亏：${profitPct >= 0 ? "+" : ""}${profitPct.toFixed(2)}%（成本 ${formatCostPrice(params.costPrice)}）`,
           ]),
-      "",
-      "⏰ 请及时关注！",
+      "⏰ 请及时关注",
     ].join("\n");
   }
 
@@ -91,17 +108,25 @@ export class AlertService {
     currentVolume: number;
     avgVolume: number;
     ratio: number;
+    dailyChangePct?: number | null;
+    relatedLevels?: KeyLevels | null;
   }): string {
+    const levelRail = formatLevelRail(params.currentPrice, params.relatedLevels);
+
     return [
-      "📊 成交量异动",
-      "",
+      "**🟪【放量异动】**",
       `📌 ${params.name}（${params.symbol}）`,
-      `💹 当前价: ${params.currentPrice.toFixed(2)}`,
-      `📈 当前成交量: ${params.currentVolume.toLocaleString("en-US")}`,
-      `📉 近5日均量: ${params.avgVolume.toFixed(0)}`,
-      `⚡ 量比: ${params.ratio.toFixed(1)}倍`,
-      "",
-      "⚠️ 成交量显著放大，请关注盘面变化！",
+      [
+        `💹 现价 ${params.currentPrice.toFixed(2)}`,
+        params.dailyChangePct == null
+          ? null
+          : `${params.dailyChangePct >= 0 ? "📈" : "📉"} 当日 ${formatSignedPercent(params.dailyChangePct)}`,
+      ].filter((value): value is string => Boolean(value)).join(" | "),
+      `📈 当前成交量 ${params.currentVolume.toLocaleString("en-US")} | 📉 近5日均量 ${params.avgVolume.toFixed(0)}`,
+      `⚡ 量比 ${params.ratio.toFixed(1)}倍`,
+      ...(levelRail ? [`🧭 位阶图：${levelRail}`] : []),
+      "📍 信号：成交量显著放大，请关注盘面变化",
+      "⏰ 请及时关注",
     ].join("\n");
   }
 
@@ -279,4 +304,73 @@ function formatErrorMessage(error: unknown): string {
   } catch {
     return String(error);
   }
+}
+
+function getAlertStyle(ruleCode: string, fallbackTitle: string): { banner: string; label: string } {
+  switch (ruleCode) {
+    case "stop_loss_hit":
+      return { banner: "🟥", label: "止损执行" };
+    case "stop_loss_near":
+      return { banner: "🟧", label: "止损预警" };
+    case "breakthrough_hit":
+      return { banner: "🟩", label: "突破确认" };
+    case "support_near":
+      return { banner: "🟦", label: "支撑观察" };
+    case "resistance_near":
+      return { banner: "🟨", label: "压力试探" };
+    case "take_profit_hit":
+      return { banner: "🟪", label: "止盈兑现" };
+    case "change_pct_涨":
+      return { banner: "🟩", label: "涨幅异动" };
+    case "change_pct_跌":
+      return { banner: "🟥", label: "跌幅异动" };
+    default:
+      return { banner: "🚨", label: fallbackTitle };
+  }
+}
+
+function formatSignedPercent(value: number): string {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
+}
+
+function formatLevelRail(currentPrice: number, levels?: KeyLevels | null): string | null {
+  const markers = [
+    { icon: "⛔", label: "止损", value: levels?.stop_loss },
+    { icon: "🛡️", label: "支撑", value: levels?.support },
+    { icon: "💹", label: "现价", value: currentPrice },
+    { icon: "🚧", label: "压力", value: levels?.resistance },
+    { icon: "🚀", label: "突破", value: levels?.breakthrough },
+    { icon: "🎯", label: "止盈", value: levels?.take_profit },
+  ];
+
+  const merged = new Map<string, { value: number; parts: string[] }>();
+  for (const marker of markers) {
+    if (!(marker.value != null && Number.isFinite(marker.value) && marker.value > 0)) {
+      continue;
+    }
+
+    const key = marker.value.toFixed(2);
+    const part = `${marker.icon}${marker.label}`;
+    const existing = merged.get(key);
+    if (existing) {
+      if (!existing.parts.includes(part)) {
+        existing.parts.push(part);
+      }
+      continue;
+    }
+
+    merged.set(key, {
+      value: marker.value,
+      parts: [part],
+    });
+  }
+
+  if (merged.size < 2) {
+    return null;
+  }
+
+  return [...merged.values()]
+    .sort((left, right) => left.value - right.value)
+    .map((entry) => `${entry.parts.join("/")} ${entry.value.toFixed(2)}`)
+    .join(" → ");
 }
