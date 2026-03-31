@@ -22,10 +22,13 @@ export class AlertMediaService {
     private readonly baseDir: string,
     private readonly retentionHours = DEFAULT_RETENTION_HOURS,
     private readonly cleanupIntervalMs = DEFAULT_CLEANUP_INTERVAL_MS,
+    private readonly tempRootDir?: string,
   ) {}
 
   getTempRootDir(): string {
-    return path.resolve(this.baseDir, "..", "alert-media", "tmp");
+    return this.tempRootDir
+      ? path.resolve(this.tempRootDir)
+      : path.resolve(this.baseDir, "..", "alert-media", "tmp");
   }
 
   async writeAlertCard(params: {

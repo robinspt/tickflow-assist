@@ -1,3 +1,6 @@
+import os from "node:os";
+import path from "node:path";
+
 import type { PluginConfig } from "./config/schema.js";
 import { TickFlowClient } from "./services/tickflow-client.js";
 import { InstrumentService } from "./services/instrument-service.js";
@@ -150,7 +153,12 @@ export function createAppContext(
           }
         : undefined,
   });
-  const alertMediaService = new AlertMediaService(config.databasePath);
+  const alertMediaService = new AlertMediaService(
+    config.databasePath,
+    undefined,
+    undefined,
+    resolveAlertMediaTempRootDir(runtime.configSource),
+  );
   const indicatorService = new IndicatorService(
     config.pythonBin,
     config.pythonArgs,
@@ -354,6 +362,16 @@ export function createAppContext(
       database,
     },
   };
+}
+
+function resolveAlertMediaTempRootDir(
+  configSource: "openclaw_plugin" | "local_config",
+): string | undefined {
+  if (configSource !== "local_config") {
+    return undefined;
+  }
+
+  return path.join(os.tmpdir(), "tickflow-assist", "alert-media", "tmp");
 }
 
 export interface WatchlistDebugSnapshot {

@@ -76,3 +76,28 @@ test("AlertMediaService removes expired temp files during cleanup", async () => 
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
+
+test("AlertMediaService can write png files under a custom temp root", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "tickflow-alert-media-"));
+  const customTempRoot = path.join(tempRoot, "system-tmp", "alert-media", "tmp");
+  const service = new AlertMediaService(
+    path.join(tempRoot, "lancedb"),
+    24,
+    60 * 60 * 1000,
+    customTempRoot,
+  );
+
+  try {
+    const result = await service.writeAlertCard({
+      symbol: "000001.SZ",
+      ruleName: "test_alert",
+      image: sampleImage,
+    });
+
+    assert.equal(result.filePath.startsWith(customTempRoot), true);
+    await access(result.filePath);
+    assert.deepEqual(result.mediaLocalRoots, [path.dirname(result.filePath)]);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
