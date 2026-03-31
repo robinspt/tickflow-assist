@@ -109,9 +109,9 @@ test("test_alert treats png fallback as expected in local command mode", async (
   const alert = createAlertServiceStub([
     {
       ok: true,
-      mediaAttempted: true,
+      mediaAttempted: false,
       mediaDelivered: false,
-      error: "LocalMediaAccessError: Local media path is not under an allowed directory",
+      error: null,
     },
   ]);
   const media = createAlertMediaStub();
@@ -127,10 +127,10 @@ test("test_alert treats png fallback as expected in local command mode", async (
   assert.equal(
     result,
     "✅ 测试告警文本已发送（本地命令模式）\n"
-      + "说明: `npm run tool -- test_alert` 下 PNG 回退属预期，请通过 `/ta_testalert` 验证图片链路。\n"
-      + "原因: LocalMediaAccessError: Local media path is not under an allowed directory",
+      + "说明: `npm run tool -- test_alert` 仅验证文本链路；请通过 `/ta_testalert` 验证 PNG 图片链路。",
   );
   assert.equal(alert.calls.length, 1);
-  assert.equal(alert.calls[0]?.mediaPath, "/tmp/test-alert-card.png");
-  assert.deepEqual(media.removed, ["/tmp/test-alert-card.png"]);
+  assert.equal(alert.calls[0]?.mediaPath, undefined);
+  assert.equal(media.writeCalls.length, 0);
+  assert.deepEqual(media.removed, []);
 });

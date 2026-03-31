@@ -9,7 +9,7 @@ export function testAlertTool(
 ) {
   return {
     name: "test_alert",
-    description: "Send a text plus PNG test alert through the configured OpenClaw alert delivery path.",
+    description: "Send a test alert through the configured OpenClaw alert delivery path. Plugin mode includes PNG; local mode sends text only.",
     optional: true,
     async run(): Promise<string> {
       const now = formatChinaDateTime();
@@ -17,6 +17,21 @@ export function testAlertTool(
         `时间: ${now}`,
         "说明: 这是一条手动触发的测试消息，用于验证文本与 PNG 告警卡投递链路正常。",
       ]);
+
+      if (configSource === "local_config") {
+        const result = await alertService.sendWithResult({ message });
+        if (result.ok) {
+          return [
+            "✅ 测试告警文本已发送（本地命令模式）",
+            "说明: `npm run tool -- test_alert` 仅验证文本链路；请通过 `/ta_testalert` 验证 PNG 图片链路。",
+          ].join("\n");
+        }
+
+        const detail = result.error ?? alertService.getLastError();
+        return detail
+          ? `❌ 测试告警发送失败\n原因: ${detail}`
+          : "❌ 测试告警发送失败";
+      }
 
       let mediaFile: Awaited<ReturnType<AlertMediaService["writeAlertCard"]>> | null = null;
       try {
@@ -61,13 +76,6 @@ export function testAlertTool(
         }
 
         if (result.ok) {
-          if (configSource === "local_config") {
-            return [
-              "✅ 测试告警文本已发送（本地命令模式）",
-              "说明: `npm run tool -- test_alert` 下 PNG 回退属预期，请通过 `/ta_testalert` 验证图片链路。",
-              ...(result.error ? [`原因: ${result.error}`] : []),
-            ].join("\n");
-          }
           return result.error
             ? `⚠️ 测试告警文本已发送，但 PNG 未送达，已回退为纯文本\n原因: ${result.error}`
             : "⚠️ 测试告警文本已发送，但 PNG 未送达，已回退为纯文本";
