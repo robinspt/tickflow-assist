@@ -2,7 +2,7 @@
 
 基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件。它使用 [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 获取行情与财务数据，结合 LLM 生成技术面、基本面、资讯面的综合判断，并把结果持久化到本地 LanceDB。
 
-最近更新：`v0.2.15` 重新发布 npm 包以刷新包页 README 展示；功能与运行逻辑相对 `v0.2.14` 无新增变更。
+最近更新：`v0.2.16` 移除社区发布包中的 `child_process` 依赖，以兼容 OpenClaw `v2026.3.31` 的危险代码扫描；源码一键安装脚本仍保留自动依赖安装与 Gateway 配置能力。
 
 当前主线按 OpenClaw `v2026.3.31+` 对齐。
 

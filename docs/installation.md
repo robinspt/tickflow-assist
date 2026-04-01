@@ -42,7 +42,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 
 如果你只是日常升级，重新运行同一条命令并在菜单里选择“升级”即可。更具体的升级与重装说明见下文 [7.2 升级](#72-升级) 与 [7.3 禁用重装与清理](#73-禁用重装与清理)。
 
-## 3. 社区安装（推荐）
+## 3. 社区安装（适合正式发布包）
 
 如果你不需改动源码，可直接通过 OpenClaw 插件市场或 npm 安装：
 
