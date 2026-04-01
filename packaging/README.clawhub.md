@@ -13,22 +13,22 @@
 ```bash
 openclaw plugins install tickflow-assist
 npx -y tickflow-assist configure-openclaw
+cd ~/.openclaw/extensions/tickflow-assist/python && uv sync
+openclaw plugins enable tickflow-assist
+openclaw config validate
+openclaw gateway restart
 ```
 
 安装阶段允许先落插件，再通过第二条命令写入 `tickflowApiKey`、`llmApiKey` 等正式配置。
-在 Linux 上，`configure-openclaw` 还会 best-effort 安装 PNG 告警卡所需的中文字体；如需跳过，可追加 `--no-font-setup`。
+`configure-openclaw` 会写入 `~/.openclaw/openclaw.json` 中的 `plugins.entries["tickflow-assist"].config`，并打印后续建议执行的命令；它不再自动执行 `openclaw`、`uv` 或系统包安装命令。
 
-第二条命令会写入 `~/.openclaw/openclaw.json` 中的 `plugins.entries["tickflow-assist"].config`，并默认执行：
-
-- `openclaw plugins enable tickflow-assist`
-- `openclaw config validate`
-- `openclaw gateway restart`
-
-如果你希望先审阅配置再手动启用或重启，可使用：
+如果你希望先审阅配置，再只打印最少的后续步骤，可使用：
 
 ```bash
 npx -y tickflow-assist configure-openclaw --no-enable --no-restart
 ```
+
+如果你在 Linux 上需要 PNG 告警卡正常显示中文，请额外手动安装 `fontconfig` 与 Noto CJK 一类中文字体。
 
 社区安装后的升级方式：
 

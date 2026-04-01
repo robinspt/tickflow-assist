@@ -49,22 +49,24 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 ```bash
 openclaw plugins install tickflow-assist
 npx -y tickflow-assist configure-openclaw
+cd ~/.openclaw/extensions/tickflow-assist/python
+uv sync
+cd -
+openclaw plugins enable tickflow-assist
+openclaw config validate
+openclaw gateway restart
 ```
 
 社区安装阶段允许先完成插件安装，再通过 `configure-openclaw` 补写 `tickflowApiKey`、`llmApiKey` 等正式配置。
-在 Linux 上，`configure-openclaw` 会 best-effort 安装 PNG 告警卡所需的中文字体；如需跳过，可追加 `--no-font-setup`。
+`configure-openclaw` 会：
 
-第二条命令会自动：
-
-- 安装 Python 依赖（`uv sync`）
-- 在 Linux 上尝试安装 PNG 告警卡所需的中文字体
 - 写入 `plugins.entries["tickflow-assist"].config`
 - 给顶层 `tools.allow` 或推断出的目标 Agent 补 `tickflow-assist` allowlist
-- 执行 `openclaw plugins enable tickflow-assist`
-- 执行 `openclaw config validate`
-- 执行 `openclaw gateway restart`
+- 打印后续需要手动执行的命令
 
-如果你已经手动启用插件，或暂时不想重启 Gateway，可追加 `--no-enable` 或 `--no-restart`。如果 Python 已经装好或不需要自动安装，可追加 `--no-python-setup`。
+它不再自动执行 `uv sync`、`openclaw plugins enable`、`openclaw config validate`、`openclaw gateway restart` 或 Linux 字体安装命令。
+如果你已经手动启用插件，或暂时不想重启 Gateway，可追加 `--no-enable` 或 `--no-restart`，让向导不再打印对应步骤。
+如果 Python 已经装好，或你暂时不想看到 Python / 字体提示，可追加 `--no-python-setup` 或 `--no-font-setup`。
 
 ## 4. 源码安装
 

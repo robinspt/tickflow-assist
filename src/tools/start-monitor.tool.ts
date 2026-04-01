@@ -1,6 +1,4 @@
 import { MonitorService } from "../services/monitor-service.js";
-import { spawn } from "node:child_process";
-import path from "node:path";
 
 export function startMonitorTool(
   monitorService: MonitorService,
@@ -35,22 +33,13 @@ export function startMonitorTool(
       }
 
       const summary = await monitorService.start();
-      const workerPid = spawnMonitorLoop();
-      await monitorService.setWorkerPid(workerPid);
-      return summary;
+      return [
+        summary,
+        "运行方式: manual_loop",
+        "下一步: 在另一个终端执行 `npm run monitor-loop` 启动本地监控循环。",
+      ].join("\n");
     },
   };
-}
-
-function spawnMonitorLoop(): number | null {
-  const scriptPath = path.resolve("dist/dev/run-monitor-loop.js");
-  const child = spawn(process.execPath, [scriptPath], {
-    cwd: process.cwd(),
-    detached: true,
-    stdio: "ignore",
-  });
-  child.unref();
-  return child.pid ?? null;
 }
 
 function isPidAlive(pid: number): boolean {

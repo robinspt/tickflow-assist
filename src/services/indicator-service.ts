@@ -1,6 +1,6 @@
-import { spawn } from "node:child_process";
 import path from "node:path";
 
+import type { RunCommandWithTimeout } from "../runtime/command-runner.js";
 import type { IndicatorInputRow, IndicatorRow } from "../types/indicator.js";
 
 export class IndicatorService {
@@ -8,6 +8,7 @@ export class IndicatorService {
     private readonly pythonBin: string,
     private readonly pythonArgs: string[],
     private readonly pythonWorkdir: string,
+    private readonly runCommandWithTimeout: RunCommandWithTimeout,
   ) {}
 
   async calculate(rows: IndicatorInputRow[]): Promise<IndicatorRow[]> {
@@ -42,37 +43,22 @@ export class IndicatorService {
 
   private runPythonJson(payload: unknown): Promise<string> {
     const scriptPath = path.join(this.pythonWorkdir, "indicator_runner.py");
-    const child = spawn(this.pythonBin, [...this.pythonArgs, scriptPath], {
+    const argv = [this.pythonBin, ...this.pythonArgs, scriptPath];
+
+    return this.runCommandWithTimeout(argv, {
       cwd: path.dirname(scriptPath),
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+      input: JSON.stringify(payload),
+      timeoutMs: 30_000,
+      noOutputTimeoutMs: 30_000,
+    }).then((result) => {
+      if (result.code === 0) {
+        return result.stdout;
+      }
 
-    return new Promise((resolve, reject) => {
-      let stdout = "";
-      let stderr = "";
-
-      child.stdout.on("data", (chunk) => {
-        stdout += chunk.toString();
-      });
-      child.stderr.on("data", (chunk) => {
-        stderr += chunk.toString();
-      });
-      child.on("error", reject);
-      child.on("close", (code) => {
-        if (code === 0) {
-          resolve(stdout);
-          return;
-        }
-        reject(
-          new Error(
-            `indicator_runner failed with code ${code}: ${stderr || stdout}` +
-              `\npython command: ${this.pythonBin} ${[...this.pythonArgs, scriptPath].join(" ")}`,
-          ),
-        );
-      });
-
-      child.stdin.write(JSON.stringify(payload));
-      child.stdin.end();
+      throw new Error(
+        `indicator_runner failed with code ${result.code}: ${result.stderr || result.stdout}` +
+          `\npython command: ${argv.join(" ")}`,
+      );
     });
   }
 }

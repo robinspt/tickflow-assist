@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -79,11 +78,11 @@ Options:
   --agent <id>                Apply tools.allow to a specific agent
   --global                    Apply tools.allow to top-level tools config
   --non-interactive           Use existing config / flags only, no prompts
-  --no-enable                 Do not run 'openclaw plugins enable'
-  --no-restart                Do not run 'openclaw gateway restart'
-  --no-python-setup           Do not run 'uv sync' for Python dependencies
-  --no-font-setup             Do not try to install Linux Chinese fonts for PNG alerts
-  --openclaw-bin <path>       OpenClaw CLI binary, default: openclaw
+  --no-enable                 Do not print 'openclaw plugins enable' in next steps
+  --no-restart                Do not print 'openclaw gateway restart' in next steps
+  --no-python-setup           Do not print Python dependency setup guidance
+  --no-font-setup             Do not print Linux Chinese font setup guidance
+  --openclaw-bin <path>       OpenClaw CLI binary name used in printed next steps
   --tickflow-api-key <key>
   --tickflow-api-key-level <Free|Start|Pro|Expert>
   --mx-search-api-key <key>
@@ -706,65 +705,7 @@ async function writeConfig(configPath: string, root: JsonObject): Promise<string
   return backupPath;
 }
 
-function runOpenClaw(bin: string, args: string[], description: string): void {
-  const result = spawnSync(bin, args, { stdio: "inherit" });
-  if (result.error) {
-    console.warn(`Warning: failed to run ${description}: ${result.error.message}`);
-    return;
-  }
-  if (result.status !== 0) {
-    console.warn(`Warning: ${description} exited with status ${result.status}`);
-  }
-}
-
-async function setupPythonDeps(pythonWorkdir: string, nonInteractive: boolean): Promise<void> {
-  let uvBin = "uv";
-  try {
-    const which = spawnSync("which", ["uv"], { encoding: "utf-8" });
-    if (which.status !== 0) {
-      console.warn("\n  ⚠️ 找不到 uv (Python 包管理工具)，已跳过 Python 依赖安装。");
-      console.warn("  请先手动安装 uv，再在以下目录执行 `uv sync`：");
-      console.warn(`  ${pythonWorkdir}`);
-      return;
-    } else {
-      uvBin = which.stdout.trim() || "uv";
-    }
-  } catch {
-    // fall through with default "uv"
-  }
-
-  console.log(`Setting up Python dependencies in ${pythonWorkdir} ...`);
-  const result = spawnSync(uvBin, ["sync"], { cwd: pythonWorkdir, stdio: "inherit" });
-  if (result.error) {
-    console.warn(`Warning: failed to run uv sync: ${result.error.message}`);
-    console.warn("Please run 'uv sync' manually in:");
-    console.warn(`  ${pythonWorkdir}`);
-    return;
-  }
-  if (result.status !== 0) {
-    console.warn(`Warning: uv sync exited with status ${result.status}`);
-    console.warn("Please check the output above and run 'uv sync' manually if needed in:");
-    console.warn(`  ${pythonWorkdir}`);
-    return;
-  }
-  console.log("Python dependencies installed successfully.");
-}
-
 type LinuxDistro = "debian" | "rhel" | "arch" | "alpine" | "unknown";
-
-function isCommandAvailable(command: string): boolean {
-  const result = spawnSync("which", [command], { stdio: "ignore" });
-  return result.status === 0;
-}
-
-function isRootUser(): boolean {
-  return typeof process.getuid === "function" && process.getuid() === 0;
-}
-
-function hasChineseFonts(): boolean {
-  const result = spawnSync("fc-list", [":lang=zh", "family"], { encoding: "utf-8" });
-  return result.status === 0 && Boolean(result.stdout.trim());
-}
 
 function detectLinuxDistro(): LinuxDistro {
   try {
@@ -829,99 +770,40 @@ function getManualFontCommands(distro: LinuxDistro): string[] {
   }
 }
 
-function buildPrivilegedCommand(argv: string[], nonInteractive: boolean): string[] | null {
-  if (isRootUser()) {
-    return argv;
-  }
-  if (!isCommandAvailable("sudo")) {
-    return null;
-  }
-  return nonInteractive ? ["sudo", "-n", ...argv] : ["sudo", ...argv];
-}
+function printNextSteps(options: CliOptions, config: PluginConfigInput): void {
+  console.log("");
+  console.log("接下来的命令需要你手动执行。");
 
-function runSetupCommand(argv: string[], description: string): boolean {
-  console.log(description);
-  const result = spawnSync(argv[0]!, argv.slice(1), { stdio: "inherit" });
-  if (result.error) {
-    console.warn(`Warning: failed to run ${description}: ${result.error.message}`);
-    return false;
-  }
-  if (result.status !== 0) {
-    console.warn(`Warning: ${description} exited with status ${result.status}`);
-    return false;
-  }
-  return true;
-}
+  let step = 1;
 
-async function setupLinuxChineseFonts(nonInteractive: boolean): Promise<void> {
-  if (process.platform !== "linux") {
-    return;
+  if (options.pythonSetup) {
+    console.log(`${step}. 安装 Python 依赖`);
+    console.log(`   cd ${config.pythonWorkdir}`);
+    console.log("   uv sync");
+    step += 1;
   }
 
-  if (!isCommandAvailable("fc-list")) {
-    console.warn("Warning: fontconfig is not installed; PNG alerts may not render Chinese text correctly.");
-  } else if (hasChineseFonts()) {
-    console.log("Chinese fonts detected for PNG alert cards.");
-    return;
-  }
-
-  const distro = detectLinuxDistro();
-  console.log("Chinese fonts not detected. TickFlow Assist will try to install Noto CJK fonts for PNG alert cards.");
-
-  const attempts: string[][] = [];
-  switch (distro) {
-    case "debian":
-      attempts.push(["apt-get", "update"]);
-      attempts.push(["apt-get", "install", "-y", "fontconfig", "fonts-noto-cjk"]);
-      break;
-    case "rhel":
-      attempts.push(["dnf", "install", "-y", "fontconfig", "google-noto-sans-cjk-ttc-fonts"]);
-      attempts.push(["dnf", "install", "-y", "fontconfig", "google-noto-cjk-fonts"]);
-      attempts.push(["yum", "install", "-y", "fontconfig", "google-noto-sans-cjk-ttc-fonts"]);
-      attempts.push(["yum", "install", "-y", "fontconfig", "google-noto-cjk-fonts"]);
-      break;
-    case "arch":
-      attempts.push(["pacman", "-Sy", "--noconfirm", "fontconfig", "noto-fonts-cjk"]);
-      break;
-    case "alpine":
-      attempts.push(["apk", "add", "fontconfig", "font-noto-cjk"]);
-      break;
-    default:
-      break;
-  }
-
-  let attemptedInstall = false;
-  for (const baseArgv of attempts) {
-    if (!isCommandAvailable(baseArgv[0]!)) {
-      continue;
+  if (options.fontSetup && process.platform === "linux") {
+    console.log(`${step}. 如需 PNG 告警卡正常显示中文，请按你的 Linux 发行版安装字体`);
+    for (const command of getManualFontCommands(detectLinuxDistro())) {
+      console.log(`   ${command}`);
     }
-
-    const argv = buildPrivilegedCommand(baseArgv, nonInteractive);
-    if (!argv) {
-      break;
-    }
-
-    attemptedInstall = true;
-    if (!runSetupCommand(argv, `Running ${argv.join(" ")}`)) {
-      continue;
-    }
-
-    if (isCommandAvailable("fc-cache")) {
-      runSetupCommand(["fc-cache", "-fv"], "Refreshing font cache with fc-cache -fv");
-    }
-    if (isCommandAvailable("fc-list") && hasChineseFonts()) {
-      console.log("Chinese fonts installed successfully.");
-      return;
-    }
+    step += 1;
   }
 
-  console.warn("Warning: automatic Chinese font setup did not complete.");
-  if (!attemptedInstall && nonInteractive) {
-    console.warn("Non-interactive mode skipped any sudo password prompt.");
+  if (options.enable) {
+    console.log(`${step}. 启用插件`);
+    console.log(`   ${options.openclawBin} plugins enable ${PLUGIN_ID}`);
+    step += 1;
   }
-  console.warn("Manual install examples:");
-  for (const command of getManualFontCommands(distro)) {
-    console.warn(`  ${command}`);
+
+  console.log(`${step}. 校验 OpenClaw 配置`);
+  console.log(`   ${options.openclawBin} config validate`);
+  step += 1;
+
+  if (options.restart) {
+    console.log(`${step}. 重启 Gateway`);
+    console.log(`   ${options.openclawBin} gateway restart`);
   }
 }
 
@@ -937,13 +819,6 @@ async function configureOpenClaw(options: CliOptions): Promise<void> {
   await ensurePathNotice(config.calendarFile, "calendarFile");
   await ensurePathNotice(config.pythonWorkdir, "pythonWorkdir");
 
-  if (options.pythonSetup) {
-    await setupPythonDeps(config.pythonWorkdir, options.nonInteractive);
-  }
-  if (options.fontSetup) {
-    await setupLinuxChineseFonts(options.nonInteractive);
-  }
-
   applyPluginConfig(root, config, target);
   const backupPath = await writeConfig(configPath, root);
 
@@ -954,14 +829,7 @@ async function configureOpenClaw(options: CliOptions): Promise<void> {
   }
   console.log(`Plugin dir: ${pluginDir}`);
   console.log(`Allowlist target: ${target.type === "global" ? "global tools" : `agent:${target.id}`}`);
-
-  if (options.enable) {
-    runOpenClaw(options.openclawBin, ["plugins", "enable", PLUGIN_ID], "openclaw plugins enable");
-  }
-  runOpenClaw(options.openclawBin, ["config", "validate"], "openclaw config validate");
-  if (options.restart) {
-    runOpenClaw(options.openclawBin, ["gateway", "restart"], "openclaw gateway restart");
-  }
+  printNextSteps(options, config);
 }
 
 async function main(): Promise<void> {

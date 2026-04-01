@@ -1,7 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { PluginConfig } from "../config/schema.js";
 import { UpdateService } from "../services/update-service.js";
 import { AlertService } from "../services/alert-service.js";
 import {
@@ -12,7 +11,6 @@ import { TradingCalendarService } from "../services/trading-calendar-service.js"
 import type { DailyUpdateResultType, DailyUpdateState } from "../types/daily-update.js";
 import { chinaToday, formatChinaDateTime } from "../utils/china-time.js";
 import { sleepWithAbort } from "../utils/abortable-sleep.js";
-import { isPidAlive, spawnDailyUpdateLoop } from "../runtime/daily-update-process.js";
 
 const DAILY_UPDATE_READY_TIME = "15:25";
 const POST_CLOSE_REVIEW_READY_TIME = "20:00";
@@ -96,25 +94,6 @@ export class DailyUpdateWorker {
       }
       await sleepWithAbort(getNextAlignedDelayMs(this.intervalMs), signal);
     }
-  }
-
-  async ensureLoopRunning(
-    config: PluginConfig,
-    configSource: "openclaw_plugin" | "local_config",
-  ): Promise<{ started: boolean; pid: number | null }> {
-    const state = await this.readState();
-    if (state.workerPid != null && isPidAlive(state.workerPid)) {
-      await this.markSchedulerRunning(state.workerPid, state.runtimeConfigSource ?? configSource);
-      return { started: false, pid: state.workerPid };
-    }
-
-    const workerPid = spawnDailyUpdateLoop(config, configSource);
-    if (workerPid == null) {
-      throw new Error("无法启动 TickFlow 日更定时进程");
-    }
-
-    await this.markSchedulerRunning(workerPid, configSource);
-    return { started: true, pid: workerPid };
   }
 
   async stopLoop(): Promise<{ stopped: boolean; pid: number | null }> {
@@ -543,6 +522,15 @@ export class DailyUpdateWorker {
     for (const message of messages) {
       await this.alertService.send(message);
     }
+  }
+}
+
+export function isPidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
   }
 }
 

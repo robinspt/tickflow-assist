@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
@@ -197,5 +197,26 @@ test("alert media temp root stays under the shared OpenClaw temp directory", () 
   assert.equal(
     localApp.services.alertMediaService.getTempRootDir().startsWith(expectedPrefix),
     true,
+  );
+});
+
+test("community-scanned build files do not ship child_process anymore", () => {
+  for (const relativePath of [
+    path.join("dist", "dev", "tickflow-assist-cli.js"),
+    path.join("dist", "services", "alert-service.js"),
+    path.join("dist", "services", "indicator-service.js"),
+    path.join("dist", "tools", "start-monitor.tool.js"),
+  ]) {
+    const output = readFileSync(path.resolve(process.cwd(), relativePath), "utf-8");
+    assert.equal(
+      output.includes("child_process"),
+      false,
+      `${relativePath} should not reference child_process`,
+    );
+  }
+
+  assert.equal(
+    existsSync(path.resolve(process.cwd(), "dist", "runtime", "daily-update-process.js")),
+    false,
   );
 });

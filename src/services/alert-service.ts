@@ -1,5 +1,4 @@
-import { spawn } from "node:child_process";
-
+import { createCommandRunner, type RunCommandWithTimeout } from "../runtime/command-runner.js";
 import type {
   OpenClawPluginConfig,
   OpenClawPluginRuntime,
@@ -36,8 +35,11 @@ export interface AlertSendResult {
 
 export class AlertService {
   private lastError: string | null = null;
+  private readonly runCommandWithTimeout: RunCommandWithTimeout;
 
-  constructor(private readonly options: AlertServiceOptions) {}
+  constructor(private readonly options: AlertServiceOptions) {
+    this.runCommandWithTimeout = createCommandRunner(options.runtime?.runtime);
+  }
 
   async send(input: string | AlertSendInput): Promise<boolean> {
     const result = await this.sendWithResult(input);
@@ -206,9 +208,7 @@ export class AlertService {
       return null;
     }
 
-    return this.options.runtime
-      ? await this.trySendViaRuntimeCommand(payload)
-      : await this.trySendViaSpawn(payload);
+    return await this.trySendViaCommand(payload);
   }
 
   private async trySendViaRuntime(payload: AlertSendInput): Promise<string | null> {
@@ -264,14 +264,9 @@ export class AlertService {
     }
   }
 
-  private async trySendViaRuntimeCommand(payload: AlertSendInput): Promise<string | null> {
-    const runtimeContext = this.options.runtime;
-    if (!runtimeContext) {
-      return "runtime command unavailable";
-    }
-
+  private async trySendViaCommand(payload: AlertSendInput): Promise<string | null> {
     try {
-      const result = await runtimeContext.runtime.system.runCommandWithTimeout(
+      const result = await this.runCommandWithTimeout(
         this.buildCliArgs(payload),
         { timeoutMs: 15_000 },
       );
@@ -285,43 +280,8 @@ export class AlertService {
         || `command exited with ${result.code ?? "unknown"}`
       );
     } catch (error) {
-      return `runtime command failed: ${formatErrorMessage(error)}`;
+      return `command delivery failed: ${formatErrorMessage(error)}`;
     }
-  }
-
-  private async trySendViaSpawn(payload: AlertSendInput): Promise<string | null> {
-    const argv = this.buildCliArgs(payload);
-    const [command, ...args] = argv;
-
-    return new Promise((resolve) => {
-      const child = spawn(command, args, {
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-      let stdout = "";
-      let stderr = "";
-      let settled = false;
-
-      const finish = (value: string | null) => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        resolve(value);
-      };
-
-      child.stdout.on("data", (chunk) => {
-        stdout += chunk.toString();
-      });
-      child.stderr.on("data", (chunk) => {
-        stderr += chunk.toString();
-      });
-      child.on("error", (error) => {
-        finish(`spawn failed: ${error.message}`);
-      });
-      child.on("close", (code) => {
-        finish(code === 0 ? null : (stderr || stdout || `exit code ${code}`).trim());
-      });
-    });
   }
 
   private buildCliArgs(payload: AlertSendInput): string[] {

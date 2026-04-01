@@ -72,6 +72,7 @@ import type {
   OpenClawPluginRuntime,
   RegisteredService,
 } from "./runtime/plugin-api.js";
+import { createCommandRunner } from "./runtime/command-runner.js";
 import { resolvePreferredOpenClawTmpDir } from "./runtime/openclaw-temp-dir.js";
 import { RealtimeMonitorWorker } from "./background/realtime-monitor.worker.js";
 import { DailyUpdateWorker } from "./background/daily-update.worker.js";
@@ -113,6 +114,7 @@ export function createAppContext(
     openclawConfig: options.openclawConfig,
     pluginRuntime: options.pluginRuntime,
   };
+  const runCommandWithTimeout = createCommandRunner(runtime.pluginRuntime);
   const tickflowClient = new TickFlowClient(config.tickflowApiUrl, config.tickflowApiKey);
   const database = new Database(config.databasePath);
   const watchlistRepository = new WatchlistRepository(database);
@@ -164,6 +166,7 @@ export function createAppContext(
     config.pythonBin,
     config.pythonArgs,
     config.pythonWorkdir,
+    runCommandWithTimeout,
   );
   const watchlistService = new WatchlistService(
     watchlistRepository,
