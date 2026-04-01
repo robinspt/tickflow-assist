@@ -2,7 +2,7 @@
 
 基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件。它使用 [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 获取行情与财务数据，结合 LLM 生成技术面、基本面、资讯面的综合判断，并把结果持久化到本地 LanceDB。
 
-最近更新：`v0.2.14` 对齐 OpenClaw `v2026.3.31` 兼容声明与开发依赖，更新 QQ Bot 内置通道说明，并将 PNG 告警卡临时文件迁移到 OpenClaw 共享 temp root，修复新版本地媒体 allowlist 下的图片投递失败。
+最近更新：`v0.2.15` 重新发布 npm 包以刷新包页 README 展示；功能与运行逻辑相对 `v0.2.14` 无新增变更。
 
 当前主线按 OpenClaw `v2026.3.31+` 对齐。
 

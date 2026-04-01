@@ -184,6 +184,7 @@ tickflow-assist/
 - `2026-03-31`：发布 `v0.2.12`，调整社区安装清单，允许先安装插件再执行 `configure-openclaw` 写入密钥配置；同时将 `test_alert` 升级为文本 + PNG 告警卡链路测试。
 - `2026-03-31`：发布 `v0.2.13`，在 `configure-openclaw` 与一键安装脚本中加入 Linux 中文字体自动安装，减少 VPS 上 PNG 告警卡中文乱码；并补充 GitHub README 效果预览图。
 - `2026-04-01`：发布 `v0.2.14`，对齐 OpenClaw `v2026.3.31` 兼容声明与开发依赖，更新 QQ Bot 内置通道说明，并将 PNG 告警卡临时文件迁移到 OpenClaw 共享 temp root，修复新版本地媒体 allowlist 下的图片投递失败。
+- `2026-04-01`：发布 `v0.2.15`，重新发布 npm 包以刷新包页 README 展示；功能与运行逻辑相对 `v0.2.14` 无新增变更。
 
 ## 🙏 鸣谢
 
