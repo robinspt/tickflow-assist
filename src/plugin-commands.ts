@@ -48,6 +48,20 @@ async function runToolText(tool: LocalTool, rawInput?: unknown): Promise<string>
   return tool.run({ rawInput });
 }
 
+function formatCommandError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.trim() || "未知错误";
+  return `⚠️ ${normalized}`;
+}
+
+async function runCommandText(task: () => Promise<string>): Promise<{ text: string }> {
+  try {
+    return { text: await task() };
+  } catch (error) {
+    return { text: formatCommandError(error) };
+  }
+}
+
 async function renderWatchlistDebug(app: AppContext): Promise<string> {
   const snapshot = await buildWatchlistDebugSnapshot(app);
   const lines = [
@@ -96,9 +110,9 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
         "添加自选股，不经过 AI 对话。用法: /ta_addstock <symbol> [costPrice] [count]",
       acceptsArgs: true,
       requireAuth: true,
-      handler: async ({ args }) => ({
-        text: await runToolText(addStock, parseAddStockArgs(args)),
-      }),
+      handler: async ({ args }) => runCommandText(
+        () => runToolText(addStock, parseAddStockArgs(args)),
+      ),
     },
     {
       name: "ta_rmstock",
@@ -106,11 +120,11 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
         "删除自选股，不经过 AI 对话。用法: /ta_rmstock <symbol>",
       acceptsArgs: true,
       requireAuth: true,
-      handler: async ({ args }) => ({
-        text: await runToolText(removeStock, {
+      handler: async ({ args }) => runCommandText(
+        () => runToolText(removeStock, {
           symbol: parseRequiredSymbol(args, "/ta_rmstock <symbol>"),
         }),
-      }),
+      ),
     },
     {
       name: "ta_analyze",
@@ -118,11 +132,11 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
         "分析单只股票，不经过 AI 对话。用法: /ta_analyze <symbol>",
       acceptsArgs: true,
       requireAuth: true,
-      handler: async ({ args }) => ({
-        text: await runToolText(analyze, {
+      handler: async ({ args }) => runCommandText(
+        () => runToolText(analyze, {
           symbol: parseRequiredSymbol(args, "/ta_analyze <symbol>"),
         }),
-      }),
+      ),
     },
     {
       name: "ta_backtest",
@@ -130,9 +144,9 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
         "回测活动价位，不经过 AI 对话。用法: /ta_backtest [symbol] [recentLimit]",
       acceptsArgs: true,
       requireAuth: true,
-      handler: async ({ args }) => ({
-        text: await runToolText(backtestKeyLevels, args?.trim() || undefined),
-      }),
+      handler: async ({ args }) => runCommandText(
+        () => runToolText(backtestKeyLevels, args?.trim() || undefined),
+      ),
     },
     {
       name: "ta_viewanalysis",
@@ -140,108 +154,108 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
         "查看单只股票最近一次保存的分析结果，不经过 AI 对话。用法: /ta_viewanalysis <symbol>",
       acceptsArgs: true,
       requireAuth: true,
-      handler: async ({ args }) => ({
-        text: await runToolText(viewAnalysis, {
+      handler: async ({ args }) => runCommandText(
+        () => runToolText(viewAnalysis, {
           symbol: parseRequiredSymbol(args, "/ta_viewanalysis <symbol>"),
         }),
-      }),
+      ),
     },
     {
       name: "ta_watchlist",
       description: "查看当前自选列表，不经过 AI 对话。",
       requireAuth: true,
-      handler: async () => ({
-        text: await runToolText(listWatchlist),
-      }),
+      handler: async () => runCommandText(
+        () => runToolText(listWatchlist),
+      ),
     },
     {
       name: "ta_refreshnames",
       description: "刷新自选股名称，不经过 AI 对话。",
       requireAuth: true,
-      handler: async () => ({
-        text: await runToolText(refreshWatchlistNames),
-      }),
+      handler: async () => runCommandText(
+        () => runToolText(refreshWatchlistNames),
+      ),
     },
     {
       name: "ta_refreshprofiles",
       description: "刷新自选股行业分类与概念板块，不经过 AI 对话。用法: /ta_refreshprofiles [symbol]",
       acceptsArgs: true,
       requireAuth: true,
-      handler: async ({ args }) => ({
-        text: await runToolText(refreshWatchlistProfiles, args?.trim() || undefined),
-      }),
+      handler: async ({ args }) => runCommandText(
+        () => runToolText(refreshWatchlistProfiles, args?.trim() || undefined),
+      ),
     },
     {
       name: "ta_startmonitor",
       description: "启动实时监控，不经过 AI 对话。",
       requireAuth: true,
-      handler: async () => ({
-        text: await runToolText(startMonitor),
-      }),
+      handler: async () => runCommandText(
+        () => runToolText(startMonitor),
+      ),
     },
     {
       name: "ta_stopmonitor",
       description: "停止实时监控，不经过 AI 对话。",
       requireAuth: true,
-      handler: async () => ({
-        text: await runToolText(stopMonitor),
-      }),
+      handler: async () => runCommandText(
+        () => runToolText(stopMonitor),
+      ),
     },
     {
       name: "ta_monitorstatus",
       description: "查看实时监控状态，不经过 AI 对话。",
       requireAuth: true,
-      handler: async () => ({
-        text: await runToolText(monitorStatus),
-      }),
+      handler: async () => runCommandText(
+        () => runToolText(monitorStatus),
+      ),
     },
     {
       name: "ta_startdailyupdate",
       description: "启动定时日更任务，不经过 AI 对话。",
       requireAuth: true,
-      handler: async () => ({
-        text: await runToolText(startDailyUpdate),
-      }),
+      handler: async () => runCommandText(
+        () => runToolText(startDailyUpdate),
+      ),
     },
     {
       name: "ta_stopdailyupdate",
       description: "停止定时日更任务，不经过 AI 对话。",
       requireAuth: true,
-      handler: async () => ({
-        text: await runToolText(stopDailyUpdate),
-      }),
+      handler: async () => runCommandText(
+        () => runToolText(stopDailyUpdate),
+      ),
     },
     {
       name: "ta_updateall",
       description: "立即执行一次完整日更，不经过 AI 对话。",
       requireAuth: true,
-      handler: async () => ({
-        text: await runToolText(updateAll),
-      }),
+      handler: async () => runCommandText(
+        () => runToolText(updateAll),
+      ),
     },
     {
       name: "ta_dailyupdatestatus",
       description: "查看定时日更状态，不经过 AI 对话。",
       requireAuth: true,
-      handler: async () => ({
-        text: await runToolText(dailyUpdateStatus),
-      }),
+      handler: async () => runCommandText(
+        () => runToolText(dailyUpdateStatus),
+      ),
     },
     {
       name: "ta_testalert",
       description: "发送一条文本 + PNG 测试告警，不经过 AI 对话。",
       requireAuth: true,
-      handler: async () => ({
-        text: await runToolText(testAlert),
-      }),
+      handler: async () => runCommandText(
+        () => runToolText(testAlert),
+      ),
     },
     {
       name: "ta_debug",
       description: "查看 TickFlow 插件运行时调试信息。",
       requireAuth: true,
-      handler: async () => ({
-        text: await renderWatchlistDebug(app),
-      }),
+      handler: async () => runCommandText(
+        () => renderWatchlistDebug(app),
+      ),
     },
   ];
 

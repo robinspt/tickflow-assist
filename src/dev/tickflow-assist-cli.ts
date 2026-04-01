@@ -81,7 +81,7 @@ Options:
   --no-enable                 Do not print 'openclaw plugins enable' in next steps
   --no-restart                Do not print 'openclaw gateway restart' in next steps
   --no-python-setup           Do not print Python dependency setup guidance
-  --no-font-setup             Do not print Linux Chinese font setup guidance
+  --no-font-setup             Do not print Chinese font setup guidance
   --openclaw-bin <path>       OpenClaw CLI binary name used in printed next steps
   --tickflow-api-key <key>
   --tickflow-api-key-level <Free|Start|Pro|Expert>
@@ -613,6 +613,41 @@ function assertRequired(config: PluginConfigInput): void {
   }
 }
 
+function normalizeCommunityInstallSpec(root: JsonObject): boolean {
+  const plugins = root.plugins;
+  if (typeof plugins !== "object" || plugins === null || Array.isArray(plugins)) {
+    return false;
+  }
+
+  const installs = (plugins as JsonObject).installs;
+  if (typeof installs !== "object" || installs === null || Array.isArray(installs)) {
+    return false;
+  }
+
+  const installEntry = (installs as JsonObject)[PLUGIN_ID];
+  if (typeof installEntry !== "object" || installEntry === null || Array.isArray(installEntry)) {
+    return false;
+  }
+
+  const source = stringValue((installEntry as JsonObject).source).toLowerCase();
+  if (source !== "clawhub") {
+    return false;
+  }
+
+  const canonicalSpec = `clawhub:${PLUGIN_ID}`;
+  const currentSpec = stringValue((installEntry as JsonObject).spec);
+  if (currentSpec === canonicalSpec) {
+    return false;
+  }
+
+  if (!currentSpec || currentSpec.startsWith(`${canonicalSpec}@`)) {
+    (installEntry as JsonObject).spec = canonicalSpec;
+    return true;
+  }
+
+  return false;
+}
+
 async function ensurePathNotice(targetPath: string, label: string): Promise<void> {
   try {
     await access(targetPath);
@@ -770,6 +805,14 @@ function getManualFontCommands(distro: LinuxDistro): string[] {
   }
 }
 
+function getManualMacosFontCommands(): string[] {
+  return [
+    "brew install fontconfig",
+    "brew install --cask font-noto-sans-cjk",
+    "fc-cache -fv",
+  ];
+}
+
 function printNextSteps(options: CliOptions, config: PluginConfigInput): void {
   console.log("");
   console.log("接下来的命令需要你手动执行。");
@@ -783,9 +826,13 @@ function printNextSteps(options: CliOptions, config: PluginConfigInput): void {
     step += 1;
   }
 
-  if (options.fontSetup && process.platform === "linux") {
-    console.log(`${step}. 如需 PNG 告警卡正常显示中文，请按你的 Linux 发行版安装字体`);
-    for (const command of getManualFontCommands(detectLinuxDistro())) {
+  if (options.fontSetup && (process.platform === "linux" || process.platform === "darwin")) {
+    const commands = process.platform === "darwin"
+      ? getManualMacosFontCommands()
+      : getManualFontCommands(detectLinuxDistro());
+    const platformLabel = process.platform === "darwin" ? "macOS" : "Linux 发行版";
+    console.log(`${step}. 如需 PNG 告警卡正常显示中文，请按你的 ${platformLabel} 安装字体`);
+    for (const command of commands) {
       console.log(`   ${command}`);
     }
     step += 1;
@@ -820,6 +867,7 @@ async function configureOpenClaw(options: CliOptions): Promise<void> {
   await ensurePathNotice(config.pythonWorkdir, "pythonWorkdir");
 
   applyPluginConfig(root, config, target);
+  const normalizedInstallSpec = normalizeCommunityInstallSpec(root);
   const backupPath = await writeConfig(configPath, root);
 
   console.log("");
@@ -829,6 +877,9 @@ async function configureOpenClaw(options: CliOptions): Promise<void> {
   }
   console.log(`Plugin dir: ${pluginDir}`);
   console.log(`Allowlist target: ${target.type === "global" ? "global tools" : `agent:${target.id}`}`);
+  if (normalizedInstallSpec) {
+    console.log(`Community install spec normalized: clawhub:${PLUGIN_ID}`);
+  }
   printNextSteps(options, config);
 }
 

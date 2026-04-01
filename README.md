@@ -68,7 +68,32 @@ openclaw gateway restart
 
 社区安装时允许先完成插件安装，再通过第二条命令写入 `tickflowApiKey`、`llmApiKey` 等正式配置。
 `configure-openclaw` 现在只负责写配置和打印下一步命令，不再自动执行 `openclaw`、`uv` 或系统包安装命令。
-如果你在 Linux 上需要 PNG 告警卡正常显示中文，请额外手动安装 `fontconfig` 与 Noto CJK 一类中文字体。
+如果检测到 `plugins.installs["tickflow-assist"]` 来自 `clawhub`，向导还会把被旧版本钉死的 `spec` 归一化为 `clawhub:tickflow-assist`，避免后续升级一直锁在旧版本。
+如果你在 Linux 或 macOS 上需要 PNG 告警卡正常显示中文，请额外手动安装 `fontconfig` 与 Noto CJK 一类中文字体，例如：
+
+```bash
+# Debian / Ubuntu
+sudo apt-get update
+sudo apt-get install -y fontconfig fonts-noto-cjk
+fc-cache -fv
+
+# RHEL / Fedora / Rocky / AlmaLinux
+sudo dnf install -y fontconfig google-noto-sans-cjk-ttc-fonts
+fc-cache -fv
+
+# Arch / Manjaro
+sudo pacman -Sy --noconfirm fontconfig noto-fonts-cjk
+fc-cache -fv
+
+# Alpine
+sudo apk add fontconfig font-noto-cjk
+fc-cache -fv
+
+# macOS (Homebrew)
+brew install fontconfig
+brew install --cask font-noto-sans-cjk
+fc-cache -fv
+```
 
 ### 手动源码安装
 
@@ -193,6 +218,7 @@ tickflow-assist/
 - `2026-04-01`：发布 `v0.2.14`，对齐 OpenClaw `v2026.3.31` 兼容声明与开发依赖，更新 QQ Bot 内置通道说明，并将 PNG 告警卡临时文件迁移到 OpenClaw 共享 temp root，修复新版本地媒体 allowlist 下的图片投递失败。
 - `2026-04-01`：发布 `v0.2.15`，重新发布 npm 包以刷新包页 README 展示；功能与运行逻辑相对 `v0.2.14` 无新增变更。
 - `2026-04-01`：发布 `v0.2.16`，移除社区发布包中的 `child_process` 依赖以兼容 OpenClaw `v2026.3.31` 的危险代码扫描；同时保留源码一键安装脚本的自动依赖安装与 Gateway 配置能力，并将 GitHub README 调整为优先推荐一键脚本安装。
+- `2026-04-01`：发布 `v0.2.17`，补充社区安装所需的 Linux / macOS 字体安装命令；`configure-openclaw` 会自动把被旧版本钉死的 ClawHub install spec 归一化为 `clawhub:tickflow-assist`，并将空自选时的 `ta_startmonitor` 通用失败改为明确提示。
 
 ## 🙏 鸣谢
 

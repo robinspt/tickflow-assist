@@ -67,6 +67,33 @@ openclaw gateway restart
 它不再自动执行 `uv sync`、`openclaw plugins enable`、`openclaw config validate`、`openclaw gateway restart` 或 Linux 字体安装命令。
 如果你已经手动启用插件，或暂时不想重启 Gateway，可追加 `--no-enable` 或 `--no-restart`，让向导不再打印对应步骤。
 如果 Python 已经装好，或你暂时不想看到 Python / 字体提示，可追加 `--no-python-setup` 或 `--no-font-setup`。
+如果检测到 `plugins.installs["tickflow-assist"]` 的安装来源是 `clawhub`，向导还会把被旧版本钉死的 `spec` 归一化为 `clawhub:tickflow-assist`，避免后续升级继续锁在旧版本。
+
+如果你在 Linux 或 macOS 上需要 PNG 告警卡正常显示中文，请额外安装 `fontconfig` 与 Noto CJK 一类中文字体，例如：
+
+```bash
+# Debian / Ubuntu
+sudo apt-get update
+sudo apt-get install -y fontconfig fonts-noto-cjk
+fc-cache -fv
+
+# RHEL / Fedora / Rocky / AlmaLinux
+sudo dnf install -y fontconfig google-noto-sans-cjk-ttc-fonts
+fc-cache -fv
+
+# Arch / Manjaro
+sudo pacman -Sy --noconfirm fontconfig noto-fonts-cjk
+fc-cache -fv
+
+# Alpine
+sudo apk add fontconfig font-noto-cjk
+fc-cache -fv
+
+# macOS (Homebrew)
+brew install fontconfig
+brew install --cask font-noto-sans-cjk
+fc-cache -fv
+```
 
 ## 4. 源码安装
 

@@ -5,6 +5,8 @@ import test from "node:test";
 
 import { createAppContext } from "./bootstrap.js";
 import pluginEntry from "./plugin.js";
+import type { MonitorService } from "./services/monitor-service.js";
+import { startMonitorTool } from "./tools/start-monitor.tool.js";
 import type {
   PluginApi,
   RegisteredAgentTool,
@@ -219,4 +221,42 @@ test("community-scanned build files do not ship child_process anymore", () => {
     existsSync(path.resolve(process.cwd(), "dist", "runtime", "daily-update-process.js")),
     false,
   );
+});
+
+test("ta_startmonitor command returns a user-visible error when watchlist is empty", async () => {
+  const { api, registeredCommands } = createMockApi();
+  pluginEntry.register(api);
+
+  const command = registeredCommands.find((entry) => entry.name === "ta_startmonitor");
+  assert.ok(command, "ta_startmonitor should be registered");
+
+  const result = await command.handler({ args: undefined } as never);
+  assert.equal(typeof result.text, "string");
+  assert.match(result.text ?? "", /无法启动实时监控/);
+  assert.match(result.text ?? "", /ta_addstock/);
+});
+
+test("start_monitor avoids heavy status rendering when managed loop is already running", async () => {
+  const monitorServiceStub = {
+    async enableManagedLoop() {
+      return { started: false };
+    },
+    async getState() {
+      return {
+        lastHeartbeatAt: "2026-04-01 14:23:45",
+      };
+    },
+    async getStatusReport() {
+      throw new Error("should not be called");
+    },
+  } as unknown as MonitorService;
+
+  const tool = startMonitorTool(
+    monitorServiceStub,
+    { pluginManagedServices: true },
+  );
+
+  const text = await tool.run();
+  assert.match(text, /已在运行/);
+  assert.match(text, /最近心跳: 2026-04-01 14:23:45/);
 });
