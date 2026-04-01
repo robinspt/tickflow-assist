@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
+import { createAppContext } from "./bootstrap.js";
 import pluginEntry from "./plugin.js";
 import type {
   PluginApi,
@@ -10,6 +11,7 @@ import type {
   RegisteredCommand,
   RegisteredService,
 } from "./runtime/plugin-api.js";
+import { resolvePreferredOpenClawTmpDir } from "./runtime/openclaw-temp-dir.js";
 
 interface RegisteredToolCall {
   tool: RegisteredAgentTool;
@@ -77,6 +79,30 @@ function mapToolOptionality(registeredTools: RegisteredToolCall[]): Map<string, 
   return new Map(
     registeredTools.map(({ tool, opts }) => [tool.name, opts?.optional === true]),
   );
+}
+
+function createAppConfig() {
+  return {
+    tickflowApiUrl: "https://api.tickflow.org",
+    tickflowApiKey: "test-tickflow-key",
+    tickflowApiKeyLevel: "free" as const,
+    mxSearchApiUrl: "https://mkapi2.dfcfs.com/finskillshub/api/claw",
+    mxSearchApiKey: "",
+    llmBaseUrl: "https://api.openai.com/v1",
+    llmApiKey: "test-llm-key",
+    llmModel: "gpt-4o",
+    databasePath: path.resolve(process.cwd(), "tmp", "plugin-registration-test-db"),
+    calendarFile: path.resolve(process.cwd(), "day_future.txt"),
+    requestInterval: 30,
+    dailyUpdateNotify: true,
+    alertChannel: "telegram",
+    openclawCliBin: "openclaw",
+    alertAccount: "",
+    alertTarget: "TEST_TARGET",
+    pythonBin: "uv",
+    pythonArgs: ["run", "python"],
+    pythonWorkdir: path.resolve(process.cwd(), "python"),
+  };
 }
 
 test("plugin registration marks state-changing tools as optional", () => {
@@ -147,4 +173,29 @@ test("community install manifest does not require secrets before setup", () => {
   const required = manifest.configSchema?.required ?? [];
   assert.ok(!required.includes("tickflowApiKey"));
   assert.ok(!required.includes("llmApiKey"));
+});
+
+test("alert media temp root stays under the shared OpenClaw temp directory", () => {
+  const expectedPrefix = path.join(
+    resolvePreferredOpenClawTmpDir(),
+    "tickflow-assist",
+    "alert-media",
+    "tmp",
+  );
+
+  const pluginApp = createAppContext(createAppConfig(), {
+    configSource: "openclaw_plugin",
+  });
+  const localApp = createAppContext(createAppConfig(), {
+    configSource: "local_config",
+  });
+
+  assert.equal(
+    pluginApp.services.alertMediaService.getTempRootDir().startsWith(expectedPrefix),
+    true,
+  );
+  assert.equal(
+    localApp.services.alertMediaService.getTempRootDir().startsWith(expectedPrefix),
+    true,
+  );
 });

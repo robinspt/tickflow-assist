@@ -1,4 +1,3 @@
-import os from "node:os";
 import path from "node:path";
 
 import type { PluginConfig } from "./config/schema.js";
@@ -73,6 +72,7 @@ import type {
   OpenClawPluginRuntime,
   RegisteredService,
 } from "./runtime/plugin-api.js";
+import { resolvePreferredOpenClawTmpDir } from "./runtime/openclaw-temp-dir.js";
 import { RealtimeMonitorWorker } from "./background/realtime-monitor.worker.js";
 import { DailyUpdateWorker } from "./background/daily-update.worker.js";
 import type { WatchlistItem } from "./types/domain.js";
@@ -89,6 +89,7 @@ export interface AppContext {
   };
   services: {
     alertService: AlertService;
+    alertMediaService: AlertMediaService;
     monitorService: MonitorService;
     realtimeMonitorWorker: RealtimeMonitorWorker;
     dailyUpdateWorker: DailyUpdateWorker;
@@ -157,7 +158,7 @@ export function createAppContext(
     config.databasePath,
     undefined,
     undefined,
-    resolveAlertMediaTempRootDir(runtime.configSource),
+    resolveAlertMediaTempRootDir(),
   );
   const indicatorService = new IndicatorService(
     config.pythonBin,
@@ -355,6 +356,7 @@ export function createAppContext(
     runtime,
     services: {
       alertService,
+      alertMediaService,
       monitorService,
       realtimeMonitorWorker,
       dailyUpdateWorker,
@@ -364,14 +366,16 @@ export function createAppContext(
   };
 }
 
-function resolveAlertMediaTempRootDir(
-  configSource: "openclaw_plugin" | "local_config",
-): string | undefined {
-  if (configSource !== "local_config") {
-    return undefined;
-  }
-
-  return path.join(os.tmpdir(), "tickflow-assist", "alert-media", "tmp");
+function resolveAlertMediaTempRootDir(): string {
+  // OpenClaw 2026.3.31 no longer widens local media roots from tool-created files.
+  // Keep PNG alerts under the shared OpenClaw temp root so both runtime sends and
+  // `openclaw message send --media ...` can read them without extra allowlist config.
+  return path.join(
+    resolvePreferredOpenClawTmpDir(),
+    "tickflow-assist",
+    "alert-media",
+    "tmp",
+  );
 }
 
 export interface WatchlistDebugSnapshot {
