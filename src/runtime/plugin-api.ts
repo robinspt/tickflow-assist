@@ -33,7 +33,7 @@ export interface PluginEntryResult {
   id: string;
   name: string;
   description: string;
-  kind?: string;
+  kind?: OpenClawPluginDefinition["kind"];
   register: (api: OpenClawPluginApi) => void;
 }
 

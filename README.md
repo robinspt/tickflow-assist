@@ -10,8 +10,8 @@
 
 兼容性要求：
 
-- TickFlow Assist 当前社区发布版本面向 OpenClaw `v2026.3.28+`
-- 建议 Node `>=22.14.0`，这是 OpenClaw `v2026.3.28` 上游声明的运行时要求
+- TickFlow Assist 当前主线按 OpenClaw `v2026.3.31+` 对齐
+- 建议 Node `>=22.14.0`，并以目标 OpenClaw 版本上游要求为准
 
 ## 🧭 项目简介
 
@@ -183,6 +183,7 @@ tickflow-assist/
 - `2026-03-31`：发布 `v0.2.11`，优化复盘/告警文本样式，接入 PNG 告警卡发送与临时文件清理，并按 A 股习惯调整涨跌主色。
 - `2026-03-31`：发布 `v0.2.12`，调整社区安装清单，允许先安装插件再执行 `configure-openclaw` 写入密钥配置；同时将 `test_alert` 升级为文本 + PNG 告警卡链路测试。
 - `2026-03-31`：发布 `v0.2.13`，在 `configure-openclaw` 与一键安装脚本中加入 Linux 中文字体自动安装，减少 VPS 上 PNG 告警卡中文乱码；并补充 GitHub README 效果预览图。
+- `2026-04-01`：对齐 OpenClaw `v2026.3.31` 兼容声明与开发依赖，更新 QQ Bot 内置通道安装说明，并收敛新版 plugin SDK 的类型适配。
 
 ## 🙏 鸣谢
 

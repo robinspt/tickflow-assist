@@ -226,13 +226,6 @@ export class AlertService {
 
     try {
       switch (this.channel) {
-        case "telegram":
-          await runtimeContext.runtime.channel.telegram.sendMessageTelegram(
-            this.options.target,
-            payload.message,
-            baseOptions,
-          );
-          return null;
         case "discord":
           await runtimeContext.runtime.channel.discord.sendMessageDiscord(
             this.options.target,
@@ -261,32 +254,9 @@ export class AlertService {
             baseOptions,
           );
           return null;
-        case "imessage":
-          await runtimeContext.runtime.channel.imessage.sendMessageIMessage(
-            this.options.target,
-            payload.message,
-            {
-              accountId: this.options.account || undefined,
-              config: runtimeContext.config,
-              mediaUrl: payload.mediaPath,
-              mediaLocalRoots: payload.mediaLocalRoots,
-            },
-          );
-          return null;
-        case "whatsapp":
-          await runtimeContext.runtime.channel.whatsapp.sendMessageWhatsApp(
-            this.options.target,
-            payload.message,
-            {
-              verbose: false,
-              cfg: runtimeContext.config,
-              accountId: this.options.account || undefined,
-              mediaUrl: payload.mediaPath,
-              mediaLocalRoots: payload.mediaLocalRoots,
-            },
-          );
-          return null;
         default:
+          // OpenClaw 2026.3.31 narrows the typed runtime channel surface.
+          // Fall back to `openclaw message send` for channels not exposed here.
           return `runtime delivery not supported for channel: ${this.channel}`;
       }
     } catch (error) {

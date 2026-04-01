@@ -4,6 +4,8 @@
 
 最近更新：`v0.2.13` 在 `configure-openclaw` 与一键安装脚本中加入 Linux 中文字体自动安装，减少 VPS 上 PNG 告警卡中文乱码；并补充 GitHub README 效果预览图。
 
+当前主线按 OpenClaw `v2026.3.31+` 对齐。
+
 ## 安装
 
 社区安装：

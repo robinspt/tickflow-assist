@@ -1,7 +1,7 @@
 {
   "name": "tickflow-assist",
   "version": "0.2.13",
-  "description": "OpenClaw plugin for TickFlow-based A-share analysis, monitoring, and alerting.",
+  "description": "面向 A 股投资与盯盘场景的 OpenClaw 智能股票插件，基于 TickFlow API 提供实时监控、收盘后复盘、多维综合分析、关键价位跟踪与告警能力。",
   "license": "MIT",
   "type": "module",
   "main": "dist/plugin.js",
@@ -38,12 +38,12 @@
   },
   "openclaw": {
     "build": {
-      "openclawVersion": "2026.3.28"
+      "openclawVersion": "2026.3.31"
     },
     "compat": {
-      "pluginApi": "2026.3.28",
-      "minGatewayVersion": "2026.3.28",
-      "builtWithOpenClawVersion": "2026.3.28"
+      "pluginApi": "2026.3.31",
+      "minGatewayVersion": "2026.3.31",
+      "builtWithOpenClawVersion": "2026.3.31"
     },
     "extensions": [
       "dist/plugin.js"
@@ -61,7 +61,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.13.11",
-    "openclaw": "^2026.3.28",
+    "openclaw": "^2026.3.31",
     "typescript": "^5.8.2"
   }
 }
