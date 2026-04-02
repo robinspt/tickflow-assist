@@ -84,3 +84,25 @@ test("renderAlertCardPng returns png bytes", async () => {
   assert.equal(buffer[2], 0x4e);
   assert.equal(buffer[3], 0x47);
 });
+
+test("renderAlertCardSvg keeps the x-axis fixed to 15:00 for partial-day previews", () => {
+  const svg = renderAlertCardSvg({
+    ...sampleInput,
+    timestampLabel: "Prototype | 2026-03-31 14:12",
+    points: [
+      { time: "09:30", price: 27.42 },
+      { time: "10:30", price: 27.66 },
+      { time: "11:30", price: 27.21 },
+      { time: "13:00", price: 27.28 },
+      { time: "14:00", price: 27.06 },
+      { time: "14:12", price: 26.99 },
+    ],
+  });
+
+  assert.match(svg, />15:00</);
+  assert.match(svg, />11:30\/13:00</);
+
+  const currentDot = svg.match(/<circle cx="([0-9.]+)" cy="([0-9.]+)" r="7"/);
+  assert.ok(currentDot, "current point marker should exist");
+  assert.ok(Number(currentDot[1]) < 694, "partial-day point should not extend to the 15:00 edge");
+});

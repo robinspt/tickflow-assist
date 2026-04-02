@@ -76,13 +76,14 @@ openclaw gateway restart
 plugins.entries["tickflow-assist"].config
 ```
 
-常用字段：
+建议按完整功能显式填写以下字段，不要只填 API Key：
 
-- 必填：`tickflowApiKey`、`llmApiKey`
-- 常用：`llmBaseUrl`、`llmModel`、`databasePath`、`calendarFile`
-- 可选：`mxSearchApiKey`、`alertTarget`、`alertAccount`
+- 核心运行：`tickflowApiKey`、`llmApiKey`、`llmBaseUrl`、`llmModel`
+- 本地数据：`databasePath`、`calendarFile`
+- 告警投递：`alertChannel`、`alertTarget`、`alertAccount`
+- 能力补充：`mxSearchApiKey`
 
-`mxSearchApiKey` 用于 `mx_search`、`mx_select_stock` 以及非 `Expert` 财务链路的 lite 补充；`alertTarget` 仅在 `test_alert`、实时监控告警和定时通知场景需要。
+其中，`mxSearchApiKey` 用于 `mx_search`、`mx_select_stock` 以及非 `Expert` 财务链路的 lite 补充；`alertTarget`、`alertAccount` 建议在准备启用 `test_alert`、实时监控告警和定时通知前一并配好，避免配置不完整导致功能缺失。
 
 ## 功能
 

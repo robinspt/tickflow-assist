@@ -16,6 +16,10 @@ async function main(): Promise<void> {
       fileStem: "breakthrough-alert-demo",
       input: buildBreakthroughDemoInput(),
     }),
+    writeDemoCard(outputDir, {
+      fileStem: "test-alert-preview",
+      input: buildTestAlertPreviewInput(),
+    }),
   ]);
 
   console.log([
@@ -116,8 +120,48 @@ function buildBreakthroughDemoInput() {
   };
 }
 
+function buildTestAlertPreviewInput() {
+  const triggerPrice = 12.18;
+  const currentPrice = 12.36;
+  const costPrice = 11.92;
+  const distancePct = ((currentPrice - triggerPrice) / triggerPrice) * 100;
+  const profitPct = ((currentPrice - costPrice) / costPrice) * 100;
+
+  return {
+    tone: "breakthrough" as const,
+    alertLabel: "测试告警",
+    name: "平安银行",
+    symbol: "000001.SZ",
+    timestampLabel: "Prototype | 2026-04-02 14:12",
+    currentPrice,
+    triggerPrice,
+    changePct: 2.15,
+    distancePct,
+    costPrice,
+    profitPct,
+    note: "预览固定收盘时间轴：未到 15:00 时，走势线不会铺满整张日内图。",
+    points: [
+      { time: "09:30", price: 12.02 },
+      { time: "10:00", price: 12.08 },
+      { time: "10:30", price: 12.12 },
+      { time: "11:30", price: 12.15 },
+      { time: "13:00", price: 12.19 },
+      { time: "13:30", price: 12.23 },
+      { time: "14:00", price: 12.27 },
+      { time: "14:12", price: currentPrice },
+    ],
+    levels: {
+      stopLoss: 11.86,
+      support: 12.08,
+      resistance: 12.30,
+      breakthrough: triggerPrice,
+      takeProfit: 12.68,
+    },
+  };
+}
+
 function buildSupportDemoSeries(): AlertImagePoint[] {
-  const times = buildTradingMinuteLabels();
+  const times = buildTradingMinuteLabels("14:00");
   return times.map((time, index) => ({
     time,
     price: Number(priceAtIndex(index, times.length).toFixed(2)),
@@ -125,14 +169,14 @@ function buildSupportDemoSeries(): AlertImagePoint[] {
 }
 
 function buildBreakthroughDemoSeries(): AlertImagePoint[] {
-  const times = buildTradingMinuteLabels();
+  const times = buildTradingMinuteLabels("14:00");
   return times.map((time, index) => ({
     time,
     price: Number(breakthroughPriceAtIndex(index, times.length).toFixed(2)),
   }));
 }
 
-function buildTradingMinuteLabels(): string[] {
+function buildTradingMinuteLabels(endTime = "15:00"): string[] {
   const labels: string[] = [];
   for (let hour = 9; hour <= 11; hour += 1) {
     for (let minute = 0; minute < 60; minute += 1) {
@@ -150,7 +194,11 @@ function buildTradingMinuteLabels(): string[] {
       if (hour === 15 && minute > 0) {
         continue;
       }
-      labels.push(`${pad2(hour)}:${pad2(minute)}`);
+      const label = `${pad2(hour)}:${pad2(minute)}`;
+      labels.push(label);
+      if (label === endTime) {
+        return labels;
+      }
     }
   }
   return labels;

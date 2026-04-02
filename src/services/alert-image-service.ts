@@ -60,10 +60,21 @@ interface DirectionTheme {
 
 const WIDTH = 960;
 const HEIGHT = 640;
+const MARKET_OPEN_MINUTES = 9 * 60 + 30;
+const MORNING_CLOSE_MINUTES = 11 * 60 + 30;
+const AFTERNOON_OPEN_MINUTES = 13 * 60;
+const MARKET_CLOSE_MINUTES = 15 * 60;
+const MARKET_SESSION_MINUTES =
+  (MORNING_CLOSE_MINUTES - MARKET_OPEN_MINUTES) + (MARKET_CLOSE_MINUTES - AFTERNOON_OPEN_MINUTES);
 
 export function renderAlertCardSvg(input: AlertImageInput): string {
   if (input.points.length < 2) {
     throw new Error("alert image requires at least 2 points");
+  }
+
+  const chartPoints = normalizeChartPoints(input.points);
+  if (chartPoints.length < 2) {
+    throw new Error("alert image requires at least 2 chart points");
   }
 
   const theme = resolveTheme(input.tone);
@@ -100,7 +111,7 @@ export function renderAlertCardSvg(input: AlertImageInput): string {
   const priceValues = [
     input.currentPrice,
     input.triggerPrice,
-    ...input.points.map((point) => point.price),
+    ...chartPoints.map((point) => point.price),
     input.levels.stopLoss ?? null,
     input.levels.support ?? null,
     input.levels.resistance ?? null,
@@ -115,22 +126,21 @@ export function renderAlertCardSvg(input: AlertImageInput): string {
   const scaledMax = maxValue + padding;
   const valueRange = Math.max(0.01, scaledMax - scaledMin);
 
-  const scaleX = (index: number): number => {
-    if (input.points.length === 1) {
-      return chart.left;
-    }
-    return chart.left + (index / (input.points.length - 1)) * chart.width;
-  };
+  const scaleX = (timeLabel: string): number => scaleTradingTime(timeLabel, chart.left, chart.width);
   const scaleY = (value: number): number => (
     chart.top + ((scaledMax - value) / valueRange) * chart.height
   );
+  const firstPoint = chartPoints[0]!;
+  const lastPoint = chartPoints[chartPoints.length - 1]!;
+  const firstX = scaleX(firstPoint.time);
+  const currentX = scaleX(lastPoint.time);
+  const currentY = scaleY(lastPoint.price);
+  const sessionJoinX = scaleX("11:30");
 
-  const linePath = input.points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${scaleX(index).toFixed(2)} ${scaleY(point.price).toFixed(2)}`)
+  const linePath = chartPoints
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${scaleX(point.time).toFixed(2)} ${scaleY(point.price).toFixed(2)}`)
     .join(" ");
-  const areaPath = `${linePath} L ${(chart.left + chart.width).toFixed(2)} ${(chart.top + chart.height).toFixed(2)} L ${chart.left.toFixed(2)} ${(chart.top + chart.height).toFixed(2)} Z`;
-  const currentX = scaleX(input.points.length - 1);
-  const currentY = scaleY(input.points[input.points.length - 1]?.price ?? input.currentPrice);
+  const areaPath = `${linePath} L ${currentX.toFixed(2)} ${(chart.top + chart.height).toFixed(2)} L ${firstX.toFixed(2)} ${(chart.top + chart.height).toFixed(2)} Z`;
 
   const horizontalGrid = Array.from({ length: 5 }, (_, index) => {
     const y = chart.top + (index / 4) * chart.height;
@@ -141,7 +151,7 @@ export function renderAlertCardSvg(input: AlertImageInput): string {
     };
   });
 
-  const timeMarkers = buildTimeMarkers(input.points, scaleX);
+  const timeMarkers = buildTimeMarkers(chartPoints, scaleX);
   const levelEntries = buildLevelEntries(input);
   const levelPanelEntries = [...levelEntries].sort((left, right) => right.value - left.value);
   const levelLines = buildLevelLines(levelEntries, scaleY);
@@ -193,6 +203,7 @@ export function renderAlertCardSvg(input: AlertImageInput): string {
   <text x="718" y="${180 + index * 18}" fill="#A8BED7" font-size="14" font-family="'Noto Sans CJK SC','Microsoft YaHei','PingFang SC',sans-serif">${escapeXml(line)}</text>`).join("")}
 
   <rect x="${chart.left}" y="${chart.top}" width="${chart.width}" height="${chart.height}" rx="18" fill="${directionTheme.chartPanelFill}" stroke="${theme.panelBorder}" stroke-opacity="0.9"/>
+  <line x1="${sessionJoinX.toFixed(2)}" y1="${chart.top + 10}" x2="${sessionJoinX.toFixed(2)}" y2="${chart.top + chart.height - 10}" stroke="#3B4F68" stroke-opacity="0.8" stroke-dasharray="3 8"/>
   ${horizontalGrid.map((line) => `
   <line x1="${chart.left}" y1="${line.y.toFixed(2)}" x2="${chart.left + chart.width}" y2="${line.y.toFixed(2)}" stroke="#213247" stroke-dasharray="4 8"/>
   <text x="${chart.left + 12}" y="${(line.y - 8).toFixed(2)}" fill="#6E88A5" font-size="12" font-family="'JetBrains Mono','SFMono-Regular','Consolas',monospace">${line.value.toFixed(2)}</text>`).join("")}
@@ -444,31 +455,23 @@ function buildLevelEntry(
 }
 
 function buildTimeMarkers(
-  points: AlertImagePoint[],
-  scaleX: (index: number) => number,
+  _points: AlertImagePoint[],
+  scaleX: (timeLabel: string) => number,
 ): Array<{ x: number; label: string }> {
-  const preferred = ["09:30", "10:30", "11:30", "13:00", "14:00", "15:00"];
-  const markers: Array<{ x: number; label: string }> = [];
-
-  for (const label of preferred) {
-    const exactIndex = points.findIndex((point) => point.time.startsWith(label));
-    if (exactIndex >= 0) {
-      markers.push({
-        x: scaleX(exactIndex),
-        label,
-      });
-    }
-  }
-
-  if (markers.length >= 3) {
-    return filterNearbyMarkers(markers, 56);
-  }
-
-  return filterNearbyMarkers([
-    { x: scaleX(0), label: points[0]?.time.slice(0, 5) ?? "" },
-    { x: scaleX(Math.floor((points.length - 1) / 2)), label: points[Math.floor((points.length - 1) / 2)]?.time.slice(0, 5) ?? "" },
-    { x: scaleX(points.length - 1), label: points[points.length - 1]?.time.slice(0, 5) ?? "" },
-  ], 56);
+  const preferred = [
+    { timeLabel: "09:30", label: "09:30" },
+    { timeLabel: "10:30", label: "10:30" },
+    { timeLabel: "11:30", label: "11:30/13:00" },
+    { timeLabel: "14:00", label: "14:00" },
+    { timeLabel: "15:00", label: "15:00" },
+  ];
+  return filterNearbyMarkers(
+    preferred.map((marker) => ({
+      x: scaleX(marker.timeLabel),
+      label: marker.label,
+    })),
+    56,
+  );
 }
 
 function buildRailMarkers(
@@ -582,4 +585,70 @@ function filterNearbyMarkers(
   }
 
   return filtered;
+}
+
+function scaleTradingTime(timeLabel: string, left: number, width: number): number {
+  const minutes = parseClockMinutes(timeLabel);
+  if (minutes == null) {
+    return left;
+  }
+
+  const clamped = clamp(minutes, MARKET_OPEN_MINUTES, MARKET_CLOSE_MINUTES);
+  return left + (toTradingSessionMinutes(clamped) / MARKET_SESSION_MINUTES) * width;
+}
+
+function normalizeChartPoints(points: AlertImagePoint[]): AlertImagePoint[] {
+  const normalized: AlertImagePoint[] = [];
+
+  for (const point of points) {
+    const previous = normalized[normalized.length - 1];
+    if (previous && isSessionJoinPair(previous.time, point.time)) {
+      normalized.push({
+        time: point.time,
+        price: previous.price,
+      });
+      continue;
+    }
+
+    normalized.push(point);
+  }
+
+  return normalized;
+}
+
+function parseClockMinutes(value: string): number | null {
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!match) {
+    return null;
+  }
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || minute < 0 || minute > 59) {
+    return null;
+  }
+
+  return hour * 60 + minute;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function toTradingSessionMinutes(minutes: number): number {
+  if (minutes <= MORNING_CLOSE_MINUTES) {
+    return minutes - MARKET_OPEN_MINUTES;
+  }
+  if (minutes < AFTERNOON_OPEN_MINUTES) {
+    return MORNING_CLOSE_MINUTES - MARKET_OPEN_MINUTES;
+  }
+  return (
+    (MORNING_CLOSE_MINUTES - MARKET_OPEN_MINUTES)
+    + (minutes - AFTERNOON_OPEN_MINUTES)
+  );
+}
+
+function isSessionJoinPair(previousTime: string, nextTime: string): boolean {
+  return parseClockMinutes(previousTime) === MORNING_CLOSE_MINUTES
+    && parseClockMinutes(nextTime) === AFTERNOON_OPEN_MINUTES;
 }

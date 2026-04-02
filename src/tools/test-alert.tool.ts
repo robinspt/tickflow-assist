@@ -95,6 +95,7 @@ export function testAlertTool(
 }
 
 function buildTestAlertImage(now: string) {
+  const previewTime = `${now.slice(0, 10)} 14:12`;
   const triggerPrice = 12.18;
   const currentPrice = 12.36;
   return {
@@ -102,7 +103,7 @@ function buildTestAlertImage(now: string) {
     alertLabel: "测试告警",
     name: "平安银行",
     symbol: "000001.SZ",
-    timestampLabel: `测试告警 | ${now.slice(0, 16)}`,
+    timestampLabel: `测试告警 | ${previewTime}`,
     currentPrice,
     triggerPrice,
     changePct: 2.15,
@@ -116,8 +117,9 @@ function buildTestAlertImage(now: string) {
       { time: "10:30", price: 12.12 },
       { time: "11:30", price: 12.15 },
       { time: "13:00", price: 12.19 },
+      { time: "13:30", price: 12.23 },
       { time: "14:00", price: 12.27 },
-      { time: "15:00", price: currentPrice },
+      { time: "14:12", price: currentPrice },
     ],
     levels: {
       stopLoss: 11.86,
