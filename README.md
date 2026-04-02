@@ -2,6 +2,8 @@
 
 基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件。它使用 [TickFlow API](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 获取行情与财务数据，结合 LLM 生成技术面、基本面、资讯面的综合判断，并把结果持久化到本地 LanceDB。
 
+最近更新：`v0.2.18` 调整 PNG 告警卡的日内时间轴与午间衔接逻辑，修复测试图与 demo 图的时间展示不一致；同时修正社区版配置字段说明，并补强 npm 打包脚本对包页 README 元数据的处理。
+
 当前主线架构：
 
 - OpenClaw 插件是主入口
@@ -219,6 +221,7 @@ tickflow-assist/
 - `2026-04-01`：发布 `v0.2.15`，重新发布 npm 包以刷新包页 README 展示；功能与运行逻辑相对 `v0.2.14` 无新增变更。
 - `2026-04-01`：发布 `v0.2.16`，移除社区发布包中的 `child_process` 依赖以兼容 OpenClaw `v2026.3.31` 的危险代码扫描；同时保留源码一键安装脚本的自动依赖安装与 Gateway 配置能力，并将 GitHub README 调整为优先推荐一键脚本安装。
 - `2026-04-01`：发布 `v0.2.17`，补充社区安装所需的 Linux / macOS 字体安装命令；`configure-openclaw` 会自动把被旧版本钉死的 ClawHub install spec 归一化为 `clawhub:tickflow-assist`，并将空自选时的 `ta_startmonitor` 通用失败改为明确提示。
+- `2026-04-02`：发布 `v0.2.18`，调整 PNG 告警卡的 A 股日内时间轴与午间衔接逻辑，修复测试图/示例图时间显示不一致；同时更新社区版配置字段说明，并补强 npm 打包脚本对包页 README 元数据的处理。
 
 ## 🙏 鸣谢
 
