@@ -92,12 +92,8 @@ export function resolvePluginConfigPaths(config: PluginConfig, baseDir: string):
 export function validatePluginConfig(config: PluginConfig): string[] {
   const errors: string[] = [];
 
-  if (!config.tickflowApiKey) {
-    errors.push("tickflowApiKey is required");
-  }
-  if (!config.llmApiKey) {
-    errors.push("llmApiKey is required");
-  }
+  // Community install scans happen before `configure-openclaw` writes secrets,
+  // so registration-time validation should only flag structurally invalid values.
   if (!config.tickflowApiUrl.startsWith("http://") && !config.tickflowApiUrl.startsWith("https://")) {
     errors.push("tickflowApiUrl must be an absolute http(s) URL");
   }

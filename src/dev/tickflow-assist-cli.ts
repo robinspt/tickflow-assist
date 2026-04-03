@@ -813,6 +813,18 @@ function getManualMacosFontCommands(): string[] {
   ];
 }
 
+function getManualUvInstallCommands(): string[] {
+  if (process.platform === "win32") {
+    return [
+      "powershell -ExecutionPolicy ByPass -c \"irm https://astral.sh/uv/install.ps1 | iex\"",
+    ];
+  }
+
+  return [
+    "curl -LsSf https://astral.sh/uv/install.sh | sh",
+  ];
+}
+
 function printNextSteps(options: CliOptions, config: PluginConfigInput): void {
   console.log("");
   console.log("接下来的命令需要你手动执行。");
@@ -820,6 +832,12 @@ function printNextSteps(options: CliOptions, config: PluginConfigInput): void {
   let step = 1;
 
   if (options.pythonSetup) {
+    console.log(`${step}. 如未安装 uv，请先安装 uv`);
+    for (const command of getManualUvInstallCommands()) {
+      console.log(`   ${command}`);
+    }
+    step += 1;
+
     console.log(`${step}. 安装 Python 依赖`);
     console.log(`   cd ${config.pythonWorkdir}`);
     console.log("   uv sync");

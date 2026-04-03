@@ -26,14 +26,18 @@ function createMockApi(): {
   registeredServices: RegisteredService[];
   registeredCommands: RegisteredCommand[];
   hookEvents: string[];
+  warnMessages: string[];
 } {
   const registeredTools: RegisteredToolCall[] = [];
   const registeredServices: RegisteredService[] = [];
   const registeredCommands: RegisteredCommand[] = [];
   const hookEvents: string[] = [];
+  const warnMessages: string[] = [];
   const logger = {
     info() {},
-    warn() {},
+    warn(message: string) {
+      warnMessages.push(message);
+    },
     error() {},
     debug() {},
   };
@@ -74,6 +78,7 @@ function createMockApi(): {
     registeredServices,
     registeredCommands,
     hookEvents,
+    warnMessages,
   };
 }
 
@@ -175,6 +180,22 @@ test("community install manifest does not require secrets before setup", () => {
   const required = manifest.configSchema?.required ?? [];
   assert.ok(!required.includes("tickflowApiKey"));
   assert.ok(!required.includes("llmApiKey"));
+});
+
+test("plugin registration does not warn for missing credentials before community setup", () => {
+  const { api, warnMessages } = createMockApi();
+  api.pluginConfig = {
+    databasePath: "./tmp/plugin-registration-test-db",
+    calendarFile: "./day_future.txt",
+    pythonWorkdir: "./python",
+  };
+
+  pluginEntry.register(api);
+
+  assert.equal(
+    warnMessages.some((message) => message.includes("config is incomplete")),
+    false,
+  );
 });
 
 test("alert media temp root stays under the shared OpenClaw temp directory", () => {
