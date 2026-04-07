@@ -145,7 +145,7 @@ export class Jin10McpService {
       throw new Error(`jin10 MCP request failed: ${response.status} ${response.statusText} ${rawText}`);
     }
 
-    const parsed = parseJsonRpcResponse<T>(rawText);
+    const parsed = parseJsonRpcResponse<T>(rawText, payload.id);
     if (parsed.error) {
       throw new Error(
         `jin10 MCP error (${parsed.error.code ?? "unknown"}): ${parsed.error.message ?? "unknown"}`,
@@ -194,23 +194,83 @@ export class Jin10McpService {
   }
 }
 
-function parseJsonRpcResponse<T>(rawText: string): JsonRpcResponse<T> {
+export function parseJsonRpcResponse<T>(
+  rawText: string,
+  expectedId?: string | number,
+): JsonRpcResponse<T> {
   const trimmed = rawText.trim();
   if (!trimmed) {
     throw new Error("jin10 MCP returned empty body");
   }
 
-  if (trimmed.startsWith("data:")) {
-    const dataLine = trimmed
-      .split(/\r?\n/)
-      .find((line) => line.startsWith("data:"));
-    if (!dataLine) {
-      throw new Error("jin10 MCP SSE payload missing data line");
-    }
-    return JSON.parse(dataLine.replace(/^data:\s*/, "")) as JsonRpcResponse<T>;
+  if (!looksLikeSsePayload(trimmed)) {
+    return JSON.parse(trimmed) as JsonRpcResponse<T>;
   }
 
-  return JSON.parse(trimmed) as JsonRpcResponse<T>;
+  const candidates = parseSseJsonRpcResponses<T>(trimmed);
+  if (candidates.length === 0) {
+    throw new Error(`jin10 MCP SSE payload missing JSON-RPC data: ${truncate(trimmed, 160)}`);
+  }
+
+  if (expectedId !== undefined) {
+    const matched = candidates.find((entry) => entry.id === expectedId);
+    if (matched) {
+      return matched;
+    }
+  }
+
+  const withResult = candidates.find((entry) => entry.result !== undefined || entry.error !== undefined);
+  if (withResult) {
+    return withResult;
+  }
+
+  return candidates[candidates.length - 1] as JsonRpcResponse<T>;
+}
+
+function parseSseJsonRpcResponses<T>(rawText: string): JsonRpcResponse<T>[] {
+  const events = rawText
+    .split(/\r?\n\r?\n/)
+    .map((chunk) => chunk.trim())
+    .filter(Boolean);
+
+  const responses: JsonRpcResponse<T>[] = [];
+  for (const eventText of events) {
+    const payload = extractSseData(eventText);
+    if (!payload || payload === "[DONE]") {
+      continue;
+    }
+
+    try {
+      responses.push(JSON.parse(payload) as JsonRpcResponse<T>);
+    } catch {
+      continue;
+    }
+  }
+
+  return responses;
+}
+
+function extractSseData(eventText: string): string {
+  const dataLines = eventText
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.replace(/^data:\s?/, ""));
+  return dataLines.join("\n").trim();
+}
+
+function looksLikeSsePayload(value: string): boolean {
+  return value.startsWith("data:")
+    || value.startsWith("event:")
+    || value.startsWith(":")
+    || /\r?\ndata:/.test(value)
+    || /\r?\nevent:/.test(value);
+}
+
+function truncate(value: string, maxLength: number): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+  return `${value.slice(0, Math.max(0, maxLength - 3))}...`;
 }
 
 function normalizeFlashPage(value: unknown): Jin10FlashPage {
