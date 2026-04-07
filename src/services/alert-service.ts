@@ -227,7 +227,10 @@ export class AlertService {
     try {
       switch (this.channel) {
         case "discord":
-          await runtimeContext.runtime.channel.discord.sendMessageDiscord(
+          await this.invokeRuntimeChannelSend(
+            runtimeContext.runtime.channel,
+            "discord",
+            "sendMessageDiscord",
             this.options.target,
             payload.message,
             {
@@ -237,7 +240,10 @@ export class AlertService {
           );
           return null;
         case "slack":
-          await runtimeContext.runtime.channel.slack.sendMessageSlack(
+          await this.invokeRuntimeChannelSend(
+            runtimeContext.runtime.channel,
+            "slack",
+            "sendMessageSlack",
             this.options.target,
             payload.message,
             {
@@ -248,7 +254,10 @@ export class AlertService {
           );
           return null;
         case "signal":
-          await runtimeContext.runtime.channel.signal.sendMessageSignal(
+          await this.invokeRuntimeChannelSend(
+            runtimeContext.runtime.channel,
+            "signal",
+            "sendMessageSignal",
             this.options.target,
             payload.message,
             baseOptions,
@@ -262,6 +271,23 @@ export class AlertService {
     } catch (error) {
       return `runtime delivery failed: ${formatErrorMessage(error)}`;
     }
+  }
+
+  private async invokeRuntimeChannelSend(
+    runtimeChannel: unknown,
+    channelName: string,
+    methodName: string,
+    target: string,
+    message: string,
+    options: Record<string, unknown>,
+  ): Promise<void> {
+    const channelApi = getRuntimeChannelApi(runtimeChannel, channelName);
+    const method = channelApi?.[methodName];
+    if (typeof method !== "function") {
+      throw new Error(`runtime channel ${channelName}.${methodName} unavailable`);
+    }
+
+    await method.call(channelApi, target, message, options);
   }
 
   private async trySendViaCommand(payload: AlertSendInput): Promise<string | null> {
@@ -328,6 +354,19 @@ function normalizeSendInput(input: string | AlertSendInput): AlertSendInput {
   return typeof input === "string"
     ? { message: input }
     : input;
+}
+
+function getRuntimeChannelApi(runtimeChannel: unknown, channelName: string): Record<string, unknown> | null {
+  if (!isRecord(runtimeChannel)) {
+    return null;
+  }
+
+  const channelApi = runtimeChannel[channelName];
+  return isRecord(channelApi) ? channelApi : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function getAlertStyle(ruleCode: string, fallbackTitle: string): { banner: string; label: string } {
