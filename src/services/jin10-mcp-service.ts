@@ -66,8 +66,8 @@ export class Jin10McpService {
       protocolVersion: "2025-11-25",
       capabilities: {},
       clientInfo: {
-        name: "tickflow-assist",
-        version: "0.3.0",
+        name: "mcp-client",
+        version: "1.0.0",
       },
     });
     await this.notify("notifications/initialized");
