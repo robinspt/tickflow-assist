@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.1 - 2026-04-07
+
+- 补充 npm Trusted Publishing 所需的 `repository`、`homepage`、`bugs` 包元数据，修复 GitHub Release 触发的 `npm publish --provenance` 因仓库信息缺失而被 npm 拒绝的问题。
+- 将金十数据 MCP `initialize` 握手中的 `clientInfo` 调整为中性固定值 `mcp-client / 1.0.0`，避免插件版本号继续暴露在上游握手元信息里。
+
 ## v0.3.0 - 2026-04-07
 
 - 接入 [金十数据 MCP](https://mcp.jin10.com/app/) 24 小时快讯监控，新增独立后台循环、原始快讯 LanceDB 落库、按保留天数清理和 `/ta_flashstatus` 状态查看。
