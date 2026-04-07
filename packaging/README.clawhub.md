@@ -1,8 +1,8 @@
 # TickFlow Assist
 
-基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件。它使用 [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 获取行情与财务数据，结合 LLM 生成技术面、基本面、资讯面的综合判断，并把结果持久化到本地 LanceDB。
+基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件。它使用 [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 获取行情与财务数据，并可选接入 [金十数据 MCP](https://mcp.jin10.com/app/) 快讯流，结合 LLM 生成技术面、基本面、资讯面的综合判断，并把结果持久化到本地 LanceDB。
 
-最近更新：`v0.2.19` 调整社区版 OpenClaw 兼容声明，改为按范围声明 `pluginApi` 最低兼容版本并对齐 `builtWithOpenClawVersion` 到 `2026.4.1`，修复 `openclaw plugins update tickflow-assist` 在 `v2026.4.1` 上被精确版本校验拦截的问题。
+最近更新：`v0.3.0` 接入 [金十数据 MCP](https://mcp.jin10.com/app/) 24 小时快讯监控，新增 `/ta_flashstatus` 状态查看、LanceDB 原始快讯留痕与标准 MCP/SSE 兼容。完整发布记录见 <https://github.com/robinspt/tickflow-assist/blob/main/CHANGELOG.md>。
 
 当前主线按 OpenClaw `v2026.3.31+` 对齐，并已验证社区安装在 `v2026.4.1` 上兼容。
 
@@ -83,20 +83,27 @@ plugins.entries["tickflow-assist"].config
 - 告警投递：`alertChannel`、`alertTarget`、`alertAccount`
 - 能力补充：`mxSearchApiKey`、`jin10ApiToken`
 
-其中，`mxSearchApiKey` 用于 `mx_search`、`mx_select_stock` 以及非 `Expert` 财务链路的 lite 补充；`jin10ApiToken` 用于 24 小时 Jin10 快讯监控；`alertTarget`、`alertAccount` 建议在准备启用 `test_alert`、实时监控告警、Jin10 快讯告警和定时通知前一并配好，避免配置不完整导致功能缺失。
+其中，`mxSearchApiKey` 用于 `mx_search`、`mx_select_stock` 以及非 `Expert` 财务链路的 lite 补充；`jin10ApiToken` 用于 24 小时金十数据快讯监控；`alertTarget`、`alertAccount` 建议在准备启用 `test_alert`、实时监控告警、金十数据快讯告警和定时通知前一并配好，避免配置不完整导致功能缺失。
 
 ## 功能
 
 - 自选股管理、日 K / 分钟 K 抓取与指标计算
 - 技术面、财务面、资讯面的综合分析
 - 实时监控、定时日更、收盘后复盘
+- 金十数据 24 小时快讯监控与自选关联提醒
 - 本地 LanceDB 数据留痕与分析结果查看
 
 ## 运行说明
 
 - 插件会在本地 `databasePath` 下持久化 LanceDB 数据。
-- 后台服务会按配置执行定时日更、实时监控与 Jin10 快讯监控。
+- 后台服务会按配置执行定时日更、实时监控与金十数据快讯监控。
 - Python 子模块仅用于技术指标计算，不承担主业务流程。
+
+## 依赖与可选能力
+
+- [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE)：提供日线、分钟线、实时行情与财务数据接口。
+- [金十数据 MCP](https://mcp.jin10.com/app/)：可选，用于 24 小时快讯流接入、自选关联筛选与事件驱动告警。
+- [东方财富妙想 Skills](https://marketing.dfcfs.com/views/finskillshub/)：可选，用于 `mx_search`、`mx_select_stock` 与非 `Expert` 财务链路的 lite 补充。
 
 ## 仓库
 

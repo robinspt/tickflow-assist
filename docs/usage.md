@@ -65,7 +65,7 @@
 
 ## 3. Slash Commands
 
-插件当前注册了 17 个 `/ta_` 直达命令，适合“添加自选”“查状态”“发测试告警”这类不需要模型解释的操作。
+插件当前注册了 18 个 `/ta_` 直达命令，适合“添加自选”“查状态”“发测试告警”这类不需要模型解释的操作。
 
 ### 自选管理
 
@@ -91,7 +91,8 @@
 |---|---|
 | `/ta_startmonitor` | 启动实时监控 |
 | `/ta_stopmonitor` | 停止实时监控 |
-| `/ta_monitorstatus` | 查看监控状态 |
+| `/ta_monitorstatus` | 查看价格实时监控状态 |
+| `/ta_flashstatus` | 查看金十数据快讯监控状态 |
 | `/ta_startdailyupdate` | 启动定时日更 |
 | `/ta_stopdailyupdate` | 停止定时日更 |
 | `/ta_updateall` | 立即执行一次完整日更 |
@@ -110,6 +111,7 @@
 /ta_backtest 002261 5
 /ta_startmonitor
 /ta_monitorstatus
+/ta_flashstatus
 /ta_dailyupdatestatus
 /ta_testalert
 ```
@@ -123,7 +125,7 @@
 
 ## 4. CLI 与本地直连调试
 
-`npm run tool -- ...`、`npm run monitor-loop` 与 `npm run daily-update-loop` 读取的是项目根目录 `local.config.json` 的 `plugin` 字段，不会回退到 `~/.openclaw/openclaw.json`。其中，`npm run monitor-loop` 在本地调试模式下会同时驱动价格监控与 Jin10 快讯监控。
+`npm run tool -- ...`、`npm run monitor-loop` 与 `npm run daily-update-loop` 读取的是项目根目录 `local.config.json` 的 `plugin` 字段，不会回退到 `~/.openclaw/openclaw.json`。其中，`npm run monitor-loop` 在本地调试模式下会同时驱动价格监控与金十数据快讯监控。
 
 推荐配置结构：
 
@@ -183,6 +185,7 @@ npm run tool -- mx_select_stock '{"keyword":"今日涨幅2%的股票","pageNo":1
 ```bash
 npm run tool -- start_monitor
 npm run tool -- monitor_status
+npm run tool -- flash_monitor_status
 npm run tool -- stop_monitor
 npm run tool -- start_daily_update
 npm run tool -- daily_update_status
@@ -241,6 +244,7 @@ npm run daily-update-loop
 | `key_levels` / `key_levels_history` | 当前关键价位与历史快照 |
 | `technical_analysis` / `financial_analysis` / `news_analysis` / `composite_analysis` | 多维分析结果 |
 | `analysis_log` / `alert_log` | 分析日志与告警留痕 |
+| `jin10_flash` / `jin10_flash_delivery` | 金十数据原始快讯与快讯告警留痕 |
 
 ## 7. 高优先级注意事项
 
