@@ -187,3 +187,24 @@ export const alertLogSchema = new Schema([
   new Field("message", new Utf8(), false),
   new Field("triggered_at", new Utf8(), false),
 ]);
+
+export const jin10FlashSchema = new Schema([
+  new Field("flash_key", new Utf8(), false),
+  new Field("published_at", new Utf8(), false),
+  new Field("published_ts", new Int64(), false),
+  new Field("content", new Utf8(), false),
+  new Field("url", new Utf8(), false),
+  new Field("ingested_at", new Utf8(), false),
+  new Field("raw_json", new Utf8(), false),
+]);
+
+export const jin10FlashDeliverySchema = new Schema([
+  new Field("flash_key", new Utf8(), false),
+  new Field("published_at", new Utf8(), false),
+  new Field("symbols_json", new Utf8(), false),
+  new Field("headline", new Utf8(), false),
+  new Field("reason", new Utf8(), false),
+  new Field("importance", new Utf8(), false),
+  new Field("message", new Utf8(), false),
+  new Field("delivered_at", new Utf8(), false),
+]);

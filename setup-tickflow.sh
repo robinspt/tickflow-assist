@@ -997,6 +997,10 @@ load_existing_config_defaults() {
   EXISTING_LOCAL_TICKFLOW_LEVEL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.tickflowApiKeyLevel')
   EXISTING_LOCAL_MX_SEARCH_API_URL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.mxSearchApiUrl')
   EXISTING_LOCAL_MX_SEARCH_API_KEY=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.mxSearchApiKey')
+  EXISTING_LOCAL_JIN10_MCP_URL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.jin10McpUrl')
+  EXISTING_LOCAL_JIN10_API_TOKEN=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.jin10ApiToken')
+  EXISTING_LOCAL_JIN10_FLASH_POLL_INTERVAL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.jin10FlashPollInterval')
+  EXISTING_LOCAL_JIN10_FLASH_RETENTION_DAYS=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.jin10FlashRetentionDays')
   EXISTING_LOCAL_LLM_BASE_URL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.llmBaseUrl')
   EXISTING_LOCAL_LLM_KEY=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.llmApiKey')
   EXISTING_LOCAL_LLM_MODEL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.llmModel')
@@ -1017,6 +1021,10 @@ load_existing_config_defaults() {
   EXISTING_OPENCLAW_TICKFLOW_LEVEL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.tickflowApiKeyLevel')
   EXISTING_OPENCLAW_MX_SEARCH_API_URL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.mxSearchApiUrl')
   EXISTING_OPENCLAW_MX_SEARCH_API_KEY=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.mxSearchApiKey')
+  EXISTING_OPENCLAW_JIN10_MCP_URL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.jin10McpUrl')
+  EXISTING_OPENCLAW_JIN10_API_TOKEN=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.jin10ApiToken')
+  EXISTING_OPENCLAW_JIN10_FLASH_POLL_INTERVAL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.jin10FlashPollInterval')
+  EXISTING_OPENCLAW_JIN10_FLASH_RETENTION_DAYS=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.jin10FlashRetentionDays')
   EXISTING_OPENCLAW_LLM_BASE_URL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.llmBaseUrl')
   EXISTING_OPENCLAW_LLM_KEY=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.llmApiKey')
   EXISTING_OPENCLAW_LLM_MODEL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.llmModel')
@@ -1034,6 +1042,10 @@ load_existing_config_defaults() {
   DEFAULT_TICKFLOW_LEVEL=${EXISTING_LOCAL_TICKFLOW_LEVEL:-${EXISTING_OPENCLAW_TICKFLOW_LEVEL:-Free}}
   DEFAULT_MX_SEARCH_API_URL=${EXISTING_LOCAL_MX_SEARCH_API_URL:-${EXISTING_OPENCLAW_MX_SEARCH_API_URL:-https://mkapi2.dfcfs.com/finskillshub/api/claw}}
   DEFAULT_MX_SEARCH_API_KEY=${EXISTING_LOCAL_MX_SEARCH_API_KEY:-$EXISTING_OPENCLAW_MX_SEARCH_API_KEY}
+  DEFAULT_JIN10_MCP_URL=${EXISTING_LOCAL_JIN10_MCP_URL:-${EXISTING_OPENCLAW_JIN10_MCP_URL:-https://mcp.jin10.com/mcp}}
+  DEFAULT_JIN10_API_TOKEN=${EXISTING_LOCAL_JIN10_API_TOKEN:-$EXISTING_OPENCLAW_JIN10_API_TOKEN}
+  DEFAULT_JIN10_FLASH_POLL_INTERVAL=${EXISTING_LOCAL_JIN10_FLASH_POLL_INTERVAL:-${EXISTING_OPENCLAW_JIN10_FLASH_POLL_INTERVAL:-300}}
+  DEFAULT_JIN10_FLASH_RETENTION_DAYS=${EXISTING_LOCAL_JIN10_FLASH_RETENTION_DAYS:-${EXISTING_OPENCLAW_JIN10_FLASH_RETENTION_DAYS:-7}}
   DEFAULT_LLM_BASE_URL=${EXISTING_LOCAL_LLM_BASE_URL:-${EXISTING_OPENCLAW_LLM_BASE_URL:-https://api.openai.com/v1}}
   DEFAULT_LLM_KEY=${EXISTING_LOCAL_LLM_KEY:-$EXISTING_OPENCLAW_LLM_KEY}
   DEFAULT_LLM_MODEL=${EXISTING_LOCAL_LLM_MODEL:-${EXISTING_OPENCLAW_LLM_MODEL:-gpt-4o}}
@@ -1055,6 +1067,10 @@ apply_default_config_values() {
   TICKFLOW_LEVEL="$DEFAULT_TICKFLOW_LEVEL"
   MX_SEARCH_API_URL="$DEFAULT_MX_SEARCH_API_URL"
   MX_SEARCH_API_KEY="$DEFAULT_MX_SEARCH_API_KEY"
+  JIN10_MCP_URL="$DEFAULT_JIN10_MCP_URL"
+  JIN10_API_TOKEN="$DEFAULT_JIN10_API_TOKEN"
+  JIN10_FLASH_POLL_INTERVAL="$DEFAULT_JIN10_FLASH_POLL_INTERVAL"
+  JIN10_FLASH_RETENTION_DAYS="$DEFAULT_JIN10_FLASH_RETENTION_DAYS"
   LLM_BASE_URL="$DEFAULT_LLM_BASE_URL"
   LLM_API_KEY="$DEFAULT_LLM_KEY"
   LLM_MODEL="$DEFAULT_LLM_MODEL"
@@ -1124,6 +1140,26 @@ collect_configuration() {
   fi
 
   echo ""
+  echo -e "${BOLD}--- Jin10 快讯监控配置（可选） ---${NC}"
+  read -r -p "  Jin10 MCP 地址 [默认 ${DEFAULT_JIN10_MCP_URL}]: " JIN10_MCP_URL
+  JIN10_MCP_URL=${JIN10_MCP_URL:-$DEFAULT_JIN10_MCP_URL}
+
+  if [[ -n "$DEFAULT_JIN10_API_TOKEN" ]]; then
+    echo "当前 Jin10 API Token：[已保存过]"
+    read -r -p "  输入新的 Jin10 API Token（直接回车保持不变，可留空禁用）: " JIN10_API_TOKEN
+    JIN10_API_TOKEN=${JIN10_API_TOKEN:-$DEFAULT_JIN10_API_TOKEN}
+  else
+    read -r -p "  Jin10 API Token（可选，直接回车跳过）: " JIN10_API_TOKEN
+    JIN10_API_TOKEN=${JIN10_API_TOKEN:-}
+  fi
+
+  read -r -p "  Jin10 快讯轮询间隔秒数 [默认 ${DEFAULT_JIN10_FLASH_POLL_INTERVAL}]: " JIN10_FLASH_POLL_INTERVAL
+  JIN10_FLASH_POLL_INTERVAL=${JIN10_FLASH_POLL_INTERVAL:-$DEFAULT_JIN10_FLASH_POLL_INTERVAL}
+
+  read -r -p "  Jin10 快讯保留天数 [默认 ${DEFAULT_JIN10_FLASH_RETENTION_DAYS}]: " JIN10_FLASH_RETENTION_DAYS
+  JIN10_FLASH_RETENTION_DAYS=${JIN10_FLASH_RETENTION_DAYS:-$DEFAULT_JIN10_FLASH_RETENTION_DAYS}
+
+  echo ""
   echo -e "${BOLD}--- LLM 配置 ---${NC}"
   read -r -p "  LLM API Base URL [默认 ${DEFAULT_LLM_BASE_URL}]: " LLM_BASE_URL
   LLM_BASE_URL=${LLM_BASE_URL:-$DEFAULT_LLM_BASE_URL}
@@ -1164,6 +1200,10 @@ write_local_config() {
     --arg level "$TICKFLOW_LEVEL" \
     --arg mxUrl "$MX_SEARCH_API_URL" \
     --arg mxKey "$MX_SEARCH_API_KEY" \
+    --arg jin10Url "$JIN10_MCP_URL" \
+    --arg jin10Token "$JIN10_API_TOKEN" \
+    --argjson jin10PollInt "$JIN10_FLASH_POLL_INTERVAL" \
+    --argjson jin10Retention "$JIN10_FLASH_RETENTION_DAYS" \
     --arg llmUrl "$LLM_BASE_URL" \
     --arg llmKey "$LLM_API_KEY" \
     --arg model "$LLM_MODEL" \
@@ -1185,6 +1225,10 @@ write_local_config() {
         tickflowApiKeyLevel: $level,
         mxSearchApiUrl: $mxUrl,
         mxSearchApiKey: $mxKey,
+        jin10McpUrl: $jin10Url,
+        jin10ApiToken: $jin10Token,
+        jin10FlashPollInterval: $jin10PollInt,
+        jin10FlashRetentionDays: $jin10Retention,
         llmBaseUrl: $llmUrl,
         llmApiKey: $llmKey,
         llmModel: $model,
@@ -1300,6 +1344,10 @@ write_openclaw_config() {
     --arg level "$TICKFLOW_LEVEL" \
     --arg mxUrl "$MX_SEARCH_API_URL" \
     --arg mxKey "$MX_SEARCH_API_KEY" \
+    --arg jin10Url "$JIN10_MCP_URL" \
+    --arg jin10Token "$JIN10_API_TOKEN" \
+    --argjson jin10PollInt "$JIN10_FLASH_POLL_INTERVAL" \
+    --argjson jin10Retention "$JIN10_FLASH_RETENTION_DAYS" \
     --arg llmUrl "$LLM_BASE_URL" \
     --arg llmKey "$LLM_API_KEY" \
     --arg model "$LLM_MODEL" \
@@ -1322,6 +1370,10 @@ write_openclaw_config() {
         tickflowApiKeyLevel: $level,
         mxSearchApiUrl: $mxUrl,
         mxSearchApiKey: $mxKey,
+        jin10McpUrl: $jin10Url,
+        jin10ApiToken: $jin10Token,
+        jin10FlashPollInterval: $jin10PollInt,
+        jin10FlashRetentionDays: $jin10Retention,
         llmBaseUrl: $llmUrl,
         llmApiKey: $llmKey,
         llmModel: $model,

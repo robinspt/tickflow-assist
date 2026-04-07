@@ -97,6 +97,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
   const startMonitor = getTool(tools, "start_monitor");
   const stopMonitor = getTool(tools, "stop_monitor");
   const monitorStatus = getTool(tools, "monitor_status");
+  const flashMonitorStatus = getTool(tools, "flash_monitor_status");
   const startDailyUpdate = getTool(tools, "start_daily_update");
   const stopDailyUpdate = getTool(tools, "stop_daily_update");
   const updateAll = getTool(tools, "update_all");
@@ -207,6 +208,14 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       requireAuth: true,
       handler: async () => runCommandText(
         () => runToolText(monitorStatus),
+      ),
+    },
+    {
+      name: "ta_flashstatus",
+      description: "查看 Jin10 快讯监控状态，不经过 AI 对话。",
+      requireAuth: true,
+      handler: async () => runCommandText(
+        () => runToolText(flashMonitorStatus),
       ),
     },
     {

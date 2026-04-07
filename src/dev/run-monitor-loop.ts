@@ -12,13 +12,16 @@ async function main(): Promise<void> {
   const config = await loadLocalConfig();
   const app = createAppContext(config, { configSource: "local_config" });
   const worker = app.services.realtimeMonitorWorker;
+  const flashWorker = app.services.jin10FlashWorker;
   const alertService = app.services.alertService;
   const monitorService = app.services.monitorService;
 
   await monitorService.recordHeartbeat("fallback_process");
   await monitorService.setWorkerPid(process.pid);
 
-  process.stdout.write(`TickFlow monitor loop started, interval=${config.requestInterval}s\n`);
+  process.stdout.write(
+    `TickFlow realtime loop started, price_interval=${config.requestInterval}s, jin10_interval=${config.jin10FlashPollInterval}s\n`,
+  );
 
   const controller = new AbortController();
   const shutdown = async (signal: string) => {
@@ -42,7 +45,10 @@ async function main(): Promise<void> {
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
   try {
-    await worker.runLoop(controller.signal, "fallback_process");
+    await Promise.all([
+      worker.runLoop(controller.signal, "fallback_process"),
+      flashWorker.runLoop(controller.signal, "fallback_process"),
+    ]);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const state = await monitorService.getState();

@@ -123,7 +123,7 @@
 
 ## 4. CLI 与本地直连调试
 
-`npm run tool -- ...`、`npm run monitor-loop` 与 `npm run daily-update-loop` 读取的是项目根目录 `local.config.json` 的 `plugin` 字段，不会回退到 `~/.openclaw/openclaw.json`。
+`npm run tool -- ...`、`npm run monitor-loop` 与 `npm run daily-update-loop` 读取的是项目根目录 `local.config.json` 的 `plugin` 字段，不会回退到 `~/.openclaw/openclaw.json`。其中，`npm run monitor-loop` 在本地调试模式下会同时驱动价格监控与 Jin10 快讯监控。
 
 推荐配置结构：
 
@@ -134,6 +134,10 @@
     "tickflowApiKey": "sk-xxx",
     "mxSearchApiUrl": "https://mkapi2.dfcfs.com/finskillshub/api/claw",
     "mxSearchApiKey": "mkt_xxx",
+    "jin10McpUrl": "https://mcp.jin10.com/mcp",
+    "jin10ApiToken": "jin10_xxx",
+    "jin10FlashPollInterval": 300,
+    "jin10FlashRetentionDays": 7,
     "llmBaseUrl": "https://api.openai.com/v1",
     "llmApiKey": "sk-xxx",
     "llmModel": "gpt-4o",

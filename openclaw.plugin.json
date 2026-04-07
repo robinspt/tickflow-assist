@@ -36,6 +36,28 @@
         "default": "",
         "description": "Optional. Enables mx_search, mx_select_stock, and non-Expert financial fallback."
       },
+      "jin10McpUrl": {
+        "type": "string",
+        "default": "https://mcp.jin10.com/mcp",
+        "description": "Jin10 MCP server URL used for realtime flash monitoring."
+      },
+      "jin10ApiToken": {
+        "type": "string",
+        "default": "",
+        "description": "Optional. Enables 24/7 Jin10 realtime flash monitoring when configured."
+      },
+      "jin10FlashPollInterval": {
+        "type": "integer",
+        "minimum": 10,
+        "default": 300,
+        "description": "Jin10 flash polling interval in seconds."
+      },
+      "jin10FlashRetentionDays": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 7,
+        "description": "How many days of raw Jin10 flash data to retain locally."
+      },
       "llmBaseUrl": {
         "type": "string",
         "default": "https://api.openai.com/v1",
@@ -124,6 +146,26 @@
       "label": "MX Search API Key",
       "help": "Optional. Enables mx_search, mx_select_stock, and lite financial fallback.",
       "sensitive": true
+    },
+    "jin10McpUrl": {
+      "label": "Jin10 MCP URL",
+      "help": "Optional. MCP endpoint used by the 24/7 Jin10 flash monitor.",
+      "advanced": true
+    },
+    "jin10ApiToken": {
+      "label": "Jin10 API Token",
+      "help": "Optional. Enables Jin10 realtime flash monitoring.",
+      "sensitive": true
+    },
+    "jin10FlashPollInterval": {
+      "label": "Jin10 Poll Interval",
+      "help": "Polling interval in seconds for Jin10 flash monitoring.",
+      "advanced": true
+    },
+    "jin10FlashRetentionDays": {
+      "label": "Jin10 Retention Days",
+      "help": "How many days of Jin10 raw flash data to keep locally.",
+      "advanced": true
     },
     "llmBaseUrl": {
       "label": "LLM Base URL",

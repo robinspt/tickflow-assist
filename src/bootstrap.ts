@@ -8,6 +8,7 @@ import { IndicatorService } from "./services/indicator-service.js";
 import { FinancialService } from "./services/financial-service.js";
 import { FinancialLiteService } from "./services/financial-lite-service.js";
 import { MxApiService } from "./services/mx-search-service.js";
+import { Jin10McpService } from "./services/jin10-mcp-service.js";
 import { Database } from "./storage/db.js";
 import { WatchlistRepository } from "./storage/repositories/watchlist-repo.js";
 import { KlinesRepository } from "./storage/repositories/klines-repo.js";
@@ -21,6 +22,8 @@ import { TechnicalAnalysisRepository } from "./storage/repositories/technical-an
 import { FinancialAnalysisRepository } from "./storage/repositories/financial-analysis-repo.js";
 import { NewsAnalysisRepository } from "./storage/repositories/news-analysis-repo.js";
 import { CompositeAnalysisRepository } from "./storage/repositories/composite-analysis-repo.js";
+import { Jin10FlashRepository } from "./storage/repositories/jin10-flash-repo.js";
+import { Jin10FlashDeliveryRepository } from "./storage/repositories/jin10-flash-delivery-repo.js";
 import { WatchlistService } from "./services/watchlist-service.js";
 import { WatchlistProfileService } from "./services/watchlist-profile-service.js";
 import { AnalysisService } from "./services/analysis-service.js";
@@ -28,6 +31,7 @@ import { AnalysisViewService } from "./services/analysis-view-service.js";
 import { QuoteService } from "./services/quote-service.js";
 import { TradingCalendarService } from "./services/trading-calendar-service.js";
 import { MonitorService } from "./services/monitor-service.js";
+import { Jin10FlashMonitorService } from "./services/jin10-flash-monitor-service.js";
 import { AlertService } from "./services/alert-service.js";
 import { AlertMediaService } from "./services/alert-media-service.js";
 import { UpdateService } from "./services/update-service.js";
@@ -49,6 +53,7 @@ import { analyzeTool } from "./tools/analyze.tool.js";
 import { fetchKlinesTool } from "./tools/fetch-klines.tool.js";
 import { fetchIntradayKlinesTool } from "./tools/fetch-intraday-klines.tool.js";
 import { fetchFinancialsTool } from "./tools/fetch-financials.tool.js";
+import { flashMonitorStatusTool } from "./tools/flash-monitor-status.tool.js";
 import { mxSearchTool } from "./tools/mx-search.tool.js";
 import { mxSelectStockTool } from "./tools/mx-select-stock.tool.js";
 import { listWatchlistTool } from "./tools/list-watchlist.tool.js";
@@ -76,6 +81,7 @@ import { createCommandRunner } from "./runtime/command-runner.js";
 import { resolvePreferredOpenClawTmpDir } from "./runtime/openclaw-temp-dir.js";
 import { RealtimeMonitorWorker } from "./background/realtime-monitor.worker.js";
 import { DailyUpdateWorker } from "./background/daily-update.worker.js";
+import { Jin10FlashWorker } from "./background/jin10-flash.worker.js";
 import type { WatchlistItem } from "./types/domain.js";
 
 export interface AppContext {
@@ -92,7 +98,9 @@ export interface AppContext {
     alertService: AlertService;
     alertMediaService: AlertMediaService;
     monitorService: MonitorService;
+    jin10FlashMonitorService: Jin10FlashMonitorService;
     realtimeMonitorWorker: RealtimeMonitorWorker;
+    jin10FlashWorker: Jin10FlashWorker;
     dailyUpdateWorker: DailyUpdateWorker;
     watchlistService: WatchlistService;
     database: Database;
@@ -129,11 +137,14 @@ export function createAppContext(
   const financialAnalysisRepository = new FinancialAnalysisRepository(database);
   const newsAnalysisRepository = new NewsAnalysisRepository(database);
   const compositeAnalysisRepository = new CompositeAnalysisRepository(database);
+  const jin10FlashRepository = new Jin10FlashRepository(database);
+  const jin10FlashDeliveryRepository = new Jin10FlashDeliveryRepository(database);
   const instrumentService = new InstrumentService(tickflowClient);
   const klineService = new KlineService(tickflowClient);
   const quoteService = new QuoteService(tickflowClient);
   const financialService = new FinancialService(tickflowClient);
   const mxApiService = new MxApiService(config.mxSearchApiUrl, config.mxSearchApiKey);
+  const jin10McpService = new Jin10McpService(config.jin10McpUrl, config.jin10ApiToken);
   const financialLiteService = new FinancialLiteService(mxApiService);
   const analysisService = new AnalysisService(
     config.llmBaseUrl,
@@ -245,6 +256,17 @@ export function createAppContext(
     alertService,
     alertMediaService,
   );
+  const jin10FlashMonitorService = new Jin10FlashMonitorService(
+    config.databasePath,
+    config.jin10FlashPollInterval,
+    config.jin10FlashRetentionDays,
+    watchlistService,
+    jin10McpService,
+    analysisService,
+    alertService,
+    jin10FlashRepository,
+    jin10FlashDeliveryRepository,
+  );
   const updateService = new UpdateService(
     klineService,
     config.tickflowApiKeyLevel,
@@ -268,6 +290,10 @@ export function createAppContext(
   const realtimeMonitorWorker = new RealtimeMonitorWorker(
     monitorService,
     config.requestInterval * 1000,
+  );
+  const jin10FlashWorker = new Jin10FlashWorker(
+    jin10FlashMonitorService,
+    config.jin10FlashPollInterval * 1000,
   );
   const dailyUpdateWorker = new DailyUpdateWorker(
     updateService,
@@ -301,6 +327,7 @@ export function createAppContext(
         tradingCalendarService,
       ),
       fetchFinancialsTool(financialService),
+      flashMonitorStatusTool(jin10FlashMonitorService),
       fetchKlinesTool(klineService, klinesRepository, indicatorService, indicatorsRepository),
       listWatchlistTool(watchlistService),
       monitorStatusTool(monitorService),
@@ -336,6 +363,9 @@ export function createAppContext(
             dailyUpdateWorker
               .runLoop(abortController.signal, "plugin_service", runtime.configSource)
               .catch(() => {}),
+            jin10FlashWorker
+              .runLoop(abortController.signal, "plugin_service")
+              .catch(() => {}),
             realtimeMonitorWorker
               .runLoop(abortController.signal, "plugin_service")
               .catch(() => {}),
@@ -361,7 +391,9 @@ export function createAppContext(
       alertService,
       alertMediaService,
       monitorService,
+      jin10FlashMonitorService,
       realtimeMonitorWorker,
+      jin10FlashWorker,
       dailyUpdateWorker,
       watchlistService,
       database,

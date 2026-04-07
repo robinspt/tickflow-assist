@@ -165,7 +165,7 @@ npm run tool -- analyze '{"symbol":"002261"}'
 
 ## 🧩 架构与目录
 
-后台任务统一由 `tickflow-assist.managed-loop` 托管，在同一个 service 内并行运行日更与实时监控。
+后台任务统一由 `tickflow-assist.managed-loop` 托管，在同一个 service 内并行运行日更、实时监控与 Jin10 24 小时快讯监控。
 
 ```text
 tickflow-assist/

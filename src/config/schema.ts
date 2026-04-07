@@ -6,6 +6,10 @@ export interface PluginConfig {
   tickflowApiKeyLevel: TickflowApiKeyLevel;
   mxSearchApiUrl: string;
   mxSearchApiKey: string;
+  jin10McpUrl: string;
+  jin10ApiToken: string;
+  jin10FlashPollInterval: number;
+  jin10FlashRetentionDays: number;
   llmBaseUrl: string;
   llmApiKey: string;
   llmModel: string;
@@ -24,12 +28,15 @@ export interface PluginConfig {
 
 export const DEFAULT_PLUGIN_CONFIG: Omit<
   PluginConfig,
-  "tickflowApiKey" | "llmApiKey" | "alertTarget"
+  "tickflowApiKey" | "jin10ApiToken" | "llmApiKey" | "alertTarget"
 > = {
   tickflowApiUrl: "https://api.tickflow.org",
   tickflowApiKeyLevel: "free",
   mxSearchApiUrl: "https://mkapi2.dfcfs.com/finskillshub/api/claw",
   mxSearchApiKey: "",
+  jin10McpUrl: "https://mcp.jin10.com/mcp",
+  jin10FlashPollInterval: 300,
+  jin10FlashRetentionDays: 7,
   llmBaseUrl: "https://api.openai.com/v1",
   llmModel: "gpt-4o",
   databasePath: "./data/lancedb",

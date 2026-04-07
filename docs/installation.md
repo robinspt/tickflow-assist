@@ -177,6 +177,10 @@ plugins.entries["tickflow-assist"].config
     "tickflowApiKey": "your-tickflow-key",
     "mxSearchApiUrl": "https://mkapi2.dfcfs.com/finskillshub/api/claw",
     "mxSearchApiKey": "mkt_xxx",
+    "jin10McpUrl": "https://mcp.jin10.com/mcp",
+    "jin10ApiToken": "jin10_xxx",
+    "jin10FlashPollInterval": 300,
+    "jin10FlashRetentionDays": 7,
     "llmBaseUrl": "https://api.openai.com/v1",
     "llmApiKey": "sk-xxx",
     "llmModel": "gpt-4o",
@@ -197,6 +201,10 @@ plugins.entries["tickflow-assist"].config
 | `tickflowApiKeyLevel` | 否 | `Free` / `Start` / `Pro` / `Expert`；`Pro` 与 `Expert` 会尝试分钟 K |
 | `mxSearchApiUrl` | 否 | 妙想 Skills 接口地址 |
 | `mxSearchApiKey` | 否 | 启用 `mx_search` / `mx_select_stock`，也用于非 Expert 财务链路的 lite 回退 |
+| `jin10McpUrl` | 否 | Jin10 MCP 地址，默认 `https://mcp.jin10.com/mcp` |
+| `jin10ApiToken` | 否 | 启用 24 小时 Jin10 快讯监控 |
+| `jin10FlashPollInterval` | 否 | Jin10 快讯轮询间隔，默认 `300` 秒 |
+| `jin10FlashRetentionDays` | 否 | Jin10 原始快讯本地保留天数，默认 `7` 天 |
 | `llmBaseUrl` | 否 | OpenAI 兼容接口地址 |
 | `llmApiKey` | 是 | 大模型 API Key；使用本地模型时也不能留空，可填占位值 |
 | `llmModel` | 是 | 分析使用的模型名 |
@@ -220,6 +228,7 @@ plugins.entries["tickflow-assist"].config
 - OpenClaw 对话读取 `~/.openclaw/openclaw.json`
 - `npm run tool -- ...` 与本地 loop 读取 `local.config.json.plugin`
 - 它们不会自动同步；如果两边都要用，建议至少保持 `tickflowApiKey`、`llmBaseUrl`、`llmApiKey`、`llmModel`、`databasePath`、`calendarFile`、`alertChannel`、`alertAccount`、`alertTarget` 一致
+- `npm run monitor-loop` 会同时驱动价格监控与 Jin10 快讯监控；未配置 `jin10ApiToken` 时，Jin10 监控会保持空转不告警
 
 如果你给股票 Agent 显式配置 `tools`，推荐保留 `profile: "full"`，不要额外禁用 `exec`、`read`、`write` 等运行时能力。
 

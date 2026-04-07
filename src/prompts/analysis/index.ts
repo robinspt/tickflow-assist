@@ -24,3 +24,7 @@ export {
   WATCHLIST_PROFILE_EXTRACTION_SYSTEM_PROMPT,
   buildWatchlistProfileExtractionUserPrompt,
 } from "./watchlist-profile-extraction-prompt.js";
+export {
+  FLASH_MONITOR_ALERT_SYSTEM_PROMPT,
+  buildFlashMonitorAlertUserPrompt,
+} from "./flash-monitor-alert-prompt.js";

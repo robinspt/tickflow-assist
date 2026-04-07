@@ -98,6 +98,10 @@ function createAppConfig() {
     llmBaseUrl: "https://api.openai.com/v1",
     llmApiKey: "test-llm-key",
     llmModel: "gpt-4o",
+    jin10McpUrl: "https://mcp.jin10.com/mcp",
+    jin10ApiToken: "",
+    jin10FlashPollInterval: 300,
+    jin10FlashRetentionDays: 7,
     databasePath: path.resolve(process.cwd(), "tmp", "plugin-registration-test-db"),
     calendarFile: path.resolve(process.cwd(), "day_future.txt"),
     requestInterval: 30,
@@ -145,6 +149,7 @@ test("plugin registration marks state-changing tools as optional", () => {
     "backtest_key_levels",
     "daily_update_status",
     "fetch_financials",
+    "flash_monitor_status",
     "fetch_intraday_klines",
     "fetch_klines",
     "list_watchlist",
@@ -164,6 +169,10 @@ test("plugin registration marks state-changing tools as optional", () => {
   assert.ok(
     registeredCommands.some((command) => command.name === "ta_addstock"),
     "slash commands should still be registered",
+  );
+  assert.ok(
+    registeredCommands.some((command) => command.name === "ta_flashstatus"),
+    "flash status command should be registered",
   );
   assert.ok(
     hookEvents.includes("before_prompt_build"),

@@ -63,6 +63,16 @@ export function normalizePluginConfig(input: unknown): PluginConfig {
       envMxSearchApiUrl || DEFAULT_PLUGIN_CONFIG.mxSearchApiUrl,
     ),
     mxSearchApiKey: normalizeString(raw.mxSearchApiKey, envMxSearchApiKey || DEFAULT_PLUGIN_CONFIG.mxSearchApiKey),
+    jin10McpUrl: normalizeString(raw.jin10McpUrl, DEFAULT_PLUGIN_CONFIG.jin10McpUrl),
+    jin10ApiToken: normalizeString(raw.jin10ApiToken),
+    jin10FlashPollInterval: normalizeInteger(
+      raw.jin10FlashPollInterval,
+      DEFAULT_PLUGIN_CONFIG.jin10FlashPollInterval,
+    ),
+    jin10FlashRetentionDays: normalizeInteger(
+      raw.jin10FlashRetentionDays,
+      DEFAULT_PLUGIN_CONFIG.jin10FlashRetentionDays,
+    ),
     llmBaseUrl: normalizeString(raw.llmBaseUrl, DEFAULT_PLUGIN_CONFIG.llmBaseUrl),
     llmApiKey: normalizeString(raw.llmApiKey),
     llmModel: normalizeString(raw.llmModel, DEFAULT_PLUGIN_CONFIG.llmModel),
@@ -97,8 +107,17 @@ export function validatePluginConfig(config: PluginConfig): string[] {
   if (!config.tickflowApiUrl.startsWith("http://") && !config.tickflowApiUrl.startsWith("https://")) {
     errors.push("tickflowApiUrl must be an absolute http(s) URL");
   }
+  if (config.jin10McpUrl && !config.jin10McpUrl.startsWith("http://") && !config.jin10McpUrl.startsWith("https://")) {
+    errors.push("jin10McpUrl must be an absolute http(s) URL");
+  }
   if (config.requestInterval < 5) {
     errors.push("requestInterval must be at least 5 seconds");
+  }
+  if (config.jin10FlashPollInterval < 10) {
+    errors.push("jin10FlashPollInterval must be at least 10 seconds");
+  }
+  if (config.jin10FlashRetentionDays < 1) {
+    errors.push("jin10FlashRetentionDays must be at least 1 day");
   }
 
   return errors;

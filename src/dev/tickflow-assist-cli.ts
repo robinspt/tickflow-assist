@@ -32,6 +32,10 @@ type PluginConfigInput = {
   tickflowApiKeyLevel: "Free" | "Start" | "Pro" | "Expert";
   mxSearchApiUrl: string;
   mxSearchApiKey: string;
+  jin10McpUrl: string;
+  jin10ApiToken: string;
+  jin10FlashPollInterval: number;
+  jin10FlashRetentionDays: number;
   llmBaseUrl: string;
   llmApiKey: string;
   llmModel: string;
@@ -55,6 +59,9 @@ const DEFAULTS = {
   tickflowApiKeyLevel: "Free" as const,
   mxSearchApiUrl: "https://mkapi2.dfcfs.com/finskillshub/api/claw",
   mxSearchApiKey: "",
+  jin10McpUrl: "https://mcp.jin10.com/mcp",
+  jin10FlashPollInterval: 300,
+  jin10FlashRetentionDays: 7,
   llmBaseUrl: "https://api.openai.com/v1",
   llmModel: "gpt-4o",
   requestInterval: 30,
@@ -86,6 +93,8 @@ Options:
   --tickflow-api-key <key>
   --tickflow-api-key-level <Free|Start|Pro|Expert>
   --mx-search-api-key <key>
+  --jin10-mcp-url <url>
+  --jin10-api-token <token>
   --llm-base-url <url>
   --llm-api-key <key>
   --llm-model <name>
@@ -179,6 +188,12 @@ function parseArgs(argv: string[]): CliOptions {
         break;
       case "--mx-search-api-key":
         options.overrides.mxSearchApiKey = requireValue(token);
+        break;
+      case "--jin10-mcp-url":
+        options.overrides.jin10McpUrl = requireValue(token);
+        break;
+      case "--jin10-api-token":
+        options.overrides.jin10ApiToken = requireValue(token);
         break;
       case "--llm-base-url":
         options.overrides.llmBaseUrl = requireValue(token);
@@ -296,6 +311,8 @@ function getExistingPluginConfig(root: JsonObject): Partial<PluginConfigInput> {
     : undefined;
 
   const requestInterval = Number(config.requestInterval ?? DEFAULTS.requestInterval);
+  const jin10FlashPollInterval = Number(config.jin10FlashPollInterval ?? DEFAULTS.jin10FlashPollInterval);
+  const jin10FlashRetentionDays = Number(config.jin10FlashRetentionDays ?? DEFAULTS.jin10FlashRetentionDays);
   const dailyUpdateNotify =
     typeof config.dailyUpdateNotify === "boolean"
       ? config.dailyUpdateNotify
@@ -307,6 +324,14 @@ function getExistingPluginConfig(root: JsonObject): Partial<PluginConfigInput> {
     tickflowApiKeyLevel: normalizeApiKeyLevel(stringValue(config.tickflowApiKeyLevel, DEFAULTS.tickflowApiKeyLevel)),
     mxSearchApiUrl: stringValue(config.mxSearchApiUrl, DEFAULTS.mxSearchApiUrl),
     mxSearchApiKey: stringValue(config.mxSearchApiKey, DEFAULTS.mxSearchApiKey),
+    jin10McpUrl: stringValue(config.jin10McpUrl, DEFAULTS.jin10McpUrl),
+    jin10ApiToken: stringValue(config.jin10ApiToken),
+    jin10FlashPollInterval: Number.isFinite(jin10FlashPollInterval)
+      ? Math.max(10, Math.trunc(jin10FlashPollInterval))
+      : DEFAULTS.jin10FlashPollInterval,
+    jin10FlashRetentionDays: Number.isFinite(jin10FlashRetentionDays)
+      ? Math.max(1, Math.trunc(jin10FlashRetentionDays))
+      : DEFAULTS.jin10FlashRetentionDays,
     llmBaseUrl: stringValue(config.llmBaseUrl, DEFAULTS.llmBaseUrl),
     llmApiKey: stringValue(config.llmApiKey),
     llmModel: stringValue(config.llmModel, DEFAULTS.llmModel),
@@ -474,6 +499,10 @@ async function promptForConfig(
     tickflowApiKeyLevel: DEFAULTS.tickflowApiKeyLevel,
     mxSearchApiUrl: DEFAULTS.mxSearchApiUrl,
     mxSearchApiKey: DEFAULTS.mxSearchApiKey,
+    jin10McpUrl: DEFAULTS.jin10McpUrl,
+    jin10ApiToken: "",
+    jin10FlashPollInterval: DEFAULTS.jin10FlashPollInterval,
+    jin10FlashRetentionDays: DEFAULTS.jin10FlashRetentionDays,
     llmBaseUrl: DEFAULTS.llmBaseUrl,
     llmApiKey: "",
     llmModel: DEFAULTS.llmModel,
@@ -524,6 +553,7 @@ async function promptForConfig(
     );
 
     seed.mxSearchApiKey = await promptString(rl, "MX Search API Key (可留空)", seed.mxSearchApiKey, false);
+    seed.jin10ApiToken = await promptString(rl, "Jin10 API Token (可留空)", seed.jin10ApiToken, false);
     seed.llmBaseUrl = await promptString(rl, "LLM Base URL", seed.llmBaseUrl, true);
     seed.llmApiKey = await promptString(rl, "LLM API Key", seed.llmApiKey, true);
     seed.llmModel = await promptString(rl, "LLM Model", seed.llmModel, true);
@@ -662,12 +692,16 @@ function applyPluginConfig(root: JsonObject, config: PluginConfigInput, target: 
   const entries = getObject(plugins, "entries");
   const pluginEntry = getObject(entries, PLUGIN_ID);
   pluginEntry.enabled = true;
-  pluginEntry.config = {
+    pluginEntry.config = {
     tickflowApiUrl: config.tickflowApiUrl,
     tickflowApiKey: config.tickflowApiKey,
     tickflowApiKeyLevel: config.tickflowApiKeyLevel,
     mxSearchApiUrl: config.mxSearchApiUrl,
     mxSearchApiKey: config.mxSearchApiKey,
+    jin10McpUrl: config.jin10McpUrl,
+    jin10ApiToken: config.jin10ApiToken,
+    jin10FlashPollInterval: config.jin10FlashPollInterval,
+    jin10FlashRetentionDays: config.jin10FlashRetentionDays,
     llmBaseUrl: config.llmBaseUrl,
     llmApiKey: config.llmApiKey,
     llmModel: config.llmModel,

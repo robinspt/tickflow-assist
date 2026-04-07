@@ -81,9 +81,9 @@ plugins.entries["tickflow-assist"].config
 - 核心运行：`tickflowApiKey`、`llmApiKey`、`llmBaseUrl`、`llmModel`
 - 本地数据：`databasePath`、`calendarFile`
 - 告警投递：`alertChannel`、`alertTarget`、`alertAccount`
-- 能力补充：`mxSearchApiKey`
+- 能力补充：`mxSearchApiKey`、`jin10ApiToken`
 
-其中，`mxSearchApiKey` 用于 `mx_search`、`mx_select_stock` 以及非 `Expert` 财务链路的 lite 补充；`alertTarget`、`alertAccount` 建议在准备启用 `test_alert`、实时监控告警和定时通知前一并配好，避免配置不完整导致功能缺失。
+其中，`mxSearchApiKey` 用于 `mx_search`、`mx_select_stock` 以及非 `Expert` 财务链路的 lite 补充；`jin10ApiToken` 用于 24 小时 Jin10 快讯监控；`alertTarget`、`alertAccount` 建议在准备启用 `test_alert`、实时监控告警、Jin10 快讯告警和定时通知前一并配好，避免配置不完整导致功能缺失。
 
 ## 功能
 
@@ -95,7 +95,7 @@ plugins.entries["tickflow-assist"].config
 ## 运行说明
 
 - 插件会在本地 `databasePath` 下持久化 LanceDB 数据。
-- 后台服务会按配置执行定时日更与实时监控。
+- 后台服务会按配置执行定时日更、实时监控与 Jin10 快讯监控。
 - Python 子模块仅用于技术指标计算，不承担主业务流程。
 
 ## 仓库
