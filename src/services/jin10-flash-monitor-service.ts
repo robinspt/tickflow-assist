@@ -118,6 +118,8 @@ export class Jin10FlashMonitorService {
         lastPollStored: 0,
         lastPollCandidates: 0,
         lastPollAlerts: 0,
+        lastLoopError: null,
+        lastLoopErrorAt: null,
       });
       return 0;
     }
@@ -136,6 +138,8 @@ export class Jin10FlashMonitorService {
         lastPollStored: saveResult.added,
         lastPollCandidates: 0,
         lastPollAlerts: 0,
+        lastLoopError: null,
+        lastLoopErrorAt: null,
       };
       await this.writeState(nextState);
       await this.maybePruneExpired(nextState);
@@ -173,6 +177,8 @@ export class Jin10FlashMonitorService {
       lastPollStored: saveResult.added,
       lastPollCandidates: candidates.length,
       lastPollAlerts: alertCount,
+      lastLoopError: null,
+      lastLoopErrorAt: null,
     };
     await this.writeState(nextState);
     await this.maybePruneExpired(nextState);
