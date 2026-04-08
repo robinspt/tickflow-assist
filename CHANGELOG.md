@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.2 - 2026-04-08
+
+- 新增 `jin10FlashNightAlert` 夜间静默配置，并将全局默认值改为 `false`：默认在北京时间 `22:00~06:00` 静默不发送金十快讯告警，如需恢复 24 小时告警可显式关闭夜间静默。
+- `setup-tickflow.sh` 与 `configure-openclaw` 改为菜单式选择夜间静默模式，安装与配置时可直接选择“24 小时告警”或“22:00~06:00 不告警（默认）”。
+- 收盘复盘新增金十快讯上下文：一方面注入当日已触发的个股关联快讯，另一方面补充“港股收评”“每日投行/机构观点梳理”“A 股每日市场要闻回顾”等市场概览快讯，供复盘结论综合参考。
+
 ## v0.3.1 - 2026-04-07
 
 - 补充 npm Trusted Publishing 所需的 `repository`、`homepage`、`bugs` 包元数据，修复 GitHub Release 触发的 `npm publish --provenance` 因仓库信息缺失而被 npm 拒绝的问题。
