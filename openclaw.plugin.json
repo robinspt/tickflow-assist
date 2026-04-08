@@ -60,7 +60,7 @@
       },
       "jin10FlashNightAlert": {
         "type": "boolean",
-        "default": true,
+        "default": false,
         "description": "When true, flash alerts fire 24/7. When false, suppress alerts between 22:00 and 06:00 Beijing time."
       },
       "llmBaseUrl": {

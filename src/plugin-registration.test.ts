@@ -102,7 +102,7 @@ function createAppConfig() {
     jin10ApiToken: "",
     jin10FlashPollInterval: 300,
     jin10FlashRetentionDays: 7,
-    jin10FlashNightAlert: true,
+    jin10FlashNightAlert: false,
     databasePath: path.resolve(process.cwd(), "tmp", "plugin-registration-test-db"),
     calendarFile: path.resolve(process.cwd(), "day_future.txt"),
     requestInterval: 30,

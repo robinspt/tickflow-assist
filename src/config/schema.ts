@@ -38,7 +38,7 @@ export const DEFAULT_PLUGIN_CONFIG: Omit<
   jin10McpUrl: "https://mcp.jin10.com/mcp",
   jin10FlashPollInterval: 300,
   jin10FlashRetentionDays: 7,
-  jin10FlashNightAlert: true,
+  jin10FlashNightAlert: false,
   llmBaseUrl: "https://api.openai.com/v1",
   llmModel: "gpt-4o",
   databasePath: "./data/lancedb",

@@ -63,7 +63,7 @@ const DEFAULTS = {
   jin10McpUrl: "https://mcp.jin10.com/mcp",
   jin10FlashPollInterval: 300,
   jin10FlashRetentionDays: 7,
-  jin10FlashNightAlert: true,
+  jin10FlashNightAlert: false,
   llmBaseUrl: "https://api.openai.com/v1",
   llmModel: "gpt-4o",
   requestInterval: 30,
@@ -585,11 +585,16 @@ async function promptForConfig(
       seed.jin10FlashRetentionDays,
       1,
     );
-    seed.jin10FlashNightAlert = await promptBoolean(
+    const nightAlertChoice = await promptSelect(
       rl,
-      "Jin10 夜间告警 (true=24小时告警 / false=22:00~06:00静默)",
-      seed.jin10FlashNightAlert,
+      "Jin10 夜间静默",
+      [
+        { value: "true", label: "关闭夜间静默（24小时告警）" },
+        { value: "false", label: "开启夜间静默（22:00~06:00 不告警）" },
+      ],
+      seed.jin10FlashNightAlert ? "true" : "false",
     );
+    seed.jin10FlashNightAlert = nightAlertChoice === "true";
     seed.llmBaseUrl = await promptString(rl, "LLM Base URL", seed.llmBaseUrl, true);
     seed.llmApiKey = await promptString(rl, "LLM API Key", seed.llmApiKey, true);
     seed.llmModel = await promptString(rl, "LLM Model", seed.llmModel, true);
