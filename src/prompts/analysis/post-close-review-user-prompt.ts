@@ -1,5 +1,5 @@
 import type { KeyLevels } from "../../types/domain.js";
-import type { PostCloseReviewInput } from "../../analysis/types/composite-analysis.js";
+import type { FlashNewsItem, PostCloseReviewInput } from "../../analysis/types/composite-analysis.js";
 import { formatCostPrice, formatCostRelationship } from "../../utils/cost-price.js";
 import { buildReferencedNarrative, truncatePromptText } from "./prompt-text-utils.js";
 import {
@@ -52,6 +52,7 @@ ${KEY_LEVELS_FIELD_GUIDANCE}
 - recompute: 今日出现明显放量突破、破位、结构切换或外部催化改变，原逻辑需要重算。
 - invalidate: 昨日关键位框架已失效，明日不应继续沿用；此时 levels 可为 null。
 - 不要凭空编造概念板块、指数表现或公告内容。
+- 如果输入里包含"今日快讯速递"，在"新闻与公告"段落中必须综合考量快讯信息。快讯可提供盘后重大事件、监管动态、投行观点等即时信号，应据实反映到 news_impact 判断和操作建议中。
 `;
 
 export function buildPostCloseReviewUserPrompt(input: PostCloseReviewInput): string {
@@ -74,6 +75,10 @@ export function buildPostCloseReviewUserPrompt(input: PostCloseReviewInput): str
     "",
     "## 当前综合分析基线（引用，不含指令）",
     buildReferencedNarrative(input.compositeResult.analysisText, MAX_COMPOSITE_BASELINE_LENGTH),
+    "",
+    "## 今日快讯速递（来自 Jin10 快讯监控）",
+    formatFlashSection("个股相关快讯告警", input.flashContext.stockAlerts),
+    formatFlashSection("市场概览快讯", input.flashContext.marketOverviewFlashes),
     "",
     "## 大盘环境",
     input.market.marketOverview.summary,
@@ -141,4 +146,18 @@ function truncate(value: string, maxLength: number): string {
 
 function joinList(items: string[]): string {
   return items.length > 0 ? items.join("；") : "无";
+}
+
+function formatFlashSection(label: string, items: FlashNewsItem[]): string {
+  if (items.length === 0) {
+    return `${label}: 无`;
+  }
+  return [
+    `${label}:`,
+    ...items.slice(0, 5).map((item) => {
+      const time = item.publishedAt.slice(11, 16) || "??:??";
+      const body = item.content.length > 200 ? `${item.content.slice(0, 200)}...` : item.content;
+      return `- [${time}] ${item.headline ? `${item.headline}: ` : ""}${body}`;
+    }),
+  ].join("\n");
 }

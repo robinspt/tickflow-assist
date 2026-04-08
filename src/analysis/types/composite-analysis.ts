@@ -118,9 +118,22 @@ export interface PriorKeyLevelValidationContext {
   lines: string[];
 }
 
+export interface FlashNewsItem {
+  publishedAt: string;
+  content: string;
+  headline: string;
+  source: "stock_alert" | "market_overview";
+}
+
+export interface FlashNewsContext {
+  stockAlerts: FlashNewsItem[];
+  marketOverviewFlashes: FlashNewsItem[];
+}
+
 export interface PostCloseReviewInput extends CompositeAnalysisInput {
   compositeResult: CompositeAnalysisResult;
   validation: PriorKeyLevelValidationContext;
+  flashContext: FlashNewsContext;
 }
 
 export interface PostCloseReviewResult {

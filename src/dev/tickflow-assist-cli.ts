@@ -36,6 +36,7 @@ type PluginConfigInput = {
   jin10ApiToken: string;
   jin10FlashPollInterval: number;
   jin10FlashRetentionDays: number;
+  jin10FlashNightAlert: boolean;
   llmBaseUrl: string;
   llmApiKey: string;
   llmModel: string;
@@ -62,6 +63,7 @@ const DEFAULTS = {
   jin10McpUrl: "https://mcp.jin10.com/mcp",
   jin10FlashPollInterval: 300,
   jin10FlashRetentionDays: 7,
+  jin10FlashNightAlert: true,
   llmBaseUrl: "https://api.openai.com/v1",
   llmModel: "gpt-4o",
   requestInterval: 30,
@@ -95,6 +97,9 @@ Options:
   --mx-search-api-key <key>
   --jin10-mcp-url <url>
   --jin10-api-token <token>
+  --jin10-flash-poll-interval <seconds>
+  --jin10-flash-retention-days <days>
+  --jin10-flash-night-alert <true|false>
   --llm-base-url <url>
   --llm-api-key <key>
   --llm-model <name>
@@ -194,6 +199,15 @@ function parseArgs(argv: string[]): CliOptions {
         break;
       case "--jin10-api-token":
         options.overrides.jin10ApiToken = requireValue(token);
+        break;
+      case "--jin10-flash-poll-interval":
+        options.overrides.jin10FlashPollInterval = Number(requireValue(token));
+        break;
+      case "--jin10-flash-retention-days":
+        options.overrides.jin10FlashRetentionDays = Number(requireValue(token));
+        break;
+      case "--jin10-flash-night-alert":
+        options.overrides.jin10FlashNightAlert = requireValue(token).toLowerCase() === "true";
         break;
       case "--llm-base-url":
         options.overrides.llmBaseUrl = requireValue(token);
@@ -332,6 +346,10 @@ function getExistingPluginConfig(root: JsonObject): Partial<PluginConfigInput> {
     jin10FlashRetentionDays: Number.isFinite(jin10FlashRetentionDays)
       ? Math.max(1, Math.trunc(jin10FlashRetentionDays))
       : DEFAULTS.jin10FlashRetentionDays,
+    jin10FlashNightAlert:
+      typeof config.jin10FlashNightAlert === "boolean"
+        ? config.jin10FlashNightAlert
+        : DEFAULTS.jin10FlashNightAlert,
     llmBaseUrl: stringValue(config.llmBaseUrl, DEFAULTS.llmBaseUrl),
     llmApiKey: stringValue(config.llmApiKey),
     llmModel: stringValue(config.llmModel, DEFAULTS.llmModel),
@@ -503,6 +521,7 @@ async function promptForConfig(
     jin10ApiToken: "",
     jin10FlashPollInterval: DEFAULTS.jin10FlashPollInterval,
     jin10FlashRetentionDays: DEFAULTS.jin10FlashRetentionDays,
+    jin10FlashNightAlert: DEFAULTS.jin10FlashNightAlert,
     llmBaseUrl: DEFAULTS.llmBaseUrl,
     llmApiKey: "",
     llmModel: DEFAULTS.llmModel,
@@ -554,6 +573,23 @@ async function promptForConfig(
 
     seed.mxSearchApiKey = await promptString(rl, "MX Search API Key (可留空)", seed.mxSearchApiKey, false);
     seed.jin10ApiToken = await promptString(rl, "Jin10 API Token (可留空)", seed.jin10ApiToken, false);
+    seed.jin10FlashPollInterval = await promptInteger(
+      rl,
+      "Jin10 快讯轮询间隔（秒）",
+      seed.jin10FlashPollInterval,
+      10,
+    );
+    seed.jin10FlashRetentionDays = await promptInteger(
+      rl,
+      "Jin10 快讯保留天数",
+      seed.jin10FlashRetentionDays,
+      1,
+    );
+    seed.jin10FlashNightAlert = await promptBoolean(
+      rl,
+      "Jin10 夜间告警 (true=24小时告警 / false=22:00~06:00静默)",
+      seed.jin10FlashNightAlert,
+    );
     seed.llmBaseUrl = await promptString(rl, "LLM Base URL", seed.llmBaseUrl, true);
     seed.llmApiKey = await promptString(rl, "LLM API Key", seed.llmApiKey, true);
     seed.llmModel = await promptString(rl, "LLM Model", seed.llmModel, true);
@@ -702,6 +738,7 @@ function applyPluginConfig(root: JsonObject, config: PluginConfigInput, target: 
     jin10ApiToken: config.jin10ApiToken,
     jin10FlashPollInterval: config.jin10FlashPollInterval,
     jin10FlashRetentionDays: config.jin10FlashRetentionDays,
+    jin10FlashNightAlert: config.jin10FlashNightAlert,
     llmBaseUrl: config.llmBaseUrl,
     llmApiKey: config.llmApiKey,
     llmModel: config.llmModel,

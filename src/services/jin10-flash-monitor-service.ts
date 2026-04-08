@@ -10,7 +10,7 @@ import {
 import type { WatchlistItem } from "../types/domain.js";
 import type { FlashMonitorState } from "../types/flash-monitor.js";
 import type { Jin10FlashDeliveryEntry, Jin10FlashRecord } from "../types/jin10.js";
-import { chinaToday, formatChinaDateTime } from "../utils/china-time.js";
+import { chinaHour, chinaToday, formatChinaDateTime } from "../utils/china-time.js";
 import { AnalysisService } from "./analysis-service.js";
 import { AlertService } from "./alert-service.js";
 import { Jin10McpService } from "./jin10-mcp-service.js";
@@ -90,6 +90,7 @@ export class Jin10FlashMonitorService {
     private readonly baseDir: string,
     private readonly pollIntervalSeconds: number,
     private readonly retentionDays: number,
+    private readonly nightAlertEnabled: boolean,
     private readonly watchlistService: WatchlistService,
     private readonly jin10McpService: Jin10McpService,
     private readonly analysisService: AnalysisService,
@@ -259,6 +260,10 @@ export class Jin10FlashMonitorService {
 
   private async handleCandidate(candidate: StageOneCandidate): Promise<number> {
     if (await this.flashDeliveryRepository.hasDelivered(candidate.flash.flash_key)) {
+      return 0;
+    }
+
+    if (!this.nightAlertEnabled && isNightQuietHour()) {
       return 0;
     }
 
@@ -696,4 +701,9 @@ function parseChinaTime(value: string | null): Date | null {
 
 function toChinaTimeTimestamp(value: string): number {
   return parseChinaTime(value)?.getTime() ?? Date.now();
+}
+
+function isNightQuietHour(): boolean {
+  const hour = chinaHour();
+  return hour >= 22 || hour < 6;
 }

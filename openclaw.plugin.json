@@ -58,6 +58,11 @@
         "default": 7,
         "description": "How many days of raw Jin10 flash data to retain locally."
       },
+      "jin10FlashNightAlert": {
+        "type": "boolean",
+        "default": true,
+        "description": "When true, flash alerts fire 24/7. When false, suppress alerts between 22:00 and 06:00 Beijing time."
+      },
       "llmBaseUrl": {
         "type": "string",
         "default": "https://api.openai.com/v1",
@@ -165,6 +170,11 @@
     "jin10FlashRetentionDays": {
       "label": "Jin10 Retention Days",
       "help": "How many days of Jin10 raw flash data to keep locally.",
+      "advanced": true
+    },
+    "jin10FlashNightAlert": {
+      "label": "Jin10 Night Alert",
+      "help": "Set to false to suppress flash alerts between 22:00-06:00 Beijing time.",
       "advanced": true
     },
     "llmBaseUrl": {

@@ -65,6 +65,28 @@ export class Jin10FlashRepository {
     return table.countRows(`published_ts >= ${Math.trunc(publishedTs)}`);
   }
 
+  async searchByContentKeywords(keywords: string[], datePrefix: string): Promise<Jin10FlashRecord[]> {
+    if (keywords.length === 0 || !(await this.db.hasTable(JIN10_FLASH_TABLE))) {
+      return [];
+    }
+
+    const dayStart = `${datePrefix} 00:00:00`;
+    const dayStartTs = new Date(`${dayStart.replace(" ", "T")}+08:00`).getTime();
+    if (Number.isNaN(dayStartTs)) {
+      return [];
+    }
+
+    const table = await this.db.openTable(JIN10_FLASH_TABLE);
+    const rows = (await table
+      .query()
+      .where(`published_ts >= ${Math.trunc(dayStartTs)}`)
+      .toArray()) as Array<Record<string, unknown>>;
+
+    return rows
+      .map((row) => fromFlashRow(row))
+      .filter((record) => keywords.some((kw) => record.content.includes(kw)));
+  }
+
   async pruneOlderThanPublishedTs(publishedTs: number): Promise<void> {
     if (!(await this.db.hasTable(JIN10_FLASH_TABLE))) {
       return;

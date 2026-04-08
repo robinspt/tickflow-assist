@@ -159,6 +159,7 @@ plugins.entries["tickflow-assist"].config
           "calendarFile": "/path/to/tickflow-assist/day_future.txt",
           "alertChannel": "telegram",
           "alertTarget": "YOUR_TARGET",
+          "jin10FlashNightAlert": true,
           "pythonBin": "uv",
           "pythonArgs": ["run", "python"],
           "pythonWorkdir": "/path/to/tickflow-assist/python"
@@ -181,6 +182,7 @@ plugins.entries["tickflow-assist"].config
     "jin10ApiToken": "jin10_xxx",
     "jin10FlashPollInterval": 300,
     "jin10FlashRetentionDays": 7,
+    "jin10FlashNightAlert": true,
     "llmBaseUrl": "https://api.openai.com/v1",
     "llmApiKey": "sk-xxx",
     "llmModel": "gpt-4o",
@@ -205,6 +207,7 @@ plugins.entries["tickflow-assist"].config
 | `jin10ApiToken` | 否 | 启用 24 小时 Jin10 快讯监控 |
 | `jin10FlashPollInterval` | 否 | Jin10 快讯轮询间隔，默认 `300` 秒 |
 | `jin10FlashRetentionDays` | 否 | Jin10 原始快讯本地保留天数，默认 `7` 天 |
+| `jin10FlashNightAlert` | 否 | `true`=24小时告警（默认）；`false`=22:00~06:00（北京时间）不发送快讯告警 |
 | `llmBaseUrl` | 否 | OpenAI 兼容接口地址 |
 | `llmApiKey` | 是 | 大模型 API Key；使用本地模型时也不能留空，可填占位值 |
 | `llmModel` | 是 | 分析使用的模型名 |

@@ -73,6 +73,7 @@ export function normalizePluginConfig(input: unknown): PluginConfig {
       raw.jin10FlashRetentionDays,
       DEFAULT_PLUGIN_CONFIG.jin10FlashRetentionDays,
     ),
+    jin10FlashNightAlert: normalizeBoolean(raw.jin10FlashNightAlert, DEFAULT_PLUGIN_CONFIG.jin10FlashNightAlert),
     llmBaseUrl: normalizeString(raw.llmBaseUrl, DEFAULT_PLUGIN_CONFIG.llmBaseUrl),
     llmApiKey: normalizeString(raw.llmApiKey),
     llmModel: normalizeString(raw.llmModel, DEFAULT_PLUGIN_CONFIG.llmModel),

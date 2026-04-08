@@ -41,6 +41,23 @@ export class Jin10FlashDeliveryRepository {
     return table.countRows(`delivered_at >= '${escapeSqlString(deliveredAt)}'`);
   }
 
+  async listBySymbolsAndDate(symbols: string[], datePrefix: string): Promise<Jin10FlashDeliveryEntry[]> {
+    if (symbols.length === 0 || !(await this.db.hasTable(JIN10_FLASH_DELIVERY_TABLE))) {
+      return [];
+    }
+
+    const table = await this.db.openTable(JIN10_FLASH_DELIVERY_TABLE);
+    const rows = (await table
+      .query()
+      .where(`delivered_at >= '${escapeSqlString(datePrefix)} 00:00:00'`)
+      .toArray()) as Array<Record<string, unknown>>;
+
+    const symbolSet = new Set(symbols);
+    return rows
+      .map((row) => fromDeliveryRow(row))
+      .filter((entry) => entry.symbols.some((s: string) => symbolSet.has(s)));
+  }
+
   async pruneOlderThanDeliveredAt(deliveredAt: string): Promise<void> {
     if (!(await this.db.hasTable(JIN10_FLASH_DELIVERY_TABLE))) {
       return;
@@ -61,6 +78,28 @@ function toDeliveryRow(entry: Jin10FlashDeliveryEntry): DbRow {
     importance: entry.importance,
     message: entry.message,
     delivered_at: entry.delivered_at,
+  };
+}
+
+function fromDeliveryRow(row: Record<string, unknown>): Jin10FlashDeliveryEntry {
+  let symbols: string[] = [];
+  try {
+    const parsed = JSON.parse(String(row.symbols_json ?? "[]"));
+    if (Array.isArray(parsed)) {
+      symbols = parsed.map((v: unknown) => String(v));
+    }
+  } catch {
+    // ignore
+  }
+  return {
+    flash_key: String(row.flash_key ?? ""),
+    published_at: String(row.published_at ?? ""),
+    symbols,
+    headline: String(row.headline ?? ""),
+    reason: String(row.reason ?? ""),
+    importance: (String(row.importance ?? "medium") as Jin10FlashDeliveryEntry["importance"]),
+    message: String(row.message ?? ""),
+    delivered_at: String(row.delivered_at ?? ""),
   };
 }
 

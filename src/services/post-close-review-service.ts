@@ -3,6 +3,8 @@ import { formatChinaDateTime } from "../utils/china-time.js";
 import { CompositeAnalysisOrchestrator } from "../analysis/orchestrators/composite-analysis.orchestrator.js";
 import type {
   CompositeAnalysisResult,
+  FlashNewsContext,
+  FlashNewsItem,
   MarketOverviewContext,
   PostCloseReviewResult,
   PriorKeyLevelValidationContext,
@@ -14,9 +16,17 @@ import { KeyLevelsRepository } from "../storage/repositories/key-levels-repo.js"
 import { KeyLevelsHistoryRepository } from "../storage/repositories/key-levels-history-repo.js";
 import { KlinesRepository } from "../storage/repositories/klines-repo.js";
 import { IntradayKlinesRepository } from "../storage/repositories/intraday-klines-repo.js";
+import { Jin10FlashDeliveryRepository } from "../storage/repositories/jin10-flash-delivery-repo.js";
+import { Jin10FlashRepository } from "../storage/repositories/jin10-flash-repo.js";
 
 const LEVEL_BUFFER = 0.005;
 const INTRADAY_PERIOD = "1m";
+
+const MARKET_OVERVIEW_FLASH_KEYWORDS = [
+  "港股收评",
+  "金十数据整理：每日投行/机构观点梳理",
+  "金十数据整理：A股每日市场要闻回顾",
+];
 
 interface ReviewSuccessEntry {
   ok: true;
@@ -49,6 +59,8 @@ export class PostCloseReviewService {
     private readonly keyLevelsHistoryRepository: KeyLevelsHistoryRepository,
     private readonly klinesRepository: KlinesRepository,
     private readonly intradayKlinesRepository: IntradayKlinesRepository,
+    private readonly flashDeliveryRepository: Jin10FlashDeliveryRepository,
+    private readonly flashRepository: Jin10FlashRepository,
   ) {}
 
   async run(): Promise<PostCloseReviewRunResult> {
@@ -75,10 +87,12 @@ export class PostCloseReviewService {
         const validation = await this.buildValidationContext(item.symbol, tradeDate);
 
         compositeResult = await this.compositeAnalysisOrchestrator.analyzeInput(input);
+        const flashContext = await this.buildFlashContext(item.symbol, tradeDate);
         const review = await this.analysisService.runTask(this.postCloseReviewTask, {
           ...input,
           compositeResult,
           validation,
+          flashContext,
         });
         const message = this.formatDetailMessage(item, validation, review);
         await this.persistReview(item.symbol, message, review);
@@ -203,6 +217,29 @@ export class PostCloseReviewService {
       summary: `昨日关键位${formatValidationVerdictLabel(verdict)}。`,
       lines,
     };
+  }
+
+  private async buildFlashContext(symbol: string, datePrefix: string): Promise<FlashNewsContext> {
+    const [deliveries, overviewFlashes] = await Promise.all([
+      this.flashDeliveryRepository.listBySymbolsAndDate([symbol], datePrefix),
+      this.flashRepository.searchByContentKeywords(MARKET_OVERVIEW_FLASH_KEYWORDS, datePrefix),
+    ]);
+
+    const stockAlerts: FlashNewsItem[] = deliveries.map((entry) => ({
+      publishedAt: entry.published_at,
+      content: entry.reason,
+      headline: entry.headline,
+      source: "stock_alert" as const,
+    }));
+
+    const marketOverviewFlashes: FlashNewsItem[] = overviewFlashes.map((record) => ({
+      publishedAt: record.published_at,
+      content: record.content,
+      headline: extractHeadlineFromContent(record.content),
+      source: "market_overview" as const,
+    }));
+
+    return { stockAlerts, marketOverviewFlashes };
   }
 
   private formatOverviewMessage(
@@ -636,4 +673,9 @@ function formatPriceRail(
     .sort((left, right) => left.value - right.value)
     .map((entry) => `${entry.parts.join("/")} ${entry.value.toFixed(2)}`)
     .join(" → ");
+}
+
+function extractHeadlineFromContent(content: string): string {
+  const firstLine = content.split(/[\n。！!]/)[0]?.trim() ?? "";
+  return firstLine.length > 60 ? `${firstLine.slice(0, 60)}...` : firstLine;
 }

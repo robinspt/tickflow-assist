@@ -19,3 +19,9 @@ export function formatChinaDateTime(date: Date = chinaNow()): string {
 export function chinaToday(date: Date = chinaNow()): string {
   return formatChinaDateTime(date).slice(0, 10);
 }
+
+export function chinaHour(date: Date = chinaNow()): number {
+  const utcMs = date.getTime() + date.getTimezoneOffset() * 60_000;
+  const chinaDate = new Date(utcMs + CHINA_OFFSET_HOURS * 60 * 60 * 1000);
+  return chinaDate.getUTCHours();
+}

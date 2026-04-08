@@ -260,6 +260,7 @@ export function createAppContext(
     config.databasePath,
     config.jin10FlashPollInterval,
     config.jin10FlashRetentionDays,
+    config.jin10FlashNightAlert,
     watchlistService,
     jin10McpService,
     analysisService,
@@ -286,6 +287,8 @@ export function createAppContext(
     keyLevelsHistoryRepository,
     klinesRepository,
     intradayKlinesRepository,
+    jin10FlashDeliveryRepository,
+    jin10FlashRepository,
   );
   const realtimeMonitorWorker = new RealtimeMonitorWorker(
     monitorService,

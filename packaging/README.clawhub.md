@@ -4,7 +4,7 @@
 
 最近更新：`v0.3.1` 修复 GitHub Actions 自动发布 npm 包时的 provenance 仓库元数据校验失败，并将金十数据 MCP 握手里的 `clientInfo` 调整为中性固定值。完整发布记录见 <https://github.com/robinspt/tickflow-assist/blob/main/CHANGELOG.md>。
 
-当前主线按 OpenClaw `v2026.3.31+` 对齐，并已验证社区安装在 `v2026.4.1` 上兼容。
+当前主线按 OpenClaw `v2026.3.31+` 对齐，并已验证社区安装在 `v2026.4.5` 上兼容。
 
 ## 安装
 
@@ -83,7 +83,7 @@ plugins.entries["tickflow-assist"].config
 - 告警投递：`alertChannel`、`alertTarget`、`alertAccount`
 - 能力补充：`mxSearchApiKey`、`jin10ApiToken`
 
-其中，`mxSearchApiKey` 用于 `mx_search`、`mx_select_stock` 以及非 `Expert` 财务链路的 lite 补充；`jin10ApiToken` 用于 24 小时金十数据快讯监控；`alertTarget`、`alertAccount` 建议在准备启用 `test_alert`、实时监控告警、金十数据快讯告警和定时通知前一并配好，避免配置不完整导致功能缺失。
+其中，`mxSearchApiKey` 用于 `mx_search`、`mx_select_stock` 以及非 `Expert` 财务链路的 lite 补充；`jin10ApiToken` 用于 24 小时金十数据快讯监控；`jin10FlashNightAlert` 默认 `true`（24小时告警），设为 `false` 可在 22:00~06:00（北京时间）静默不发快讯告警；`alertTarget`、`alertAccount` 建议在准备启用 `test_alert`、实时监控告警、金十数据快讯告警和定时通知前一并配好，避免配置不完整导致功能缺失。
 
 ## 功能
 
