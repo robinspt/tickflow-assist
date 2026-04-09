@@ -7,11 +7,16 @@ import {
   PostCloseReviewService,
   type PostCloseReviewRunResult,
 } from "../services/post-close-review-service.js";
+import {
+  PreMarketBriefService,
+  type PreMarketBriefRunResult,
+} from "../services/pre-market-brief-service.js";
 import { TradingCalendarService } from "../services/trading-calendar-service.js";
 import type { DailyUpdateResultType, DailyUpdateState } from "../types/daily-update.js";
 import { chinaToday, formatChinaDateTime } from "../utils/china-time.js";
 import { sleepWithAbort } from "../utils/abortable-sleep.js";
 
+const PRE_MARKET_BRIEF_READY_TIME = "09:20";
 const DAILY_UPDATE_READY_TIME = "15:25";
 const POST_CLOSE_REVIEW_READY_TIME = "20:00";
 
@@ -39,6 +44,13 @@ const DEFAULT_STATE: DailyUpdateState = {
   lastReviewResultType: null,
   lastReviewResultSummary: null,
   reviewConsecutiveFailures: 0,
+  lastPreMarketAttemptAt: null,
+  lastPreMarketAttemptDate: null,
+  lastPreMarketSuccessAt: null,
+  lastPreMarketSuccessDate: null,
+  lastPreMarketResultType: null,
+  lastPreMarketResultSummary: null,
+  preMarketConsecutiveFailures: 0,
 };
 
 interface DailyUpdateExecutionOutput {
@@ -53,6 +65,11 @@ interface PostCloseReviewExecutionOutput {
   combinedText: string;
 }
 
+interface PreMarketBriefExecutionOutput {
+  resultType: DailyUpdateResultType;
+  message: string;
+}
+
 interface ScheduleReadiness {
   ok: boolean;
   reason: string;
@@ -62,6 +79,7 @@ interface ScheduleReadiness {
 export class DailyUpdateWorker {
   constructor(
     private readonly updateService: UpdateService,
+    private readonly preMarketBriefService: PreMarketBriefService,
     private readonly postCloseReviewService: PostCloseReviewService | null,
     private readonly tradingCalendarService: TradingCalendarService,
     private readonly baseDir: string,
@@ -194,12 +212,18 @@ export class DailyUpdateWorker {
     const state = await this.readState();
     const today = chinaToday();
     const lines = [
-      "🕒 定时日更 / 收盘复盘状态",
+      "🕒 盘前资讯 / 定时日更 / 收盘复盘状态",
       `状态: ${formatProcessState(state)}`,
       `运行方式: ${formatRuntimeHost(state)}`,
       `配置来源: ${this.configSource}`,
-      `调度: ${Math.floor(this.intervalMs / 60_000)} 分钟对齐轮询 | 日更 ${DAILY_UPDATE_READY_TIME} 后执行 | 复盘 ${POST_CLOSE_REVIEW_READY_TIME} 后执行`,
+      `调度: ${Math.floor(this.intervalMs / 60_000)} 分钟对齐轮询 | 盘前资讯 ${PRE_MARKET_BRIEF_READY_TIME} 后执行 | 日更 ${DAILY_UPDATE_READY_TIME} 后执行 | 复盘 ${POST_CLOSE_REVIEW_READY_TIME} 后执行`,
       `最近心跳: ${state.lastHeartbeatAt ?? "暂无"}`,
+      "",
+      "盘前资讯:",
+      `• 今日已推送: ${state.lastPreMarketSuccessDate === today ? "是" : "否"}`,
+      `• 最近尝试: ${state.lastPreMarketAttemptAt ?? "暂无"}`,
+      `• 最近成功: ${state.lastPreMarketSuccessAt ?? "暂无"}`,
+      `• 最近结果: ${formatResultType(state.lastPreMarketResultType)}`,
       "",
       "日更执行:",
       `• 今日已更新: ${state.lastSuccessDate === today ? "是" : "否"}`,
@@ -207,6 +231,13 @@ export class DailyUpdateWorker {
       `• 最近成功: ${state.lastSuccessAt ?? "暂无"}`,
       `• 最近结果: ${formatResultType(state.lastResultType)}`,
     ];
+
+    if (state.preMarketConsecutiveFailures > 0) {
+      lines.push(`• 连续失败: ${state.preMarketConsecutiveFailures}`);
+    }
+    if (state.lastPreMarketResultSummary) {
+      lines.push(`• 最近摘要: ${state.lastPreMarketResultSummary}`);
+    }
 
     if (state.consecutiveFailures > 0) {
       lines.push(`• 连续失败: ${state.consecutiveFailures}`);
@@ -235,8 +266,30 @@ export class DailyUpdateWorker {
   }
 
   private async runScheduledPasses(): Promise<void> {
+    await this.runScheduledPreMarketBriefPass();
     await this.runScheduledUpdatePass();
     await this.runScheduledReviewPass();
+  }
+
+  private async runScheduledPreMarketBriefPass(): Promise<void> {
+    const today = chinaToday();
+    const state = await this.readState();
+    if (hasCompletedScheduledWindow(
+      state.lastPreMarketSuccessDate,
+      state.lastPreMarketSuccessAt,
+      today,
+      PRE_MARKET_BRIEF_READY_TIME,
+    )) {
+      return;
+    }
+
+    const readiness = await this.tradingCalendarService.canRunPreMarketBrief();
+    if (!readiness.ok) {
+      await this.recordPreMarketSkip(state, today, readiness.reason);
+      return;
+    }
+
+    await this.executePreMarketBriefAndRecord("scheduled");
   }
 
   private async runScheduledUpdatePass(): Promise<void> {
@@ -322,6 +375,21 @@ export class DailyUpdateWorker {
       lastReviewResultType: "skipped",
       lastReviewResultSummary: reason,
       reviewConsecutiveFailures: 0,
+    });
+  }
+
+  private async recordPreMarketSkip(
+    state: DailyUpdateState,
+    today: string,
+    reason: string,
+  ): Promise<void> {
+    await this.writeState({
+      ...state,
+      lastPreMarketAttemptAt: formatChinaDateTime(),
+      lastPreMarketAttemptDate: today,
+      lastPreMarketResultType: "skipped",
+      lastPreMarketResultSummary: reason,
+      preMarketConsecutiveFailures: 0,
     });
   }
 
@@ -437,6 +505,57 @@ export class DailyUpdateWorker {
     }
   }
 
+  private async executePreMarketBriefAndRecord(
+    trigger: "manual" | "scheduled",
+  ): Promise<PreMarketBriefExecutionOutput> {
+    const today = chinaToday();
+    const state = await this.readState();
+    const attemptedAt = formatChinaDateTime();
+
+    try {
+      const result = await this.preMarketBriefService.run();
+      const output = createPreMarketBriefExecutionOutput(result);
+      const nextState: DailyUpdateState = {
+        ...state,
+        lastPreMarketAttemptAt: attemptedAt,
+        lastPreMarketAttemptDate: today,
+        lastPreMarketResultType: output.resultType,
+        lastPreMarketResultSummary: summarizePreMarketBriefResult(output.message),
+        preMarketConsecutiveFailures: output.resultType === "failed" ? state.preMarketConsecutiveFailures + 1 : 0,
+      };
+
+      if (output.resultType === "success") {
+        nextState.lastPreMarketSuccessAt = attemptedAt;
+        nextState.lastPreMarketSuccessDate = today;
+      }
+
+      await this.writeState(nextState);
+      if (trigger === "scheduled") {
+        await this.maybeSendPreMarketBriefNotification(output);
+      }
+      return output;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const failureText = `⚠️ 开盘前资讯简报失败: ${message}`;
+      await this.writeState({
+        ...state,
+        lastPreMarketAttemptAt: attemptedAt,
+        lastPreMarketAttemptDate: today,
+        lastPreMarketResultType: "failed",
+        lastPreMarketResultSummary: failureText,
+        preMarketConsecutiveFailures: state.preMarketConsecutiveFailures + 1,
+      });
+      const output: PreMarketBriefExecutionOutput = {
+        resultType: "failed",
+        message: failureText,
+      };
+      if (trigger === "scheduled") {
+        await this.maybeSendPreMarketBriefNotification(output);
+      }
+      return output;
+    }
+  }
+
   private getStateFilePath(): string {
     return path.join(this.baseDir, "daily-update-state.json");
   }
@@ -496,6 +615,23 @@ export class DailyUpdateWorker {
     await this.alertService.send(message);
   }
 
+  private async maybeSendPreMarketBriefNotification(output: PreMarketBriefExecutionOutput): Promise<void> {
+    if (!this.notifyEnabled || output.resultType === "skipped") {
+      return;
+    }
+
+    if (output.resultType !== "success") {
+      const message = this.alertService.formatSystemNotification(
+        "❌ 开盘前资讯简报失败",
+        selectPreMarketBriefNotificationLines(output.message),
+      );
+      await this.alertService.send(message);
+      return;
+    }
+
+    await this.alertService.send(output.message);
+  }
+
   private async maybeSendReviewNotification(output: PostCloseReviewExecutionOutput): Promise<void> {
     if (!this.notifyEnabled || output.resultType === "skipped") {
       return;
@@ -542,6 +678,15 @@ function createReviewExecutionOutput(
     overviewMessage: reviewResult.overviewMessage,
     detailMessages: reviewResult.detailMessages,
     combinedText: joinMessages(reviewResult.overviewMessage, ...reviewResult.detailMessages),
+  };
+}
+
+function createPreMarketBriefExecutionOutput(
+  result: PreMarketBriefRunResult,
+): PreMarketBriefExecutionOutput {
+  return {
+    resultType: result.resultType,
+    message: result.message,
   };
 }
 
@@ -594,6 +739,10 @@ function summarizeReviewResult(result: string): string {
   return selectReviewSummaryLines(result).join(" | ");
 }
 
+function summarizePreMarketBriefResult(result: string): string {
+  return selectPreMarketBriefNotificationLines(result).join(" | ");
+}
+
 function selectUpdateSummaryLines(result: string): string[] {
   const lines = normalizeResultLines(result);
   const head = lines.slice(0, 2);
@@ -619,6 +768,13 @@ function selectReviewNotificationLines(result: string): string[] {
   const lines = normalizeResultLines(result);
   const head = lines.slice(0, 4);
   const highlights = lines.filter((line) => /^(🧭|复盘数量:|关键位验证:|明日处理:|⚠️ 收盘复盘失败|⚠️ 收盘分析\/回测失败)/.test(line));
+  return dedupeLines([...head, ...highlights]).slice(0, 12);
+}
+
+function selectPreMarketBriefNotificationLines(result: string): string[] {
+  const lines = normalizeResultLines(result);
+  const head = lines.slice(0, 4);
+  const highlights = lines.filter((line) => /^\*\*【/.test(line));
   return dedupeLines([...head, ...highlights]).slice(0, 12);
 }
 

@@ -1555,8 +1555,8 @@ restart_gateway() {
 maybe_reconfigure_for_upgrade() {
   RECONFIGURE="yes"
   if [[ "$LOCAL_CONFIG_EXISTS" == "yes" || "$OPENCLAW_PLUGIN_CONFIGURED" == "yes" ]]; then
-    read -r -p "检测到已有配置，是否重新填写配置？(y/N): " SHOULD_RECONFIGURE
-    if [[ ! "${SHOULD_RECONFIGURE:-n}" =~ ^[yY]$ ]]; then
+    read -r -p "检测到已有配置，是否重新填写配置？(Y/n): " SHOULD_RECONFIGURE
+    if [[ "${SHOULD_RECONFIGURE:-y}" =~ ^[nN]$ ]]; then
       RECONFIGURE="no"
     fi
   fi

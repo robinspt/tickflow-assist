@@ -3,6 +3,9 @@ node_modules/
 data/
 local.config.json
 AGENTS.md
+.codex
+.codex/
+CHANGELOG.unreleased.local.md
 python/__pycache__/
 *.pyc
 MIGRATION*.md

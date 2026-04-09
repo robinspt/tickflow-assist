@@ -37,6 +37,7 @@ import { AlertMediaService } from "./services/alert-media-service.js";
 import { UpdateService } from "./services/update-service.js";
 import { KeyLevelsBacktestService } from "./services/key-levels-backtest-service.js";
 import { PostCloseReviewService } from "./services/post-close-review-service.js";
+import { PreMarketBriefService } from "./services/pre-market-brief-service.js";
 import { ReviewMemoryService } from "./services/review-memory-service.js";
 import { CompositeAnalysisOrchestrator } from "./analysis/orchestrators/composite-analysis.orchestrator.js";
 import { MarketAnalysisProvider } from "./analysis/providers/market-analysis.provider.js";
@@ -290,6 +291,12 @@ export function createAppContext(
     jin10FlashDeliveryRepository,
     jin10FlashRepository,
   );
+  const preMarketBriefService = new PreMarketBriefService(
+    watchlistService,
+    jin10McpService,
+    jin10FlashRepository,
+    analysisService,
+  );
   const realtimeMonitorWorker = new RealtimeMonitorWorker(
     monitorService,
     config.requestInterval * 1000,
@@ -300,6 +307,7 @@ export function createAppContext(
   );
   const dailyUpdateWorker = new DailyUpdateWorker(
     updateService,
+    preMarketBriefService,
     postCloseReviewService,
     tradingCalendarService,
     config.databasePath,

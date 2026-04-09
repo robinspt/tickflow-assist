@@ -65,6 +65,24 @@ export class Jin10FlashRepository {
     return table.countRows(`published_ts >= ${Math.trunc(publishedTs)}`);
   }
 
+  async listByPublishedRange(startPublishedTs: number, endPublishedTs: number): Promise<Jin10FlashRecord[]> {
+    if (!(await this.db.hasTable(JIN10_FLASH_TABLE))) {
+      return [];
+    }
+
+    const table = await this.db.openTable(JIN10_FLASH_TABLE);
+    const rows = (await table
+      .query()
+      .where(
+        `published_ts >= ${Math.trunc(startPublishedTs)} AND published_ts <= ${Math.trunc(endPublishedTs)}`,
+      )
+      .toArray()) as Array<Record<string, unknown>>;
+
+    return rows
+      .map((row) => fromFlashRow(row))
+      .sort((left, right) => left.published_ts - right.published_ts);
+  }
+
   async searchByContentKeywords(keywords: string[], datePrefix: string): Promise<Jin10FlashRecord[]> {
     if (keywords.length === 0 || !(await this.db.hasTable(JIN10_FLASH_TABLE))) {
       return [];

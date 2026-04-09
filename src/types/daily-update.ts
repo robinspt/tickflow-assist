@@ -24,4 +24,11 @@ export interface DailyUpdateState {
   lastReviewResultType: DailyUpdateResultType | null;
   lastReviewResultSummary: string | null;
   reviewConsecutiveFailures: number;
+  lastPreMarketAttemptAt: string | null;
+  lastPreMarketAttemptDate: string | null;
+  lastPreMarketSuccessAt: string | null;
+  lastPreMarketSuccessDate: string | null;
+  lastPreMarketResultType: DailyUpdateResultType | null;
+  lastPreMarketResultSummary: string | null;
+  preMarketConsecutiveFailures: number;
 }
