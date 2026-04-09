@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { WatchlistItem, KeyLevels } from "../types/domain.js";
@@ -37,6 +37,7 @@ const DEFAULT_STATE: MonitorState = {
   sessionNotificationsSent: [],
 };
 const INTRADAY_PERIOD = "1m";
+const MONITOR_RUN_LOCK_MIN_STALE_MS = 90_000;
 
 export class MonitorService {
   constructor(
@@ -200,57 +201,68 @@ export class MonitorService {
   }
 
   async runMonitorOnce(): Promise<number> {
-    await this.alertMediaService.maybeCleanupExpired();
-    const phase = await this.tradingCalendarService.getTradingPhase();
-    let alertCount = await this.maybeSendSessionNotification(phase);
-    if (phase !== "trading") {
-      return alertCount;
+    const runLease = await this.tryAcquireRunLease();
+    if (!runLease) {
+      return 0;
     }
 
-    const watchlist = await this.watchlistService.list();
-    if (watchlist.length === 0) {
-      return alertCount;
-    }
-
-    const quotes = await this.quoteService.fetchQuotes(watchlist.map((item) => item.symbol));
-    const quoteMap = new Map(quotes.map((quote) => [quote.symbol, quote]));
-
-    for (const item of watchlist) {
-      const quote = quoteMap.get(item.symbol);
-      if (!quote || !(Number(quote.last_price) > 0)) {
-        continue;
+    try {
+      await this.alertMediaService.maybeCleanupExpired();
+      const phase = await this.tradingCalendarService.getTradingPhase();
+      let alertCount = await this.maybeSendSessionNotification(phase);
+      if (phase !== "trading") {
+        return alertCount;
       }
 
-      const levels = await this.keyLevelsRepository.getBySymbol(item.symbol);
-      let intradayRowsPromise: Promise<TickFlowIntradayKlineRow[]> | null = null;
-      const getIntradayRows = (): Promise<TickFlowIntradayKlineRow[]> => {
-        intradayRowsPromise ??= this.loadIntradayRows(item.symbol);
-        return intradayRowsPromise;
-      };
-      if (levels) {
-        for (const candidate of buildPriceAlerts(item, quote, levels, this.alertService)) {
-          const delivery = await this.buildAlertDelivery(item, quote, candidate, levels, getIntradayRows);
-          if (await this.trySendAlert(item.symbol, candidate.ruleName, delivery)) {
+      const watchlist = await this.watchlistService.list();
+      if (watchlist.length === 0) {
+        return alertCount;
+      }
+
+      const quotes = await this.quoteService.fetchQuotes(watchlist.map((item) => item.symbol));
+      const quoteMap = new Map(quotes.map((quote) => [quote.symbol, quote]));
+
+      for (const item of watchlist) {
+        const quote = quoteMap.get(item.symbol);
+        if (!quote || !(Number(quote.last_price) > 0)) {
+          continue;
+        }
+
+        const levels = await this.keyLevelsRepository.getBySymbol(item.symbol);
+        let intradayRowsPromise: Promise<TickFlowIntradayKlineRow[]> | null = null;
+        const getIntradayRows = (): Promise<TickFlowIntradayKlineRow[]> => {
+          intradayRowsPromise ??= this.loadIntradayRows(item.symbol);
+          return intradayRowsPromise;
+        };
+
+        const priceAlert = levels
+          ? selectPrimaryAlertCandidate(buildPriceAlerts(item, quote, levels, this.alertService))
+          : null;
+        if (priceAlert) {
+          if (await this.trySendCandidate(item, quote, priceAlert, levels, getIntradayRows)) {
             alertCount += 1;
           }
+          continue;
         }
-      }
 
-      const changeAlert = buildChangeAlert(item, quote, levels, this.alertService);
-      if (changeAlert) {
-        const delivery = await this.buildAlertDelivery(item, quote, changeAlert, levels, getIntradayRows);
-        if (await this.trySendAlert(item.symbol, changeAlert.ruleName, delivery)) {
+        const changeAlert = buildChangeAlert(item, quote, levels, this.alertService);
+        if (changeAlert) {
+          if (await this.trySendCandidate(item, quote, changeAlert, levels, getIntradayRows)) {
+            alertCount += 1;
+          }
+          continue;
+        }
+
+        const volumeAlert = await this.buildVolumeAlert(item, quote, levels);
+        if (volumeAlert && (await this.trySendAlert(item.symbol, volumeAlert.ruleName, volumeAlert.message))) {
           alertCount += 1;
         }
       }
 
-      const volumeAlert = await this.buildVolumeAlert(item, quote, levels);
-      if (volumeAlert && (await this.trySendAlert(item.symbol, volumeAlert.ruleName, volumeAlert.message))) {
-        alertCount += 1;
-      }
+      return alertCount;
+    } finally {
+      await runLease.release();
     }
-
-    return alertCount;
   }
 
   private async maybeSendSessionNotification(phase: TradingPhase): Promise<number> {
@@ -413,19 +425,69 @@ export class MonitorService {
     });
   }
 
+  private async tryAcquireRunLease(): Promise<{ release(): Promise<void> } | null> {
+    const lockPath = this.getRunLockFilePath();
+    await mkdir(path.dirname(lockPath), { recursive: true });
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        await writeFile(
+          lockPath,
+          JSON.stringify({
+            pid: process.pid,
+            acquiredAt: formatChinaDateTime(),
+          }),
+          { flag: "wx" },
+        );
+        return {
+          release: async () => {
+            await rm(lockPath, { force: true });
+          },
+        };
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== "EEXIST") {
+          throw error;
+        }
+
+        const cleared = await this.removeStaleRunLock(lockPath);
+        if (!cleared) {
+          return null;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private async removeStaleRunLock(lockPath: string): Promise<boolean> {
+    try {
+      const lockStat = await stat(lockPath);
+      const staleMs = Math.max(this.requestInterval * 4 * 1000, MONITOR_RUN_LOCK_MIN_STALE_MS);
+      if (Date.now() - lockStat.mtimeMs <= staleMs) {
+        return false;
+      }
+
+      await rm(lockPath, { force: true });
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return true;
+      }
+      throw error;
+    }
+  }
+
   private async trySendAlert(symbol: string, ruleName: string, input: string | AlertSendInput): Promise<boolean> {
     const sessionKey = getSessionKey();
     if (await this.alertLogRepository.isSentThisSession(symbol, ruleName, sessionKey)) {
+      await this.cleanupAlertMedia(input);
       return false;
     }
 
-    const result = await this.alertService.sendWithResult(input);
+    const result = await this.sendAlertAndCleanupMedia(input);
     if (!result.ok) {
       return false;
-    }
-
-    if (typeof input !== "string" && input.mediaPath && result.mediaDelivered) {
-      await this.alertMediaService.removeFile(input.mediaPath);
     }
 
     const message = typeof input === "string" ? input : input.message;
@@ -437,6 +499,21 @@ export class MonitorService {
       triggered_at: formatChinaDateTime(),
     });
     return true;
+  }
+
+  private async trySendCandidate(
+    item: WatchlistItem,
+    quote: TickFlowQuote,
+    candidate: AlertCandidate,
+    levels: KeyLevels | null,
+    getIntradayRows: () => Promise<TickFlowIntradayKlineRow[]>,
+  ): Promise<boolean> {
+    if (await this.hasSentAlert(item.symbol, candidate.ruleName)) {
+      return false;
+    }
+
+    const delivery = await this.buildAlertDelivery(item, quote, candidate, levels, getIntradayRows);
+    return this.trySendAlert(item.symbol, candidate.ruleName, delivery);
   }
 
   private async buildAlertDelivery(
@@ -549,6 +626,30 @@ export class MonitorService {
         relatedLevels: levels,
       }),
     };
+  }
+
+  private async hasSentAlert(symbol: string, ruleName: string): Promise<boolean> {
+    return this.alertLogRepository.isSentThisSession(symbol, ruleName, getSessionKey());
+  }
+
+  private async sendAlertAndCleanupMedia(input: string | AlertSendInput) {
+    try {
+      return await this.alertService.sendWithResult(input);
+    } finally {
+      await this.cleanupAlertMedia(input);
+    }
+  }
+
+  private async cleanupAlertMedia(input: string | AlertSendInput): Promise<void> {
+    if (typeof input === "string" || !input.mediaPath) {
+      return;
+    }
+
+    await this.alertMediaService.removeFile(input.mediaPath).catch(() => {});
+  }
+
+  private getRunLockFilePath(): string {
+    return path.join(this.baseDir, "monitor-run.lock");
   }
 }
 
@@ -812,22 +913,64 @@ function buildPriceAlerts(
 
   if (levels.stop_loss && currentPrice <= levels.stop_loss) {
     push("stop_loss_hit", "⛔ 触及止损", "价格已触及止损位，建议立即执行止损", levels.stop_loss);
-  } else if (levels.stop_loss && currentPrice <= levels.stop_loss * (1 + buffer)) {
+  } else if (
+    levels.stop_loss
+    && currentPrice > levels.stop_loss
+    && isWithinPriceBuffer(currentPrice, levels.stop_loss, buffer)
+  ) {
     push("stop_loss_near", "⚠️ 接近止损", "价格接近止损位，请保持警惕", levels.stop_loss);
-  }
-  if (levels.breakthrough && currentPrice >= levels.breakthrough) {
-    push("breakthrough_hit", "🚀 突破", "价格已突破关键压力位，可能开启新行情", levels.breakthrough);
-  }
-  if (levels.support && currentPrice <= levels.support * (1 + buffer)) {
-    push("support_near", "📉 触及支撑", "价格接近支撑位，关注是否企稳", levels.support);
-  }
-  if (levels.resistance && currentPrice >= levels.resistance * (1 - buffer)) {
-    push("resistance_near", "📈 接近压力", "价格接近压力位，关注能否突破", levels.resistance);
   }
   if (levels.take_profit && currentPrice >= levels.take_profit) {
     push("take_profit_hit", "💰 触及止盈", "价格已达止盈位，建议分批止盈", levels.take_profit);
   }
+  if (levels.breakthrough && currentPrice >= levels.breakthrough) {
+    push("breakthrough_hit", "🚀 突破", "价格已突破关键压力位，可能开启新行情", levels.breakthrough);
+  }
+  if (levels.support && isWithinPriceBuffer(currentPrice, levels.support, buffer)) {
+    push("support_near", "📉 触及支撑", "价格接近支撑位，关注是否企稳", levels.support);
+  }
+  if (levels.resistance && isWithinPriceBuffer(currentPrice, levels.resistance, buffer)) {
+    push("resistance_near", "📈 接近压力", "价格接近压力位，关注能否突破", levels.resistance);
+  }
   return alerts;
+}
+
+function selectPrimaryAlertCandidate(candidates: AlertCandidate[]): AlertCandidate | null {
+  let best: AlertCandidate | null = null;
+  let bestPriority = Number.NEGATIVE_INFINITY;
+
+  for (const candidate of candidates) {
+    const priority = getAlertPriority(candidate.ruleName);
+    if (priority > bestPriority) {
+      best = candidate;
+      bestPriority = priority;
+    }
+  }
+
+  return best;
+}
+
+function getAlertPriority(ruleName: string): number {
+  switch (ruleName) {
+    case "stop_loss_hit":
+      return 600;
+    case "take_profit_hit":
+      return 500;
+    case "breakthrough_hit":
+      return 400;
+    case "stop_loss_near":
+      return 300;
+    case "support_near":
+      return 200;
+    case "resistance_near":
+      return 100;
+    default:
+      return 0;
+  }
+}
+
+function isWithinPriceBuffer(currentPrice: number, levelPrice: number, buffer: number): boolean {
+  return currentPrice >= levelPrice * (1 - buffer) && currentPrice <= levelPrice * (1 + buffer);
 }
 
 function buildChangeAlert(

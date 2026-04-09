@@ -1,7 +1,7 @@
 {
   "id": "tickflow-assist",
   "name": "TickFlow Assist",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "A-share watchlist analysis, monitoring, and alert delivery powered by TickFlow and OpenClaw.",
   "skills": [
     "skills"

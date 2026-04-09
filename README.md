@@ -2,7 +2,7 @@
 
 基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件。它使用 [TickFlow API](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 获取行情与财务数据，并可选接入 [金十数据 MCP](https://mcp.jin10.com/app/) 快讯流，结合 LLM 生成技术面、基本面、资讯面的综合判断，并把结果持久化到本地 LanceDB。
 
-最近更新：`v0.3.2` 为金十快讯新增夜间静默配置并将默认值改为“开启静默”，同时把个股关联快讯与市场概览快讯接入收盘复盘上下文。完整发布记录见 [CHANGELOG.md](CHANGELOG.md)。
+最近更新：`v0.3.3` 修复监控告警图片在去重前高频生成与重复告警风险，并收敛价格告警触发噪声。完整发布记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 当前主线架构：
 
