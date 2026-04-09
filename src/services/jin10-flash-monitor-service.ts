@@ -39,6 +39,7 @@ const DEFAULT_STATE: FlashMonitorState = {
 const MAX_FLASH_PAGES_PER_POLL = 5;
 const INITIAL_SEED_PAGES = 3;
 const PRUNE_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const ALERT_FRESHNESS_GRACE_MS = 30 * 1000;
 const NOISE_PATTERNS = [
   /^金十图示[:：]/,
   /交易学院正在直播中/,
@@ -101,6 +102,7 @@ export class Jin10FlashMonitorService {
 
   async runMonitorOnce(): Promise<number> {
     const now = formatChinaDateTime();
+    const nowTs = Date.now();
     const state = await this.readState();
     const latestStored = state.lastSeenKey ? null : await this.flashRepository.getLatest();
     const anchorKey = state.lastSeenKey ?? latestStored?.flash_key ?? null;
@@ -156,10 +158,16 @@ export class Jin10FlashMonitorService {
     const allFetchedItems = mergeFlashRecords(fetchResult.items, backfillResult?.items ?? []);
     const saveResult = await this.flashRepository.saveAll(allFetchedItems);
     const newItemKeys = new Set(saveResult.addedKeys);
-    const newItems = allFetchedItems.filter((item) => newItemKeys.has(item.flash_key));
+    // Only frontier pages within the active polling window should produce alerts.
+    const alertableItems = filterAlertableFlashRecords(
+      fetchResult.items.filter((item) => newItemKeys.has(item.flash_key)),
+      state.lastPollAt,
+      nowTs,
+      this.pollIntervalSeconds,
+    );
     const watchlist = await this.watchlistService.list();
     const candidates = watchlist.length > 0
-      ? buildStageOneCandidates(newItems, watchlist)
+      ? buildStageOneCandidates(alertableItems, watchlist)
       : [];
 
     let alertCount = 0;
@@ -491,6 +499,16 @@ function mergeFlashRecords(...groups: Jin10FlashRecord[][]): Jin10FlashRecord[] 
   return sortFlashRecords(merged);
 }
 
+function filterAlertableFlashRecords(
+  entries: Jin10FlashRecord[],
+  lastPollAt: string | null,
+  nowTs: number,
+  pollIntervalSeconds: number,
+): Jin10FlashRecord[] {
+  const cutoffTs = computeAlertFreshCutoffTs(lastPollAt, nowTs, pollIntervalSeconds);
+  return entries.filter((entry) => entry.published_ts >= cutoffTs);
+}
+
 function sortFlashRecords(entries: Jin10FlashRecord[]): Jin10FlashRecord[] {
   return [...entries].sort((left, right) => left.published_ts - right.published_ts);
 }
@@ -701,6 +719,19 @@ function parseChinaTime(value: string | null): Date | null {
 
 function toChinaTimeTimestamp(value: string): number {
   return parseChinaTime(value)?.getTime() ?? Date.now();
+}
+
+function computeAlertFreshCutoffTs(
+  lastPollAt: string | null,
+  nowTs: number,
+  pollIntervalSeconds: number,
+): number {
+  const intervalCutoffTs = nowTs - Math.max(1, pollIntervalSeconds) * 1000 - ALERT_FRESHNESS_GRACE_MS;
+  const lastPollTs = parseChinaTime(lastPollAt)?.getTime();
+  const lastPollCutoffTs = lastPollTs == null
+    ? Number.NEGATIVE_INFINITY
+    : lastPollTs - ALERT_FRESHNESS_GRACE_MS;
+  return Math.max(intervalCutoffTs, lastPollCutoffTs);
 }
 
 function isNightQuietHour(): boolean {
