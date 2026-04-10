@@ -226,6 +226,16 @@ export class AlertService {
 
     try {
       switch (this.channel) {
+        case "telegram":
+          await this.invokeRuntimeChannelSend(
+            runtimeContext.runtime.channel,
+            "telegram",
+            "sendMessageTelegram",
+            this.options.target,
+            payload.message,
+            baseOptions,
+          );
+          return null;
         case "discord":
           await this.invokeRuntimeChannelSend(
             runtimeContext.runtime.channel,

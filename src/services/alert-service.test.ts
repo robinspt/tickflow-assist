@@ -144,3 +144,64 @@ test("sendWithResult retries media-only before falling back to text-only", async
     error: null,
   });
 });
+
+test("sendWithResult uses telegram runtime before CLI when available", async () => {
+  const telegramCalls: Array<{
+    target: string;
+    message: string;
+    options: Record<string, unknown>;
+  }> = [];
+  const service = new AlertService({
+    openclawCliBin: "openclaw",
+    channel: "telegram",
+    account: "default",
+    target: "telegram:@mychat",
+    runtime: {
+      config: {} as never,
+      runtime: {
+        system: {
+          runCommandWithTimeout: async () => {
+            throw new Error("CLI fallback should not run when telegram runtime succeeds");
+          },
+        },
+        channel: {
+          telegram: {
+            async sendMessageTelegram(
+              target: string,
+              message: string,
+              options: Record<string, unknown>,
+            ) {
+              telegramCalls.push({ target, message, options });
+            },
+          },
+        },
+      } as never,
+    },
+  });
+
+  const result = await service.sendWithResult({
+    message: "caption",
+    mediaPath: "/tmp/alert-card.png",
+    mediaLocalRoots: ["/tmp"],
+    filename: "alert-card.png",
+  });
+
+  assert.deepEqual(telegramCalls, [
+    {
+      target: "telegram:@mychat",
+      message: "caption",
+      options: {
+        accountId: "default",
+        cfg: {},
+        mediaUrl: "/tmp/alert-card.png",
+        mediaLocalRoots: ["/tmp"],
+      },
+    },
+  ]);
+  assert.deepEqual(result, {
+    ok: true,
+    mediaAttempted: true,
+    mediaDelivered: true,
+    error: null,
+  });
+});
