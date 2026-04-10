@@ -282,6 +282,14 @@ export class DailyUpdateWorker {
     )) {
       return;
     }
+    if (hasAttemptedScheduledWindow(
+      state.lastPreMarketAttemptDate,
+      state.lastPreMarketAttemptAt,
+      today,
+      PRE_MARKET_BRIEF_READY_TIME,
+    )) {
+      return;
+    }
 
     const readiness = await this.tradingCalendarService.canRunPreMarketBrief();
     if (!readiness.ok) {
@@ -832,6 +840,15 @@ function hasCompletedScheduledWindow(
   readyTime: string,
 ): boolean {
   return successDate === today && extractChinaTime(successAt) >= readyTime;
+}
+
+function hasAttemptedScheduledWindow(
+  attemptDate: string | null,
+  attemptAt: string | null,
+  today: string,
+  readyTime: string,
+): boolean {
+  return attemptDate === today && extractChinaTime(attemptAt) >= readyTime;
 }
 
 function extractChinaTime(dateTime: string | null): string {

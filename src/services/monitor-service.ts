@@ -38,6 +38,7 @@ const DEFAULT_STATE: MonitorState = {
 };
 const INTRADAY_PERIOD = "1m";
 const MONITOR_RUN_LOCK_MIN_STALE_MS = 90_000;
+const ALERT_CLAIM_MIN_STALE_MS = 90_000;
 
 export class MonitorService {
   constructor(
@@ -478,27 +479,97 @@ export class MonitorService {
     }
   }
 
+  private async tryAcquireAlertClaim(
+    symbol: string,
+    ruleName: string,
+    sessionKey: string,
+  ): Promise<{ release(): Promise<void> } | null> {
+    const lockPath = this.getAlertClaimFilePath(symbol, ruleName, sessionKey);
+    await mkdir(path.dirname(lockPath), { recursive: true });
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        await writeFile(
+          lockPath,
+          JSON.stringify({
+            pid: process.pid,
+            symbol,
+            ruleName,
+            sessionKey,
+            acquiredAt: formatChinaDateTime(),
+          }),
+          { flag: "wx" },
+        );
+        return {
+          release: async () => {
+            await rm(lockPath, { force: true });
+          },
+        };
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== "EEXIST") {
+          throw error;
+        }
+
+        const cleared = await this.removeStaleAlertClaim(lockPath);
+        if (!cleared) {
+          return null;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private async removeStaleAlertClaim(lockPath: string): Promise<boolean> {
+    try {
+      const lockStat = await stat(lockPath);
+      const staleMs = Math.max(this.requestInterval * 4 * 1000, ALERT_CLAIM_MIN_STALE_MS);
+      if (Date.now() - lockStat.mtimeMs <= staleMs) {
+        return false;
+      }
+
+      await rm(lockPath, { force: true });
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return true;
+      }
+      throw error;
+    }
+  }
+
   private async trySendAlert(symbol: string, ruleName: string, input: string | AlertSendInput): Promise<boolean> {
     const sessionKey = getSessionKey();
-    if (await this.alertLogRepository.isSentThisSession(symbol, ruleName, sessionKey)) {
+    const claim = await this.tryAcquireAlertClaim(symbol, ruleName, sessionKey);
+    if (!claim) {
       await this.cleanupAlertMedia(input);
       return false;
     }
 
-    const result = await this.sendAlertAndCleanupMedia(input);
-    if (!result.ok) {
-      return false;
-    }
+    try {
+      if (await this.alertLogRepository.isSentThisSession(symbol, ruleName, sessionKey)) {
+        await this.cleanupAlertMedia(input);
+        return false;
+      }
 
-    const message = typeof input === "string" ? input : input.message;
-    await this.alertLogRepository.append({
-      symbol,
-      alert_date: sessionKey,
-      rule_name: ruleName,
-      message,
-      triggered_at: formatChinaDateTime(),
-    });
-    return true;
+      const result = await this.sendAlertAndCleanupMedia(input);
+      if (!result.ok) {
+        return false;
+      }
+
+      const message = typeof input === "string" ? input : input.message;
+      await this.alertLogRepository.append({
+        symbol,
+        alert_date: sessionKey,
+        rule_name: ruleName,
+        message,
+        triggered_at: formatChinaDateTime(),
+      });
+      return true;
+    } finally {
+      await claim.release();
+    }
   }
 
   private async trySendCandidate(
@@ -651,6 +722,14 @@ export class MonitorService {
   private getRunLockFilePath(): string {
     return path.join(this.baseDir, "monitor-run.lock");
   }
+
+  private getAlertClaimFilePath(symbol: string, ruleName: string, sessionKey: string): string {
+    return path.join(
+      this.baseDir,
+      "alert-claims",
+      `${sanitizeAlertClaimPart(sessionKey)}_${sanitizeAlertClaimPart(symbol)}_${sanitizeAlertClaimPart(ruleName)}.lock`,
+    );
+  }
 }
 
 interface AlertCandidate {
@@ -732,6 +811,10 @@ function parseChinaDateTime(value: string): number | null {
     Number(minute),
     Number(second),
   );
+}
+
+function sanitizeAlertClaimPart(value: string): string {
+  return value.replace(/[^a-zA-Z0-9._-]+/g, "_");
 }
 
 function formatRuntimeHost(state: MonitorState): string {

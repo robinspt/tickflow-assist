@@ -32,6 +32,7 @@ export class Jin10McpService {
   private requestId = 1;
   private initialized = false;
   private sessionId: string | null = null;
+  private initializePromise: Promise<void> | null = null;
 
   constructor(
     private readonly serverUrl: string,
@@ -62,6 +63,57 @@ export class Jin10McpService {
       return;
     }
 
+    this.initializePromise ??= this.performInitialize().finally(() => {
+      this.initializePromise = null;
+    });
+    await this.initializePromise;
+  }
+
+  private async callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+    try {
+      await this.initialize();
+      const result = await this.request<McpToolCallResult>("tools/call", {
+        name,
+        arguments: args,
+      });
+
+      if (!result) {
+        throw new Error(`jin10 tool ${name} returned empty result`);
+      }
+      if (result.isError) {
+        throw new Error(`jin10 tool ${name} returned MCP error`);
+      }
+      if (result.structuredContent !== undefined) {
+        return result.structuredContent;
+      }
+
+      const structured = result.content?.find((item) => item.structuredContent !== undefined)?.structuredContent;
+      if (structured !== undefined) {
+        return structured;
+      }
+
+      const text = result.content?.find((item) => typeof item.text === "string")?.text;
+      if (typeof text === "string" && text.trim()) {
+        try {
+          return JSON.parse(text);
+        } catch {
+          return text;
+        }
+      }
+
+      return result;
+    } catch (error) {
+      if (!isSessionExpiredError(error)) {
+        throw error;
+      }
+
+      this.resetSession();
+      await this.initialize();
+      return await this.callToolAfterRecovery(name, args);
+    }
+  }
+
+  private async performInitialize(): Promise<void> {
     await this.request("initialize", {
       protocolVersion: "2025-11-25",
       capabilities: {},
@@ -82,8 +134,7 @@ export class Jin10McpService {
     this.initialized = true;
   }
 
-  private async callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
-    await this.initialize();
+  private async callToolAfterRecovery(name: string, args: Record<string, unknown>): Promise<unknown> {
     const result = await this.request<McpToolCallResult>("tools/call", {
       name,
       arguments: args,
@@ -114,6 +165,12 @@ export class Jin10McpService {
     }
 
     return result;
+  }
+
+  private resetSession(): void {
+    this.initialized = false;
+    this.sessionId = null;
+    this.initializePromise = null;
   }
 
   private async request<T>(method: string, params: unknown): Promise<T> {
@@ -271,6 +328,11 @@ function truncate(value: string, maxLength: number): string {
     return value;
   }
   return `${value.slice(0, Math.max(0, maxLength - 3))}...`;
+}
+
+function isSessionExpiredError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /session not found|unknown session|invalid session/i.test(message);
 }
 
 function normalizeFlashPage(value: unknown): Jin10FlashPage {

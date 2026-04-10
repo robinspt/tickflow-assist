@@ -326,6 +326,74 @@ test("monitor run lease prevents a second loop instance from entering", async ()
   }
 });
 
+test("alert claim prevents duplicate concurrent deliveries for the same symbol and rule", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "tickflow-monitor-test-"));
+  let sendCalls = 0;
+  let appendCalls = 0;
+  let releaseFirstSend = () => {};
+  let signalFirstSendStarted = () => {};
+  const firstSendStarted = new Promise<void>((resolve) => {
+    signalFirstSendStarted = resolve;
+  });
+  const firstSendCanFinish = new Promise<void>((resolve) => {
+    releaseFirstSend = resolve;
+  });
+
+  try {
+    const alertService = {
+      async sendWithResult() {
+        sendCalls += 1;
+        signalFirstSendStarted();
+        await firstSendCanFinish;
+        return {
+          ok: true,
+          mediaAttempted: false,
+          mediaDelivered: false,
+          error: null,
+        };
+      },
+    };
+
+    const alertLogRepository = {
+      async isSentThisSession() {
+        return false;
+      },
+      async append() {
+        appendCalls += 1;
+      },
+    };
+
+    const first = createMonitorService(tempRoot, {
+      alertService,
+      alertLogRepository,
+    });
+    const second = createMonitorService(tempRoot, {
+      alertService,
+      alertLogRepository,
+    });
+
+    const firstPromise = (first as unknown as {
+      trySendAlert: (symbol: string, ruleName: string, input: string) => Promise<boolean>;
+    }).trySendAlert("000001.SZ", "support_near", "price:support_near");
+
+    await firstSendStarted;
+
+    const secondResult = await (second as unknown as {
+      trySendAlert: (symbol: string, ruleName: string, input: string) => Promise<boolean>;
+    }).trySendAlert("000001.SZ", "support_near", "price:support_near");
+
+    releaseFirstSend();
+    const firstResult = await firstPromise;
+
+    assert.equal(firstResult, true);
+    assert.equal(secondResult, false);
+    assert.equal(sendCalls, 1);
+    assert.equal(appendCalls, 1);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 function createMonitorService(
   baseDir: string,
   overrides: {
