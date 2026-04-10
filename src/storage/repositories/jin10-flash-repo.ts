@@ -53,7 +53,18 @@ export class Jin10FlashRepository {
     if (rows.length === 0) {
       return null;
     }
-    return fromFlashRow(rows[rows.length - 1]);
+
+    let latestRow = rows[0];
+    let latestTs = Number(rows[0]?.published_ts ?? 0);
+    for (const row of rows.slice(1)) {
+      const publishedTs = Number(row.published_ts ?? 0);
+      if (publishedTs >= latestTs) {
+        latestRow = row;
+        latestTs = publishedTs;
+      }
+    }
+
+    return latestRow ? fromFlashRow(latestRow) : null;
   }
 
   async countSincePublishedTs(publishedTs: number): Promise<number> {
