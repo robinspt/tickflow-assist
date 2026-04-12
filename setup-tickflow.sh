@@ -17,6 +17,7 @@ REPO_URL="https://github.com/robinspt/tickflow-assist.git"
 OPENCLAW_JSON="$HOME/.openclaw/openclaw.json"
 MIN_NODE_VERSION="22.16.0"
 MIN_OPENCLAW_VERSION="2026.3.22"
+OPENCLAW_INSTALL_SCAN_MAX_DIRECTORIES_OVERRIDE="50000"
 
 DRY_RUN=false
 ACTION=""
@@ -427,6 +428,47 @@ canonicalize_dir_path() {
       cd "$path" >/dev/null 2>&1 && pwd -P
     )
   fi
+}
+
+plugin_dirs_match() {
+  local left="$1"
+  local right="$2"
+  local left_real=""
+  local right_real=""
+
+  [[ -z "$left" || -z "$right" ]] && return 1
+
+  left_real=$(canonicalize_dir_path "$left" || true)
+  right_real=$(canonicalize_dir_path "$right" || true)
+
+  [[ -n "$left_real" && -n "$right_real" && "$left_real" == "$right_real" ]]
+}
+
+is_plugin_linked_to_current_dir() {
+  local candidate=""
+
+  if [[ "$HAS_JQ" != "yes" ]] || [[ ! -f "$OPENCLAW_JSON" ]]; then
+    return 1
+  fi
+
+  for query in \
+    '.plugins.installs["tickflow-assist"].installPath' \
+    '.plugins.installs["tickflow-assist"].sourcePath'
+  do
+    candidate=$(read_json_value "$OPENCLAW_JSON" "$query")
+    if plugin_dirs_match "$PLUGIN_DIR" "$candidate"; then
+      return 0
+    fi
+  done
+
+  while IFS= read -r candidate; do
+    [[ -z "$candidate" ]] && continue
+    if plugin_dirs_match "$PLUGIN_DIR" "$candidate"; then
+      return 0
+    fi
+  done < <(jq -r '.plugins.load.paths[]? // empty' "$OPENCLAW_JSON" 2>/dev/null || true)
+
+  return 1
 }
 
 candidate_dir_from_config_path() {
@@ -1527,14 +1569,33 @@ register_plugin() {
   echo ""
   info "在 OpenClaw 中安装并启用插件..."
   if $DRY_RUN; then
-    dry "openclaw plugins install -l \"$PLUGIN_DIR\""
+    if [[ -d "$PLUGIN_DIR/node_modules" ]]; then
+      dry "OPENCLAW_INSTALL_SCAN_MAX_DIRECTORIES=${OPENCLAW_INSTALL_SCAN_MAX_DIRECTORIES_OVERRIDE} openclaw plugins install -l \"$PLUGIN_DIR\""
+    else
+      dry "openclaw plugins install -l \"$PLUGIN_DIR\""
+    fi
     dry "openclaw plugins enable \"$PLUGIN_ID\""
     return
   fi
 
-  "$OPENCLAW_CMD" plugins install -l "$PLUGIN_DIR"
+  if [[ -d "$PLUGIN_DIR/node_modules" ]]; then
+    info "检测到源码目录包含 node_modules，临时提高 OpenClaw 本地安装扫描目录上限。"
+    OPENCLAW_INSTALL_SCAN_MAX_DIRECTORIES="$OPENCLAW_INSTALL_SCAN_MAX_DIRECTORIES_OVERRIDE" \
+      "$OPENCLAW_CMD" plugins install -l "$PLUGIN_DIR"
+  else
+    "$OPENCLAW_CMD" plugins install -l "$PLUGIN_DIR"
+  fi
   "$OPENCLAW_CMD" plugins enable "$PLUGIN_ID"
   success "插件已注册并启用"
+}
+
+ensure_plugin_registered() {
+  if is_plugin_linked_to_current_dir; then
+    info "检测到 OpenClaw 已链接当前源码目录，跳过重复安装插件路径。"
+    return
+  fi
+
+  register_plugin
 }
 
 restart_gateway() {
@@ -1727,11 +1788,11 @@ run_install_flow() {
   ensure_supported_runtime_versions
   ensure_uv
   prepare_plugin_source
+  ensure_plugin_registered
   install_dependencies_and_build
 
   collect_configuration
   write_local_config
-  register_plugin
   write_openclaw_config
   restart_gateway
 
@@ -1752,6 +1813,7 @@ run_upgrade_flow() {
   ensure_supported_runtime_versions
   ensure_uv
   prepare_plugin_source
+  ensure_plugin_registered
   install_dependencies_and_build
 
   load_existing_config_defaults
@@ -1764,7 +1826,6 @@ run_upgrade_flow() {
   fi
 
   write_local_config
-  register_plugin
   write_openclaw_config
   restart_gateway
 
