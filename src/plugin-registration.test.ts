@@ -222,7 +222,10 @@ test("community install manifest does not require secrets before setup", () => {
   const manifestPath = path.resolve(process.cwd(), "openclaw.plugin.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as {
     activation?: { onCapabilities?: string[] };
-    setup?: { requiresRuntime?: boolean };
+    setup?: {
+      requiresRuntime?: boolean;
+      providers?: Array<{ id?: string; envVars?: string[] }>;
+    };
     configContracts?: {
       secretInputs?: {
         paths?: Array<{ path?: string }>;
@@ -233,6 +236,30 @@ test("community install manifest does not require secrets before setup", () => {
 
   assert.deepEqual(manifest.activation?.onCapabilities, ["tool", "hook"]);
   assert.equal(manifest.setup?.requiresRuntime, true);
+  assert.deepEqual(
+    Object.fromEntries(
+      (manifest.setup?.providers ?? [])
+        .filter((provider): provider is { id: string; envVars?: string[] } => Boolean(provider.id))
+        .map((provider) => [provider.id, provider.envVars ?? []]),
+    ),
+    {
+      tickflow: ["TICKFLOW_ASSIST_TICKFLOW_API_KEY", "TICKFLOW_API_KEY"],
+      llm: [
+        "TICKFLOW_ASSIST_LLM_BASE_URL",
+        "LLM_BASE_URL",
+        "TICKFLOW_ASSIST_LLM_API_KEY",
+        "LLM_API_KEY",
+        "TICKFLOW_ASSIST_LLM_MODEL",
+        "LLM_MODEL",
+      ],
+      "mx-search": [
+        "TICKFLOW_ASSIST_MX_SEARCH_API_KEY",
+        "MX_SEARCH_API_KEY",
+        "MX_APIKEY",
+      ],
+      jin10: ["TICKFLOW_ASSIST_JIN10_API_TOKEN", "JIN10_API_TOKEN"],
+    },
+  );
 
   const secretPaths = new Set(
     (manifest.configContracts?.secretInputs?.paths ?? [])
@@ -247,6 +274,35 @@ test("community install manifest does not require secrets before setup", () => {
   const required = manifest.configSchema?.required ?? [];
   assert.ok(!required.includes("tickflowApiKey"));
   assert.ok(!required.includes("llmApiKey"));
+});
+
+test("package metadata advertises npm install details for community distribution", () => {
+  const packageJsonPath = path.resolve(process.cwd(), "package.json");
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8")) as {
+    openclaw?: {
+      install?: {
+        npmSpec?: string;
+        defaultChoice?: string;
+        minHostVersion?: string;
+      };
+    };
+  };
+
+  assert.deepEqual(packageJson.openclaw?.install, {
+    npmSpec: "tickflow-assist",
+    defaultChoice: "npm",
+    minHostVersion: ">=2026.3.31",
+  });
+});
+
+test("stock analysis skill no longer hard-requires plaintext plugin secrets", () => {
+  const skillPath = path.resolve(process.cwd(), "skills/stock-analysis/SKILL.md");
+  const skillMarkdown = readFileSync(skillPath, "utf-8");
+
+  assert.ok(skillMarkdown.includes("plugins.entries.tickflow-assist.enabled"));
+  assert.ok(!skillMarkdown.includes("plugins.entries.tickflow-assist.config.tickflowApiKey"));
+  assert.ok(!skillMarkdown.includes("plugins.entries.tickflow-assist.config.llmApiKey"));
+  assert.ok(skillMarkdown.includes("环境变量 fallback"));
 });
 
 test("normalizePluginConfig falls back to env vars when config values are blank", async () => {

@@ -17,6 +17,7 @@
 其中，`configure-openclaw` 会把上述配置写入 `~/.openclaw/openclaw.json` 的 `plugins.entries["tickflow-assist"].config`，插件启用后会在本地 `databasePath` 下持久化 LanceDB 数据，并运行监控 / 日更等后台服务。
 如果你不想把密钥写进配置文件，运行时也支持环境变量回退，优先级是 `openclaw.json / local.config.json` > 环境变量 > 默认值。
 常用环境变量：`TICKFLOW_ASSIST_TICKFLOW_API_KEY` / `TICKFLOW_API_KEY`、`TICKFLOW_ASSIST_LLM_API_KEY` / `LLM_API_KEY`、`TICKFLOW_ASSIST_LLM_BASE_URL` / `LLM_BASE_URL`、`TICKFLOW_ASSIST_LLM_MODEL` / `LLM_MODEL`、`TICKFLOW_ASSIST_MX_SEARCH_API_KEY` / `MX_SEARCH_API_KEY` / `MX_APIKEY`、`TICKFLOW_ASSIST_JIN10_API_TOKEN` / `JIN10_API_TOKEN`。
+如果你希望尽量避免把密钥落盘，推荐先把这些变量写进 `~/.openclaw/.env`，再运行配置向导补齐非密钥项。
 
 ## 安装
 
@@ -24,7 +25,7 @@
 
 ```bash
 openclaw plugins install tickflow-assist
-npx -y tickflow-assist configure-openclaw
+node ~/.openclaw/extensions/tickflow-assist/dist/dev/tickflow-assist-cli.js configure-openclaw
 cd ~/.openclaw/extensions/tickflow-assist/python && uv sync
 openclaw plugins enable tickflow-assist
 openclaw config validate
@@ -38,7 +39,7 @@ openclaw gateway restart
 如果你希望先审阅配置，再只打印最少的后续步骤，可使用：
 
 ```bash
-npx -y tickflow-assist configure-openclaw --no-enable --no-restart
+node ~/.openclaw/extensions/tickflow-assist/dist/dev/tickflow-assist-cli.js configure-openclaw --no-enable --no-restart
 ```
 
 如果你在 Linux 或 macOS 上需要 PNG 告警卡正常显示中文，请额外手动安装 `fontconfig` 与 Noto CJK 一类中文字体，例如：

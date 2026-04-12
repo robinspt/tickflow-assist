@@ -7,12 +7,11 @@ metadata:
     requires:
       config:
         - plugins.entries.tickflow-assist.enabled
-        - plugins.entries.tickflow-assist.config.tickflowApiKey
-        - plugins.entries.tickflow-assist.config.llmApiKey
 ---
 # 股票分析与监控
 
 这是 TickFlow Assist 插件内置的技能，用于通过插件工具完成 A 股自选股管理、日线更新、分钟K抓取、技术分析、关键价位回测、实时监控、定时日更、结果查看与告警测试。
+运行前需要提供 TickFlow / LLM 等凭证；这些值既可以来自 `plugins.entries["tickflow-assist"].config`，也可以来自文档约定的环境变量 fallback，不要求必须明文写在插件配置里。
 
 此技能随插件加载，不需要手动复制到 workspace。
 

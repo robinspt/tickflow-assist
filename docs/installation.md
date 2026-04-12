@@ -48,7 +48,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 
 ```bash
 openclaw plugins install tickflow-assist
-npx -y tickflow-assist configure-openclaw
+node ~/.openclaw/extensions/tickflow-assist/dist/dev/tickflow-assist-cli.js configure-openclaw
 cd ~/.openclaw/extensions/tickflow-assist/python
 uv sync
 cd -
@@ -68,6 +68,8 @@ openclaw gateway restart
 如果你已经手动启用插件，或暂时不想重启 Gateway，可追加 `--no-enable` 或 `--no-restart`，让向导不再打印对应步骤。
 如果 Python 已经装好，或你暂时不想看到 Python / 字体提示，可追加 `--no-python-setup` 或 `--no-font-setup`。
 如果检测到 `plugins.installs["tickflow-assist"]` 的安装来源是 `clawhub`，向导还会把被旧版本钉死的 `spec` 归一化为 `clawhub:tickflow-assist`，避免后续升级继续锁在旧版本。
+如果你希望尽量避免把密钥写进 `openclaw.json`，推荐先把 `TICKFLOW_ASSIST_TICKFLOW_API_KEY`、`TICKFLOW_ASSIST_LLM_BASE_URL`、`TICKFLOW_ASSIST_LLM_API_KEY`、`TICKFLOW_ASSIST_LLM_MODEL` 等变量写进 `~/.openclaw/.env`，再运行上面的本地 CLI 去补齐非密钥配置。
+如需临时从 npm registry 拉取 CLI，也可以改用 `npx -y tickflow-assist configure-openclaw`；但对已安装的社区插件，默认更建议直接运行扩展目录里的本地 CLI，避免额外下载。
 
 如果你在 Linux 或 macOS 上需要 PNG 告警卡正常显示中文，请额外安装 `fontconfig` 与 Noto CJK 一类中文字体，例如：
 

@@ -53,6 +53,11 @@
       "minGatewayVersion": "2026.3.31",
       "builtWithOpenClawVersion": "2026.4.11"
     },
+    "install": {
+      "npmSpec": "tickflow-assist",
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.3.31"
+    },
     "extensions": [
       "dist/plugin.js"
     ]

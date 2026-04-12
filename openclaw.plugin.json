@@ -10,6 +10,35 @@
     "onCapabilities": ["tool", "hook"]
   },
   "setup": {
+    "providers": [
+      {
+        "id": "tickflow",
+        "authMethods": ["api-key"],
+        "envVars": ["TICKFLOW_ASSIST_TICKFLOW_API_KEY", "TICKFLOW_API_KEY"]
+      },
+      {
+        "id": "llm",
+        "authMethods": ["api-key"],
+        "envVars": [
+          "TICKFLOW_ASSIST_LLM_BASE_URL",
+          "LLM_BASE_URL",
+          "TICKFLOW_ASSIST_LLM_API_KEY",
+          "LLM_API_KEY",
+          "TICKFLOW_ASSIST_LLM_MODEL",
+          "LLM_MODEL"
+        ]
+      },
+      {
+        "id": "mx-search",
+        "authMethods": ["api-key"],
+        "envVars": ["TICKFLOW_ASSIST_MX_SEARCH_API_KEY", "MX_SEARCH_API_KEY", "MX_APIKEY"]
+      },
+      {
+        "id": "jin10",
+        "authMethods": ["api-key"],
+        "envVars": ["TICKFLOW_ASSIST_JIN10_API_TOKEN", "JIN10_API_TOKEN"]
+      }
+    ],
     "requiresRuntime": true
   },
   "configContracts": {
