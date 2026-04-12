@@ -1,3 +1,4 @@
+import { formatConfigEnvFallback } from "../config/env.js";
 import type { Jin10FlashItem, Jin10FlashPage } from "../types/jin10.js";
 
 interface JsonRpcRequest {
@@ -45,10 +46,10 @@ export class Jin10McpService {
 
   getConfigurationError(): string | null {
     if (!this.serverUrl.trim()) {
-      return "Jin10 MCP 未配置接口地址，请设置 jin10McpUrl";
+      return `Jin10 MCP 未配置接口地址，请设置 jin10McpUrl 或环境变量 ${formatConfigEnvFallback("jin10McpUrl")}`;
     }
     if (!this.apiToken.trim()) {
-      return "Jin10 MCP 未配置 API Token，请设置 jin10ApiToken";
+      return `Jin10 MCP 未配置 API Token，请设置 jin10ApiToken 或环境变量 ${formatConfigEnvFallback("jin10ApiToken")}`;
     }
     return null;
   }

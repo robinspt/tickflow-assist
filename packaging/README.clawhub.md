@@ -4,7 +4,19 @@
 
 最近更新：`v0.3.4` 新增 `09:20` 盘前资讯简报，修复 Jin10 历史补页重复推送与状态页最新快讯显示错误，并降低 Telegram 图文告警被误判失败后重复补发的风险。完整发布记录见 <https://github.com/robinspt/tickflow-assist/blob/main/CHANGELOG.md>。
 
-当前主线按 OpenClaw `v2026.3.31+` 对齐，并已验证社区安装在 `v2026.4.5` 上兼容。
+当前主线按 OpenClaw `v2026.3.31+` 对齐，并已验证社区安装在 `v2026.4.11` 上兼容。
+
+## 安装前准备
+
+在执行社区安装前，建议先确认你已经准备好以下配置：
+
+- 核心必需：`tickflowApiKey`、`llmApiKey`、`llmBaseUrl`、`llmModel`
+- 告警投递：`alertChannel`、`alertTarget`、`alertAccount`
+- 可选增强：`mxSearchApiKey`、`jin10ApiToken`
+
+其中，`configure-openclaw` 会把上述配置写入 `~/.openclaw/openclaw.json` 的 `plugins.entries["tickflow-assist"].config`，插件启用后会在本地 `databasePath` 下持久化 LanceDB 数据，并运行监控 / 日更等后台服务。
+如果你不想把密钥写进配置文件，运行时也支持环境变量回退，优先级是 `openclaw.json / local.config.json` > 环境变量 > 默认值。
+常用环境变量：`TICKFLOW_ASSIST_TICKFLOW_API_KEY` / `TICKFLOW_API_KEY`、`TICKFLOW_ASSIST_LLM_API_KEY` / `LLM_API_KEY`、`TICKFLOW_ASSIST_LLM_BASE_URL` / `LLM_BASE_URL`、`TICKFLOW_ASSIST_LLM_MODEL` / `LLM_MODEL`、`TICKFLOW_ASSIST_MX_SEARCH_API_KEY` / `MX_SEARCH_API_KEY` / `MX_APIKEY`、`TICKFLOW_ASSIST_JIN10_API_TOKEN` / `JIN10_API_TOKEN`。
 
 ## 安装
 
@@ -19,8 +31,8 @@ openclaw config validate
 openclaw gateway restart
 ```
 
-安装阶段允许先落插件，再通过第二条命令写入 `tickflowApiKey`、`llmApiKey` 等正式配置。
-`configure-openclaw` 会写入 `~/.openclaw/openclaw.json` 中的 `plugins.entries["tickflow-assist"].config`，并打印后续建议执行的命令；它不再自动执行 `openclaw`、`uv` 或系统包安装命令。
+安装阶段允许先落插件，再通过第二条命令写入 `tickflowApiKey`、`llmApiKey`、`llmBaseUrl`、`llmModel` 等正式配置。
+`configure-openclaw` 会写入 `~/.openclaw/openclaw.json` 中的 `plugins.entries["tickflow-assist"].config`，并打印后续建议执行的命令；它不再自动执行 `openclaw`、`uv` 或系统包安装命令，也不会重新执行插件安装；如果你已经设置了环境变量，密钥项可留空，输入 `-` 可主动清空已有配置并切回环境变量。
 如果检测到 `plugins.installs["tickflow-assist"]` 来自 `clawhub`，向导还会把被旧版本钉死的 `spec` 归一化为 `clawhub:tickflow-assist`，避免后续升级继续锁在旧版本。
 
 如果你希望先审阅配置，再只打印最少的后续步骤，可使用：
@@ -84,6 +96,18 @@ plugins.entries["tickflow-assist"].config
 - 能力补充：`mxSearchApiKey`、`jin10ApiToken`
 
 其中，`mxSearchApiKey` 用于 `mx_search`、`mx_select_stock` 以及非 `Expert` 财务链路的 lite 补充；`jin10ApiToken` 用于 24 小时金十数据快讯监控；`jin10FlashNightAlert` 默认 `false`（开启夜间静默），设为 `true` 可恢复 24 小时快讯告警；`alertTarget`、`alertAccount` 建议在准备启用 `test_alert`、实时监控告警、金十数据快讯告警和定时通知前一并配好，避免配置不完整导致功能缺失。
+如果你使用环境变量，运行时支持以下回退：
+
+- `tickflowApiUrl`：`TICKFLOW_ASSIST_TICKFLOW_API_URL` / `TICKFLOW_API_URL`
+- `tickflowApiKey`：`TICKFLOW_ASSIST_TICKFLOW_API_KEY` / `TICKFLOW_API_KEY`
+- `tickflowApiKeyLevel`：`TICKFLOW_ASSIST_TICKFLOW_API_KEY_LEVEL` / `TICKFLOW_API_KEY_LEVEL`
+- `llmBaseUrl`：`TICKFLOW_ASSIST_LLM_BASE_URL` / `LLM_BASE_URL`
+- `llmApiKey`：`TICKFLOW_ASSIST_LLM_API_KEY` / `LLM_API_KEY`
+- `llmModel`：`TICKFLOW_ASSIST_LLM_MODEL` / `LLM_MODEL`
+- `mxSearchApiUrl`：`TICKFLOW_ASSIST_MX_SEARCH_API_URL` / `MX_SEARCH_API_URL`
+- `mxSearchApiKey`：`TICKFLOW_ASSIST_MX_SEARCH_API_KEY` / `MX_SEARCH_API_KEY` / `MX_APIKEY`
+- `jin10McpUrl`：`TICKFLOW_ASSIST_JIN10_MCP_URL` / `JIN10_MCP_URL`
+- `jin10ApiToken`：`TICKFLOW_ASSIST_JIN10_API_TOKEN` / `JIN10_API_TOKEN`
 
 ## 功能
 

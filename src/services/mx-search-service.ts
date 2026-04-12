@@ -1,3 +1,4 @@
+import { formatConfigEnvFallback } from "../config/env.js";
 import type { MxSearchDocument, MxSearchSecurity } from "../types/mx-search.js";
 import type {
   MxSelectStockColumn,
@@ -29,10 +30,10 @@ export class MxApiService {
 
   getConfigurationError(): string | null {
     if (!this.apiBaseUrl.trim()) {
-      return "mx_search 未配置接口地址，请设置 mxSearchApiUrl 或环境变量 MX_SEARCH_API_URL";
+      return `mx_search 未配置接口地址，请设置 mxSearchApiUrl 或环境变量 ${formatConfigEnvFallback("mxSearchApiUrl")}`;
     }
     if (!this.apiKey.trim()) {
-      return "mx_search 未配置 API Key，请设置插件配置 mxSearchApiKey 或环境变量 MX_APIKEY";
+      return `mx_search 未配置 API Key，请设置插件配置 mxSearchApiKey 或环境变量 ${formatConfigEnvFallback("mxSearchApiKey")}`;
     }
     return null;
   }

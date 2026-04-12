@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { getConfigEnvFallback } from "./env.js";
 import { normalizeTickflowApiKeyLevel } from "./tickflow-access.js";
 import { DEFAULT_PLUGIN_CONFIG, type PluginConfig } from "./schema.js";
 
@@ -13,6 +14,11 @@ function normalizeString(value: unknown, fallback = ""): string {
     return fallback;
   }
   return String(value).trim();
+}
+
+function normalizeStringWithFallback(value: unknown, fallback = ""): string {
+  const normalized = normalizeString(value);
+  return normalized || fallback;
 }
 
 function normalizeInteger(value: unknown, fallback: number): number {
@@ -48,23 +54,40 @@ function normalizeBoolean(value: unknown, fallback: boolean): boolean {
 
 export function normalizePluginConfig(input: unknown): PluginConfig {
   const raw = (input ?? {}) as RawConfig;
-  const envMxSearchApiUrl = normalizeString(process.env.MX_SEARCH_API_URL);
-  const envMxSearchApiKey = normalizeString(process.env.MX_APIKEY);
+  const envTickflowApiUrl = getConfigEnvFallback("tickflowApiUrl");
+  const envTickflowApiKey = getConfigEnvFallback("tickflowApiKey");
+  const envTickflowApiKeyLevel = getConfigEnvFallback("tickflowApiKeyLevel");
+  const envMxSearchApiUrl = getConfigEnvFallback("mxSearchApiUrl");
+  const envMxSearchApiKey = getConfigEnvFallback("mxSearchApiKey");
+  const envJin10McpUrl = getConfigEnvFallback("jin10McpUrl");
+  const envJin10ApiToken = getConfigEnvFallback("jin10ApiToken");
+  const envLlmBaseUrl = getConfigEnvFallback("llmBaseUrl");
+  const envLlmApiKey = getConfigEnvFallback("llmApiKey");
+  const envLlmModel = getConfigEnvFallback("llmModel");
 
   return {
-    tickflowApiUrl: normalizeString(raw.tickflowApiUrl, DEFAULT_PLUGIN_CONFIG.tickflowApiUrl),
-    tickflowApiKey: normalizeString(raw.tickflowApiKey),
+    tickflowApiUrl: normalizeStringWithFallback(
+      raw.tickflowApiUrl,
+      envTickflowApiUrl || DEFAULT_PLUGIN_CONFIG.tickflowApiUrl,
+    ),
+    tickflowApiKey: normalizeStringWithFallback(raw.tickflowApiKey, envTickflowApiKey),
     tickflowApiKeyLevel: normalizeTickflowApiKeyLevel(
-      raw.tickflowApiKeyLevel,
+      normalizeStringWithFallback(raw.tickflowApiKeyLevel, envTickflowApiKeyLevel),
       DEFAULT_PLUGIN_CONFIG.tickflowApiKeyLevel,
     ),
-    mxSearchApiUrl: normalizeString(
+    mxSearchApiUrl: normalizeStringWithFallback(
       raw.mxSearchApiUrl,
       envMxSearchApiUrl || DEFAULT_PLUGIN_CONFIG.mxSearchApiUrl,
     ),
-    mxSearchApiKey: normalizeString(raw.mxSearchApiKey, envMxSearchApiKey || DEFAULT_PLUGIN_CONFIG.mxSearchApiKey),
-    jin10McpUrl: normalizeString(raw.jin10McpUrl, DEFAULT_PLUGIN_CONFIG.jin10McpUrl),
-    jin10ApiToken: normalizeString(raw.jin10ApiToken),
+    mxSearchApiKey: normalizeStringWithFallback(
+      raw.mxSearchApiKey,
+      envMxSearchApiKey || DEFAULT_PLUGIN_CONFIG.mxSearchApiKey,
+    ),
+    jin10McpUrl: normalizeStringWithFallback(
+      raw.jin10McpUrl,
+      envJin10McpUrl || DEFAULT_PLUGIN_CONFIG.jin10McpUrl,
+    ),
+    jin10ApiToken: normalizeStringWithFallback(raw.jin10ApiToken, envJin10ApiToken),
     jin10FlashPollInterval: normalizeInteger(
       raw.jin10FlashPollInterval,
       DEFAULT_PLUGIN_CONFIG.jin10FlashPollInterval,
@@ -74,9 +97,9 @@ export function normalizePluginConfig(input: unknown): PluginConfig {
       DEFAULT_PLUGIN_CONFIG.jin10FlashRetentionDays,
     ),
     jin10FlashNightAlert: normalizeBoolean(raw.jin10FlashNightAlert, DEFAULT_PLUGIN_CONFIG.jin10FlashNightAlert),
-    llmBaseUrl: normalizeString(raw.llmBaseUrl, DEFAULT_PLUGIN_CONFIG.llmBaseUrl),
-    llmApiKey: normalizeString(raw.llmApiKey),
-    llmModel: normalizeString(raw.llmModel, DEFAULT_PLUGIN_CONFIG.llmModel),
+    llmBaseUrl: normalizeStringWithFallback(raw.llmBaseUrl, envLlmBaseUrl || DEFAULT_PLUGIN_CONFIG.llmBaseUrl),
+    llmApiKey: normalizeStringWithFallback(raw.llmApiKey, envLlmApiKey),
+    llmModel: normalizeStringWithFallback(raw.llmModel, envLlmModel || DEFAULT_PLUGIN_CONFIG.llmModel),
     databasePath: normalizeString(raw.databasePath, DEFAULT_PLUGIN_CONFIG.databasePath),
     calendarFile: normalizeString(raw.calendarFile, DEFAULT_PLUGIN_CONFIG.calendarFile),
     requestInterval: normalizeInteger(raw.requestInterval, DEFAULT_PLUGIN_CONFIG.requestInterval),

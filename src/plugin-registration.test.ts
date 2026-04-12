@@ -4,6 +4,8 @@ import path from "node:path";
 import test from "node:test";
 
 import { createAppContext } from "./bootstrap.js";
+import { CONFIG_ENV_FALLBACKS } from "./config/env.js";
+import { normalizePluginConfig } from "./config/normalize.js";
 import pluginEntry from "./plugin.js";
 import type { MonitorService } from "./services/monitor-service.js";
 import { startMonitorTool } from "./tools/start-monitor.tool.js";
@@ -117,6 +119,41 @@ function createAppConfig() {
   };
 }
 
+const CONFIG_ENV_NAMES = [...new Set(Object.values(CONFIG_ENV_FALLBACKS).flat())];
+
+async function withTemporaryEnv(
+  values: Record<string, string | undefined>,
+  callback: () => Promise<void> | void,
+): Promise<void> {
+  const previous = new Map<string, string | undefined>();
+
+  for (const name of CONFIG_ENV_NAMES) {
+    previous.set(name, process.env[name]);
+    delete process.env[name];
+  }
+
+  for (const [name, value] of Object.entries(values)) {
+    if (value == null) {
+      delete process.env[name];
+      continue;
+    }
+    process.env[name] = value;
+  }
+
+  try {
+    await callback();
+  } finally {
+    for (const name of CONFIG_ENV_NAMES) {
+      const value = previous.get(name);
+      if (value == null) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+  }
+}
+
 test("plugin registration marks state-changing tools as optional", () => {
   const {
     api,
@@ -186,15 +223,102 @@ test("community install manifest does not require secrets before setup", () => {
   const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as {
     activation?: { onCapabilities?: string[] };
     setup?: { requiresRuntime?: boolean };
+    configContracts?: {
+      secretInputs?: {
+        paths?: Array<{ path?: string }>;
+      };
+    };
     configSchema?: { required?: string[] };
   };
 
   assert.deepEqual(manifest.activation?.onCapabilities, ["tool", "hook"]);
   assert.equal(manifest.setup?.requiresRuntime, true);
 
+  const secretPaths = new Set(
+    (manifest.configContracts?.secretInputs?.paths ?? [])
+      .map((entry) => entry.path)
+      .filter((value): value is string => Boolean(value)),
+  );
+  assert.deepEqual(
+    [...secretPaths].sort(),
+    ["jin10ApiToken", "llmApiKey", "mxSearchApiKey", "tickflowApiKey"],
+  );
+
   const required = manifest.configSchema?.required ?? [];
   assert.ok(!required.includes("tickflowApiKey"));
   assert.ok(!required.includes("llmApiKey"));
+});
+
+test("normalizePluginConfig falls back to env vars when config values are blank", async () => {
+  await withTemporaryEnv(
+    {
+      TICKFLOW_ASSIST_TICKFLOW_API_URL: "https://env.tickflow.example",
+      TICKFLOW_API_KEY: "env-tickflow-key",
+      TICKFLOW_ASSIST_TICKFLOW_API_KEY_LEVEL: "Expert",
+      TICKFLOW_ASSIST_MX_SEARCH_API_URL: "https://env.mx.example",
+      MX_APIKEY: "env-mx-key",
+      TICKFLOW_ASSIST_JIN10_MCP_URL: "https://env.jin10.example/mcp",
+      JIN10_API_TOKEN: "env-jin10-token",
+      LLM_BASE_URL: "https://env.llm.example/v1",
+      TICKFLOW_ASSIST_LLM_API_KEY: "env-llm-key",
+      LLM_MODEL: "gpt-env",
+    },
+    () => {
+      const config = normalizePluginConfig({
+        tickflowApiUrl: "",
+        tickflowApiKey: "",
+        tickflowApiKeyLevel: "",
+        mxSearchApiUrl: "",
+        mxSearchApiKey: "",
+        jin10McpUrl: "",
+        jin10ApiToken: "",
+        llmBaseUrl: "",
+        llmApiKey: "",
+        llmModel: "",
+      });
+
+      assert.equal(config.tickflowApiUrl, "https://env.tickflow.example");
+      assert.equal(config.tickflowApiKey, "env-tickflow-key");
+      assert.equal(config.tickflowApiKeyLevel, "expert");
+      assert.equal(config.mxSearchApiUrl, "https://env.mx.example");
+      assert.equal(config.mxSearchApiKey, "env-mx-key");
+      assert.equal(config.jin10McpUrl, "https://env.jin10.example/mcp");
+      assert.equal(config.jin10ApiToken, "env-jin10-token");
+      assert.equal(config.llmBaseUrl, "https://env.llm.example/v1");
+      assert.equal(config.llmApiKey, "env-llm-key");
+      assert.equal(config.llmModel, "gpt-env");
+    },
+  );
+});
+
+test("normalizePluginConfig keeps explicit config values ahead of env fallbacks", async () => {
+  await withTemporaryEnv(
+    {
+      TICKFLOW_API_KEY: "env-tickflow-key",
+      MX_SEARCH_API_KEY: "env-mx-key",
+      JIN10_API_TOKEN: "env-jin10-token",
+      LLM_BASE_URL: "https://env.llm.example/v1",
+      LLM_API_KEY: "env-llm-key",
+      LLM_MODEL: "gpt-env",
+    },
+    () => {
+      const config = normalizePluginConfig({
+        tickflowApiKey: "config-tickflow-key",
+        mxSearchApiKey: "config-mx-key",
+        jin10ApiToken: "config-jin10-token",
+        llmBaseUrl: "https://config.llm.example/v1",
+        llmApiKey: "config-llm-key",
+        llmModel: "gpt-config",
+      });
+
+      assert.equal(config.tickflowApiKey, "config-tickflow-key");
+      assert.equal(config.mxSearchApiKey, "config-mx-key");
+      assert.equal(config.jin10ApiToken, "config-jin10-token");
+      assert.equal(config.llmBaseUrl, "https://config.llm.example/v1");
+      assert.equal(config.llmApiKey, "config-llm-key");
+      assert.equal(config.llmModel, "gpt-config");
+    },
+  );
 });
 
 test("plugin registration does not warn for missing credentials before community setup", () => {

@@ -8,6 +8,12 @@ import { createInterface } from "node:readline/promises";
 
 import JSON5 from "json5";
 
+import {
+  formatConfigEnvFallback,
+  hasConfigEnvFallback,
+  type EnvBackedConfigKey,
+} from "../config/env.js";
+
 type JsonObject = Record<string, unknown>;
 type AllowTarget = { type: "global" } | { type: "agent"; id: string };
 
@@ -107,6 +113,14 @@ Options:
   --alert-account <name>
   --alert-target <target>
   -h, --help                  Show this help
+
+Environment fallback:
+  tickflowApiKey      ${formatConfigEnvFallback("tickflowApiKey")}
+  llmApiKey           ${formatConfigEnvFallback("llmApiKey")}
+  llmBaseUrl          ${formatConfigEnvFallback("llmBaseUrl")}
+  llmModel            ${formatConfigEnvFallback("llmModel")}
+  mxSearchApiKey      ${formatConfigEnvFallback("mxSearchApiKey")}
+  jin10ApiToken       ${formatConfigEnvFallback("jin10ApiToken")}
 `);
 }
 
@@ -473,7 +487,7 @@ async function promptAlertChannel(
     choices.push({ value: "__manual__", label: "手动输入其他通道" });
     selectedChannel = await promptSelect(rl, "检测到 openclaw.json 中已有配置，请选择推送通道", choices, defaultChannel);
     if (selectedChannel === "__manual__") {
-      selectedChannel = await promptString(rl, "Alert Channel", defaultChannel, true);
+      selectedChannel = await promptString(rl, "Alert Channel", defaultChannel, { required: true });
     }
   } else {
     const knownChannels = [
@@ -562,7 +576,16 @@ async function promptForConfig(
     console.log("为避免后续运行时反复补配置，下面这些字段建议一次性填完整。");
     console.log("");
 
-    seed.tickflowApiKey = await promptString(rl, "TickFlow API Key", seed.tickflowApiKey, true);
+    seed.tickflowApiKey = await promptString(
+      rl,
+      buildEnvAwarePromptLabel("TickFlow API Key", "tickflowApiKey", seed.tickflowApiKey),
+      seed.tickflowApiKey,
+      {
+        required: !hasConfigEnvFallback("tickflowApiKey"),
+        maskDefault: true,
+        allowClear: true,
+      },
+    );
 
     seed.tickflowApiKeyLevel = normalizeApiKeyLevel(
       await promptSelect(rl, "TickFlow 订阅等级", [
@@ -573,8 +596,26 @@ async function promptForConfig(
       ], seed.tickflowApiKeyLevel),
     );
 
-    seed.mxSearchApiKey = await promptString(rl, "MX Search API Key（建议填写）", seed.mxSearchApiKey, false);
-    seed.jin10ApiToken = await promptString(rl, "Jin10 API Token（建议填写）", seed.jin10ApiToken, false);
+    seed.mxSearchApiKey = await promptString(
+      rl,
+      buildEnvAwarePromptLabel("MX Search API Key（建议填写）", "mxSearchApiKey", seed.mxSearchApiKey),
+      seed.mxSearchApiKey,
+      {
+        required: false,
+        maskDefault: true,
+        allowClear: true,
+      },
+    );
+    seed.jin10ApiToken = await promptString(
+      rl,
+      buildEnvAwarePromptLabel("Jin10 API Token（建议填写）", "jin10ApiToken", seed.jin10ApiToken),
+      seed.jin10ApiToken,
+      {
+        required: false,
+        maskDefault: true,
+        allowClear: true,
+      },
+    );
     seed.jin10FlashPollInterval = await promptInteger(
       rl,
       "Jin10 快讯轮询间隔（秒）",
@@ -597,9 +638,34 @@ async function promptForConfig(
       seed.jin10FlashNightAlert ? "true" : "false",
     );
     seed.jin10FlashNightAlert = nightAlertChoice === "true";
-    seed.llmBaseUrl = await promptString(rl, "LLM Base URL", seed.llmBaseUrl, true);
-    seed.llmApiKey = await promptString(rl, "LLM API Key", seed.llmApiKey, true);
-    seed.llmModel = await promptString(rl, "LLM Model", seed.llmModel, true);
+    seed.llmBaseUrl = await promptString(
+      rl,
+      buildEnvAwarePromptLabel("LLM Base URL", "llmBaseUrl", seed.llmBaseUrl),
+      seed.llmBaseUrl,
+      {
+        required: true,
+        allowClear: hasConfigEnvFallback("llmBaseUrl"),
+      },
+    );
+    seed.llmApiKey = await promptString(
+      rl,
+      buildEnvAwarePromptLabel("LLM API Key", "llmApiKey", seed.llmApiKey),
+      seed.llmApiKey,
+      {
+        required: !hasConfigEnvFallback("llmApiKey"),
+        maskDefault: true,
+        allowClear: true,
+      },
+    );
+    seed.llmModel = await promptString(
+      rl,
+      buildEnvAwarePromptLabel("LLM Model", "llmModel", seed.llmModel),
+      seed.llmModel,
+      {
+        required: true,
+        allowClear: hasConfigEnvFallback("llmModel"),
+      },
+    );
 
     console.log("");
     const alertResult = await promptAlertChannel(rl, configPath, seed.alertChannel);
@@ -613,7 +679,7 @@ async function promptForConfig(
       targetLabel = `已选通道 [${seed.alertChannel}]，请输入 Alert Target（建议填写）`;
     }
 
-    seed.alertTarget = await promptString(rl, targetLabel, seed.alertTarget, false);
+    seed.alertTarget = await promptString(rl, targetLabel, seed.alertTarget, { required: false });
     seed.requestInterval = await promptInteger(rl, "Request Interval (seconds)", seed.requestInterval, 5);
     seed.dailyUpdateNotify = await promptBoolean(rl, "Daily Update Notify", seed.dailyUpdateNotify);
   } finally {
@@ -628,13 +694,22 @@ async function promptString(
   rl: ReturnType<typeof createInterface>,
   label: string,
   defaultValue: string,
-  required: boolean,
+  options: {
+    required: boolean;
+    maskDefault?: boolean;
+    allowClear?: boolean;
+  },
 ): Promise<string> {
   while (true) {
-    const suffix = defaultValue ? ` [${defaultValue}]` : "";
+    const suffix = defaultValue
+      ? options.maskDefault ? " [已存在]" : ` [${defaultValue}]`
+      : "";
     const answer = (await rl.question(`${label}${suffix}: `)).trim();
+    if (options.allowClear && answer === "-") {
+      return "";
+    }
     const value = answer || defaultValue;
-    if (!required || value) {
+    if (!options.required || value) {
       return value;
     }
     console.error(`${label} 不能为空`);
@@ -678,11 +753,11 @@ async function promptBoolean(
 }
 
 function assertRequired(config: PluginConfigInput): void {
-  if (!config.tickflowApiKey) {
-    throw new Error("tickflowApiKey is required");
+  if (!config.tickflowApiKey && !hasConfigEnvFallback("tickflowApiKey")) {
+    throw new Error(`tickflowApiKey is required (or set ${formatConfigEnvFallback("tickflowApiKey")})`);
   }
-  if (!config.llmApiKey) {
-    throw new Error("llmApiKey is required");
+  if (!config.llmApiKey && !hasConfigEnvFallback("llmApiKey")) {
+    throw new Error(`llmApiKey is required (or set ${formatConfigEnvFallback("llmApiKey")})`);
   }
 }
 
@@ -976,6 +1051,7 @@ async function configureOpenClaw(options: CliOptions): Promise<void> {
   if (normalizedInstallSpec) {
     console.log(`Community install spec normalized: clawhub:${PLUGIN_ID}`);
   }
+  printActiveEnvFallbacks(config);
   printNextSteps(options, config);
 }
 
@@ -994,3 +1070,39 @@ async function main(): Promise<void> {
 }
 
 void main();
+
+function buildEnvAwarePromptLabel(
+  label: string,
+  key: EnvBackedConfigKey,
+  currentValue: string,
+): string {
+  if (!hasConfigEnvFallback(key)) {
+    return label;
+  }
+
+  const fallback = formatConfigEnvFallback(key);
+  if (currentValue) {
+    return `${label}（留空保留当前值；输入 - 清空并改用环境变量 ${fallback}）`;
+  }
+  return `${label}（留空则使用环境变量 ${fallback}）`;
+}
+
+function printActiveEnvFallbacks(config: PluginConfigInput): void {
+  const activeFallbacks = [
+    { key: "tickflowApiKey" as const, label: "TickFlow API Key", value: config.tickflowApiKey },
+    { key: "mxSearchApiKey" as const, label: "MX Search API Key", value: config.mxSearchApiKey },
+    { key: "jin10ApiToken" as const, label: "Jin10 API Token", value: config.jin10ApiToken },
+    { key: "llmBaseUrl" as const, label: "LLM Base URL", value: config.llmBaseUrl },
+    { key: "llmApiKey" as const, label: "LLM API Key", value: config.llmApiKey },
+    { key: "llmModel" as const, label: "LLM Model", value: config.llmModel },
+  ].filter(({ key, value }) => !value && hasConfigEnvFallback(key));
+
+  if (activeFallbacks.length === 0) {
+    return;
+  }
+
+  console.log("Active env fallback:");
+  for (const entry of activeFallbacks) {
+    console.log(`  ${entry.label}: ${formatConfigEnvFallback(entry.key)}`);
+  }
+}

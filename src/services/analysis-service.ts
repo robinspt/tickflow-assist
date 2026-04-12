@@ -1,3 +1,4 @@
+import { formatConfigEnvFallback } from "../config/env.js";
 import { AnalysisTask } from "../analysis/tasks/analysis-task.js";
 import { AnalysisLogRepository } from "../storage/repositories/analysis-log-repo.js";
 import type { AnalysisLogEntry } from "../types/domain.js";
@@ -21,13 +22,13 @@ export class AnalysisService {
 
   getConfigurationError(): string | null {
     if (!this.llmBaseUrl.trim()) {
-      return "LLM 未配置接口地址，请设置 llmBaseUrl";
+      return `LLM 未配置接口地址，请设置 llmBaseUrl 或环境变量 ${formatConfigEnvFallback("llmBaseUrl")}`;
     }
     if (!this.llmApiKey.trim()) {
-      return "LLM 未配置 API Key，请设置 llmApiKey";
+      return `LLM 未配置 API Key，请设置 llmApiKey 或环境变量 ${formatConfigEnvFallback("llmApiKey")}`;
     }
     if (!this.llmModel.trim()) {
-      return "LLM 未配置模型，请设置 llmModel";
+      return `LLM 未配置模型，请设置 llmModel 或环境变量 ${formatConfigEnvFallback("llmModel")}`;
     }
     return null;
   }

@@ -12,6 +12,28 @@
   "setup": {
     "requiresRuntime": true
   },
+  "configContracts": {
+    "secretInputs": {
+      "paths": [
+        {
+          "path": "tickflowApiKey",
+          "expected": "string"
+        },
+        {
+          "path": "llmApiKey",
+          "expected": "string"
+        },
+        {
+          "path": "mxSearchApiKey",
+          "expected": "string"
+        },
+        {
+          "path": "jin10ApiToken",
+          "expected": "string"
+        }
+      ]
+    }
+  },
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -19,38 +41,38 @@
       "tickflowApiUrl": {
         "type": "string",
         "default": "https://api.tickflow.org",
-        "description": "TickFlow API base URL."
+        "description": "TickFlow API base URL. Leave empty to use TICKFLOW_ASSIST_TICKFLOW_API_URL or TICKFLOW_API_URL."
       },
       "tickflowApiKey": {
         "type": "string",
         "minLength": 1,
-        "description": "TickFlow API key used for market and financial data. Required before using the plugin."
+        "description": "TickFlow API key used for market and financial data. Leave empty to use TICKFLOW_ASSIST_TICKFLOW_API_KEY or TICKFLOW_API_KEY."
       },
       "tickflowApiKeyLevel": {
         "type": "string",
         "enum": ["Free", "Start", "Pro", "Expert"],
         "default": "Free",
-        "description": "TickFlow subscription level. Pro and Expert enable intraday K-line fetching."
+        "description": "TickFlow subscription level. Pro and Expert enable intraday K-line fetching. Can also come from TICKFLOW_ASSIST_TICKFLOW_API_KEY_LEVEL or TICKFLOW_API_KEY_LEVEL."
       },
       "mxSearchApiUrl": {
         "type": "string",
         "default": "https://mkapi2.dfcfs.com/finskillshub/api/claw",
-        "description": "MX Search API base URL."
+        "description": "MX Search API base URL. Leave empty to use TICKFLOW_ASSIST_MX_SEARCH_API_URL or MX_SEARCH_API_URL."
       },
       "mxSearchApiKey": {
         "type": "string",
         "default": "",
-        "description": "Configure this during setup if you want mx_search, mx_select_stock, and non-Expert financial fallback."
+        "description": "Configure this during setup if you want mx_search, mx_select_stock, and non-Expert financial fallback. Leave empty to use TICKFLOW_ASSIST_MX_SEARCH_API_KEY, MX_SEARCH_API_KEY, or MX_APIKEY."
       },
       "jin10McpUrl": {
         "type": "string",
         "default": "https://mcp.jin10.com/mcp",
-        "description": "Jin10 MCP server URL used for realtime flash monitoring."
+        "description": "Jin10 MCP server URL used for realtime flash monitoring. Leave empty to use TICKFLOW_ASSIST_JIN10_MCP_URL or JIN10_MCP_URL."
       },
       "jin10ApiToken": {
         "type": "string",
         "default": "",
-        "description": "Configure this during setup to keep the managed Jin10 realtime flash monitor fully available."
+        "description": "Configure this during setup to keep the managed Jin10 realtime flash monitor fully available. Leave empty to use TICKFLOW_ASSIST_JIN10_API_TOKEN or JIN10_API_TOKEN."
       },
       "jin10FlashPollInterval": {
         "type": "integer",
@@ -72,17 +94,17 @@
       "llmBaseUrl": {
         "type": "string",
         "default": "https://api.openai.com/v1",
-        "description": "OpenAI-compatible LLM API base URL."
+        "description": "OpenAI-compatible LLM API base URL. Leave empty to use TICKFLOW_ASSIST_LLM_BASE_URL or LLM_BASE_URL."
       },
       "llmApiKey": {
         "type": "string",
         "minLength": 1,
-        "description": "API key for the analysis model endpoint configured in llmBaseUrl. Required before using analysis features."
+        "description": "API key for the analysis model endpoint configured in llmBaseUrl. Leave empty to use TICKFLOW_ASSIST_LLM_API_KEY or LLM_API_KEY."
       },
       "llmModel": {
         "type": "string",
         "default": "gpt-4o",
-        "description": "Model name used for analysis."
+        "description": "Model name used for analysis. Leave empty to use TICKFLOW_ASSIST_LLM_MODEL or LLM_MODEL."
       },
       "databasePath": {
         "type": "string",
@@ -146,26 +168,26 @@
   "uiHints": {
     "tickflowApiKey": {
       "label": "TickFlow API Key",
-      "help": "Required before using TickFlow market and financial data.",
+      "help": "Used for TickFlow market and financial data. Leave empty to use TICKFLOW_ASSIST_TICKFLOW_API_KEY or TICKFLOW_API_KEY.",
       "sensitive": true
     },
     "tickflowApiKeyLevel": {
       "label": "TickFlow API Key Level",
-      "help": "Set this to your actual TickFlow subscription level."
+      "help": "Set this to your actual TickFlow subscription level, or provide it via TICKFLOW_ASSIST_TICKFLOW_API_KEY_LEVEL / TICKFLOW_API_KEY_LEVEL."
     },
     "mxSearchApiKey": {
       "label": "MX Search API Key",
-      "help": "Configure this during setup if you want mx_search, mx_select_stock, and lite financial fallback.",
+      "help": "Configure this during setup if you want mx_search, mx_select_stock, and lite financial fallback, or use TICKFLOW_ASSIST_MX_SEARCH_API_KEY / MX_SEARCH_API_KEY / MX_APIKEY.",
       "sensitive": true
     },
     "jin10McpUrl": {
       "label": "Jin10 MCP URL",
-      "help": "Configure this together with the Jin10 token for the managed flash monitor.",
+      "help": "Configure this together with the Jin10 token for the managed flash monitor, or use TICKFLOW_ASSIST_JIN10_MCP_URL / JIN10_MCP_URL.",
       "advanced": true
     },
     "jin10ApiToken": {
       "label": "Jin10 API Token",
-      "help": "Configure this during setup to keep the managed Jin10 flash monitor fully available.",
+      "help": "Configure this during setup to keep the managed Jin10 flash monitor fully available, or use TICKFLOW_ASSIST_JIN10_API_TOKEN / JIN10_API_TOKEN.",
       "sensitive": true
     },
     "jin10FlashPollInterval": {
@@ -185,16 +207,16 @@
     },
     "llmBaseUrl": {
       "label": "LLM Base URL",
-      "help": "OpenAI-compatible analysis endpoint."
+      "help": "OpenAI-compatible analysis endpoint. Leave empty to use TICKFLOW_ASSIST_LLM_BASE_URL or LLM_BASE_URL."
     },
     "llmApiKey": {
       "label": "LLM API Key",
-      "help": "Required before using analysis model requests.",
+      "help": "Used for analysis model requests. Leave empty to use TICKFLOW_ASSIST_LLM_API_KEY or LLM_API_KEY.",
       "sensitive": true
     },
     "llmModel": {
       "label": "LLM Model",
-      "help": "Model name used for stock analysis."
+      "help": "Model name used for stock analysis. Leave empty to use TICKFLOW_ASSIST_LLM_MODEL or LLM_MODEL."
     },
     "alertChannel": {
       "label": "Alert Channel",
