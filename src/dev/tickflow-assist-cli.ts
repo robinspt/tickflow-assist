@@ -559,6 +559,8 @@ async function promptForConfig(
     console.log(`OpenClaw 配置文件: ${configPath}`);
     console.log(`插件目录: ${pluginDir}`);
     console.log("");
+    console.log("为避免后续运行时反复补配置，下面这些字段建议一次性填完整。");
+    console.log("");
 
     seed.tickflowApiKey = await promptString(rl, "TickFlow API Key", seed.tickflowApiKey, true);
 
@@ -571,8 +573,8 @@ async function promptForConfig(
       ], seed.tickflowApiKeyLevel),
     );
 
-    seed.mxSearchApiKey = await promptString(rl, "MX Search API Key (可留空)", seed.mxSearchApiKey, false);
-    seed.jin10ApiToken = await promptString(rl, "Jin10 API Token (可留空)", seed.jin10ApiToken, false);
+    seed.mxSearchApiKey = await promptString(rl, "MX Search API Key（建议填写）", seed.mxSearchApiKey, false);
+    seed.jin10ApiToken = await promptString(rl, "Jin10 API Token（建议填写）", seed.jin10ApiToken, false);
     seed.jin10FlashPollInterval = await promptInteger(
       rl,
       "Jin10 快讯轮询间隔（秒）",
@@ -606,9 +608,9 @@ async function promptForConfig(
 
     let targetLabel = "Alert Target";
     if (seed.alertAccount) {
-      targetLabel = `已选通道 [${seed.alertChannel}] 及账号 [${seed.alertAccount}]，请输入 Alert Target`;
+      targetLabel = `已选通道 [${seed.alertChannel}] 及账号 [${seed.alertAccount}]，请输入 Alert Target（建议填写）`;
     } else {
-      targetLabel = `已选通道 [${seed.alertChannel}]，请输入 Alert Target`;
+      targetLabel = `已选通道 [${seed.alertChannel}]，请输入 Alert Target（建议填写）`;
     }
 
     seed.alertTarget = await promptString(rl, targetLabel, seed.alertTarget, false);

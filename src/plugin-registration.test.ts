@@ -184,8 +184,13 @@ test("plugin registration marks state-changing tools as optional", () => {
 test("community install manifest does not require secrets before setup", () => {
   const manifestPath = path.resolve(process.cwd(), "openclaw.plugin.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as {
+    activation?: { onCapabilities?: string[] };
+    setup?: { requiresRuntime?: boolean };
     configSchema?: { required?: string[] };
   };
+
+  assert.deepEqual(manifest.activation?.onCapabilities, ["tool", "hook"]);
+  assert.equal(manifest.setup?.requiresRuntime, true);
 
   const required = manifest.configSchema?.required ?? [];
   assert.ok(!required.includes("tickflowApiKey"));

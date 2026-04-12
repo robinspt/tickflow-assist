@@ -46,12 +46,12 @@
   },
   "openclaw": {
     "build": {
-      "openclawVersion": "2026.4.5"
+      "openclawVersion": "2026.4.11"
     },
     "compat": {
       "pluginApi": ">=2026.3.31",
       "minGatewayVersion": "2026.3.31",
-      "builtWithOpenClawVersion": "2026.4.5"
+      "builtWithOpenClawVersion": "2026.4.11"
     },
     "extensions": [
       "dist/plugin.js"
@@ -69,7 +69,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.13.11",
-    "openclaw": "^2026.4.5",
+    "openclaw": "^2026.4.11",
     "typescript": "^5.8.2"
   }
 }

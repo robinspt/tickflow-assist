@@ -6,6 +6,12 @@
   "skills": [
     "skills"
   ],
+  "activation": {
+    "onCapabilities": ["tool", "hook"]
+  },
+  "setup": {
+    "requiresRuntime": true
+  },
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -34,7 +40,7 @@
       "mxSearchApiKey": {
         "type": "string",
         "default": "",
-        "description": "Optional. Enables mx_search, mx_select_stock, and non-Expert financial fallback."
+        "description": "Configure this during setup if you want mx_search, mx_select_stock, and non-Expert financial fallback."
       },
       "jin10McpUrl": {
         "type": "string",
@@ -44,7 +50,7 @@
       "jin10ApiToken": {
         "type": "string",
         "default": "",
-        "description": "Optional. Enables 24/7 Jin10 realtime flash monitoring when configured."
+        "description": "Configure this during setup to keep the managed Jin10 realtime flash monitor fully available."
       },
       "jin10FlashPollInterval": {
         "type": "integer",
@@ -101,7 +107,7 @@
       },
       "alertChannel": {
         "type": "string",
-        "description": "Alert delivery channel, e.g. telegram, qqbot, wecom",
+        "description": "Configure this during setup for alert delivery, e.g. telegram, qqbot, wecom.",
         "default": "telegram"
       },
       "openclawCliBin": {
@@ -114,7 +120,7 @@
       },
       "alertTarget": {
         "type": "string",
-        "description": "Optional. Channel target for test_alert, monitoring alerts, and scheduled notifications.",
+        "description": "Configure this during setup for test_alert, monitoring alerts, and scheduled notifications.",
         "default": ""
       },
       "pythonBin": {
@@ -149,17 +155,17 @@
     },
     "mxSearchApiKey": {
       "label": "MX Search API Key",
-      "help": "Optional. Enables mx_search, mx_select_stock, and lite financial fallback.",
+      "help": "Configure this during setup if you want mx_search, mx_select_stock, and lite financial fallback.",
       "sensitive": true
     },
     "jin10McpUrl": {
       "label": "Jin10 MCP URL",
-      "help": "Optional. MCP endpoint used by the 24/7 Jin10 flash monitor.",
+      "help": "Configure this together with the Jin10 token for the managed flash monitor.",
       "advanced": true
     },
     "jin10ApiToken": {
       "label": "Jin10 API Token",
-      "help": "Optional. Enables Jin10 realtime flash monitoring.",
+      "help": "Configure this during setup to keep the managed Jin10 flash monitor fully available.",
       "sensitive": true
     },
     "jin10FlashPollInterval": {
@@ -192,11 +198,11 @@
     },
     "alertChannel": {
       "label": "Alert Channel",
-      "help": "Default delivery channel for alert messages."
+      "help": "Configure this during setup before enabling alert delivery."
     },
     "alertTarget": {
       "label": "Alert Target",
-      "help": "Optional. Configure this if you want test_alert, monitoring alerts, or scheduled notifications."
+      "help": "Configure this during setup for test_alert, monitoring alerts, and scheduled notifications."
     },
     "databasePath": {
       "label": "Database Path",
