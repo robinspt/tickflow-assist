@@ -107,4 +107,4 @@ plugins.entries["tickflow-assist"].config
 
 ## 仓库
 
-- GitHub: <https://github.com/robinspt/tickflow-assist>
+- GitHub: [robinspt/tickflow-assist](https://github.com/robinspt/tickflow-assist)
