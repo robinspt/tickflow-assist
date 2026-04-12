@@ -2,7 +2,7 @@
 
 基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件。它使用 [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 获取行情与财务数据，并可选接入 [金十数据 MCP](https://mcp.jin10.com/app/) 快讯流，结合 LLM 生成技术面、基本面、资讯面的综合判断，并把结果持久化到本地 LanceDB。
 
-最近更新：`v0.3.4` 新增 `09:20` 盘前资讯简报，修复 Jin10 历史补页重复推送与状态页最新快讯显示错误，并降低 Telegram 图文告警被误判失败后重复补发的风险。完整发布记录见 <https://github.com/robinspt/tickflow-assist/blob/main/CHANGELOG.md>。
+最近更新：`v0.3.5` 对齐 OpenClaw `2026.4.11` metadata 与社区安装提示，修复源码升级时本地链接扫描 `node_modules` 失败的问题，并支持通过环境变量回退 TickFlow / LLM / MX / Jin10 配置。完整发布记录见 <https://github.com/robinspt/tickflow-assist/blob/main/CHANGELOG.md>。
 
 当前主线按 OpenClaw `v2026.3.31+` 对齐，并已验证社区安装在 `v2026.4.11` 上兼容。
 
