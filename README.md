@@ -53,6 +53,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 
 向导会自动完成源码更新、依赖安装、配置写入、插件安装与 Gateway 重启。完整流程见 [docs/installation.md](docs/installation.md)。
 在 Linux 上，向导也会 best-effort 安装 PNG 告警卡所需的中文字体。
+脚本要求系统里已经能执行 `openclaw` 命令；其中 npm 步骤只会安装当前源码目录构建所需的本地 devDependencies，不会替你安装宿主 OpenClaw。
 
 如果你已经装过旧版本，优先直接执行“升级”。具体升级与重装边界见 [docs/installation.md](docs/installation.md)。
 
@@ -127,7 +128,7 @@ fc-cache -fv
 ```bash
 git clone https://github.com/robinspt/tickflow-assist.git
 cd tickflow-assist
-npm install
+npm install --include=dev --loglevel=error --no-fund --no-audit
 cd python
 uv sync
 cd ..
@@ -159,7 +160,7 @@ openclaw gateway restart
 
 ```bash
 git pull
-npm install
+npm install --include=dev --loglevel=error --no-fund --no-audit
 cd python
 uv sync
 cd ..

@@ -1005,7 +1005,7 @@ install_dependencies_and_build() {
   echo ""
   info "安装依赖并构建..."
   if $DRY_RUN; then
-    dry "cd \"$PLUGIN_DIR\" && npm install"
+    dry "cd \"$PLUGIN_DIR\" && npm install --include=dev --loglevel=error --no-fund --no-audit"
     dry "cd \"$PLUGIN_DIR/python\" && uv sync"
     dry "install Chinese fonts for PNG alerts if missing"
     dry "cd \"$PLUGIN_DIR\" && npm run build"
@@ -1014,8 +1014,8 @@ install_dependencies_and_build() {
 
   (
     cd "$PLUGIN_DIR"
-    info "1) npm install..."
-    npm install --loglevel=warn
+    info "1) npm install (仅安装源码构建所需依赖，不会安装系统 openclaw CLI)..."
+    npm install --include=dev --loglevel=error --no-fund --no-audit
     info "2) uv sync (python)..."
     cd python
     uv sync

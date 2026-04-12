@@ -112,13 +112,15 @@ cd tickflow-assist
 ### 4.2 安装依赖并构建
 
 ```bash
-npm install
+npm install --include=dev --loglevel=error --no-fund --no-audit
 cd python
 uv sync
 cd ..
 npm run check
 npm run build
 ```
+
+这里安装的 `openclaw` npm 包仅用于源码模式下的 plugin SDK 类型检查与本地调试，不会替你安装系统 `openclaw` CLI；正式插件运行仍要求宿主机已先安装 OpenClaw。
 
 ### 4.3 安装并启用插件（源码安装）
 
@@ -398,7 +400,7 @@ npm run tool -- test_alert
 ```bash
 cd /path/to/tickflow-assist
 git pull
-npm install
+npm install --include=dev --loglevel=error --no-fund --no-audit
 cd python
 uv sync
 cd ..
