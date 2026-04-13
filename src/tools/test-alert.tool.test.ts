@@ -105,6 +105,36 @@ test("test_alert reports text-only fallback when png delivery fails in plugin mo
   assert.deepEqual(media.removed, ["/tmp/test-alert-card.png"]);
 });
 
+test("test_alert reports ambiguous png delivery without split retries", async () => {
+  const alert = createAlertServiceStub([
+    {
+      ok: false,
+      mediaAttempted: true,
+      mediaDelivered: false,
+      error: "runtime delivery failed: message send timed out after upload",
+      deliveryUncertain: true,
+    },
+  ]);
+  const media = createAlertMediaStub();
+
+  const tool = testAlertTool(
+    alert.service as never,
+    media.service as never,
+    "openclaw_plugin",
+  );
+
+  const result = await tool.run();
+
+  assert.equal(
+    result,
+    "⚠️ PNG 告警疑似已送达，但通道返回异常；为避免重复未执行拆分补发\n"
+      + "原因: runtime delivery failed: message send timed out after upload",
+  );
+  assert.equal(alert.calls.length, 1);
+  assert.equal(alert.calls[0]?.mediaPath, "/tmp/test-alert-card.png");
+  assert.deepEqual(media.removed, ["/tmp/test-alert-card.png"]);
+});
+
 test("test_alert treats png fallback as expected in local command mode", async () => {
   const alert = createAlertServiceStub([
     {

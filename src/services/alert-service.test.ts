@@ -106,7 +106,7 @@ test("buildCliArgs omits --message for media-only sends", () => {
   ]);
 });
 
-test("sendWithResult retries media-only before falling back to text-only", async () => {
+test("sendWithResult falls back to text-only on definite media pre-send failure", async () => {
   const calls: Array<{ message: string; mediaPath?: string }> = [];
   const service = new AlertService({
     openclawCliBin: "openclaw",
@@ -115,14 +115,19 @@ test("sendWithResult retries media-only before falling back to text-only", async
     target: "",
   });
   const runtimeService = service as unknown as {
-    trySendPayload: (input: { message: string; mediaPath?: string }) => Promise<string | null>;
+    trySendPayload: (
+      input: { message: string; mediaPath?: string },
+    ) => Promise<{ error: string; ambiguous: boolean } | null>;
     sendWithResult: AlertService["sendWithResult"];
   };
 
   runtimeService.trySendPayload = async (payload: { message: string; mediaPath?: string }) => {
     calls.push({ message: payload.message, mediaPath: payload.mediaPath });
     if (payload.mediaPath && payload.message === "caption") {
-      return "caption with media failed";
+      return {
+        error: "media file missing",
+        ambiguous: false,
+      };
     }
     return null;
   };
@@ -134,14 +139,56 @@ test("sendWithResult retries media-only before falling back to text-only", async
 
   assert.deepEqual(calls, [
     { message: "caption", mediaPath: "/tmp/alert-card.png" },
-    { message: "", mediaPath: "/tmp/alert-card.png" },
     { message: "caption", mediaPath: undefined },
   ]);
   assert.deepEqual(result, {
     ok: true,
     mediaAttempted: true,
-    mediaDelivered: true,
-    error: null,
+    mediaDelivered: false,
+    error: "media file missing",
+  });
+});
+
+test("sendWithResult avoids split retries after ambiguous telegram media failure", async () => {
+  let cliCalled = false;
+  const service = new AlertService({
+    openclawCliBin: "openclaw",
+    channel: "telegram",
+    account: "default",
+    target: "telegram:@mychat",
+    runtime: {
+      config: {} as never,
+      runtime: {
+        system: {
+          runCommandWithTimeout: async () => {
+            cliCalled = true;
+            throw new Error("CLI fallback should not run after ambiguous runtime failure");
+          },
+        },
+        channel: {
+          telegram: {
+            async sendMessageTelegram() {
+              throw new Error("message send timed out after upload");
+            },
+          },
+        },
+      } as never,
+    },
+  });
+
+  const result = await service.sendWithResult({
+    message: "caption",
+    mediaPath: "/tmp/alert-card.png",
+    mediaLocalRoots: ["/tmp"],
+  });
+
+  assert.equal(cliCalled, false);
+  assert.deepEqual(result, {
+    ok: false,
+    mediaAttempted: true,
+    mediaDelivered: false,
+    error: "runtime delivery failed: message send timed out after upload",
+    deliveryUncertain: true,
   });
 });
 

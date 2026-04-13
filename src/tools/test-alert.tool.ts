@@ -65,6 +65,12 @@ export function testAlertTool(
           filename: mediaFile.filename,
         });
 
+        if (result.deliveryUncertain) {
+          return result.error
+            ? `⚠️ PNG 告警疑似已送达，但通道返回异常；为避免重复未执行拆分补发\n原因: ${result.error}`
+            : "⚠️ PNG 告警疑似已送达，但通道返回异常；为避免重复未执行拆分补发";
+        }
+
         if (result.ok && result.mediaDelivered) {
           if (result.error) {
             return [

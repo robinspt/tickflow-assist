@@ -190,6 +190,47 @@ test("trySendAlert removes temporary media files after a failed delivery attempt
   }
 });
 
+test("trySendAlert records ambiguous media delivery to avoid immediate duplicate retries", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "tickflow-monitor-test-"));
+  const appendedRules: string[] = [];
+
+  try {
+    const service = createMonitorService(tempRoot, {
+      alertLogRepository: {
+        async isSentThisSession() {
+          return false;
+        },
+        async append(entry: { rule_name: string }) {
+          appendedRules.push(entry.rule_name);
+        },
+      },
+      alertService: {
+        async sendWithResult() {
+          return {
+            ok: false,
+            mediaAttempted: true,
+            mediaDelivered: false,
+            error: "runtime delivery failed: message send timed out after upload",
+            deliveryUncertain: true,
+          };
+        },
+      },
+    });
+
+    const ok = await (service as unknown as {
+      trySendAlert: (symbol: string, ruleName: string, input: { message: string; mediaPath: string }) => Promise<boolean>;
+    }).trySendAlert("000001.SZ", "support_near", {
+      message: "price:support_near",
+      mediaPath: path.join(tempRoot, "tmp", "support.png"),
+    });
+
+    assert.equal(ok, true);
+    assert.deepEqual(appendedRules, ["support_near"]);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("runMonitorOnce keeps only the highest-priority alert for the symbol", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "tickflow-monitor-test-"));
   const sentInputs: Array<string | { message: string; mediaPath?: string }> = [];

@@ -31,6 +31,12 @@ export interface AlertSendResult {
   mediaAttempted: boolean;
   mediaDelivered: boolean;
   error: string | null;
+  deliveryUncertain?: boolean;
+}
+
+interface AlertDeliveryFailure {
+  error: string;
+  ambiguous: boolean;
 }
 
 export class AlertService {
@@ -52,8 +58,8 @@ export class AlertService {
     const payload = normalizeSendInput(input);
 
     const mediaAttempted = Boolean(payload.mediaPath);
-    const primaryError = await this.trySendPayload(payload);
-    if (primaryError === null) {
+    const primaryFailure = await this.trySendPayload(payload);
+    if (primaryFailure === null) {
       return {
         ok: true,
         mediaAttempted,
@@ -63,30 +69,24 @@ export class AlertService {
     }
 
     if (payload.mediaPath) {
-      if (payload.message.trim()) {
-        const mediaOnlyError = await this.trySendPayload({
-          ...payload,
-          message: "",
-        });
-        if (mediaOnlyError === null) {
-          const textFollowupError = await this.trySendPayload({ message: payload.message });
-          return {
-            ok: textFollowupError === null,
-            mediaAttempted: true,
-            mediaDelivered: true,
-            error: textFollowupError,
-          };
-        }
+      if (primaryFailure.ambiguous) {
+        return {
+          ok: false,
+          mediaAttempted: true,
+          mediaDelivered: false,
+          error: primaryFailure.error,
+          deliveryUncertain: true,
+        };
       }
 
       const textFallback = normalizeSendInput(payload.message);
-      const textFallbackError = await this.trySendPayload(textFallback);
-      if (textFallbackError === null) {
+      const textFallbackFailure = await this.trySendPayload(textFallback);
+      if (textFallbackFailure === null) {
         return {
           ok: true,
           mediaAttempted: true,
           mediaDelivered: false,
-          error: primaryError,
+          error: primaryFailure.error,
         };
       }
 
@@ -94,7 +94,7 @@ export class AlertService {
         ok: false,
         mediaAttempted: true,
         mediaDelivered: false,
-        error: this.combineErrors(primaryError, textFallbackError),
+        error: this.combineErrors(primaryFailure.error, textFallbackFailure.error),
       };
     }
 
@@ -102,7 +102,7 @@ export class AlertService {
       ok: false,
       mediaAttempted: false,
       mediaDelivered: false,
-      error: primaryError,
+      error: primaryFailure.error,
     };
   }
 
@@ -202,19 +202,26 @@ export class AlertService {
     return `${runtimeError}; ${fallbackError}`;
   }
 
-  private async trySendPayload(payload: AlertSendInput): Promise<string | null> {
-    const runtimeError = await this.trySendViaRuntime(payload);
-    if (runtimeError === null) {
+  private async trySendPayload(payload: AlertSendInput): Promise<AlertDeliveryFailure | null> {
+    const runtimeFailure = await this.trySendViaRuntime(payload);
+    if (runtimeFailure === null) {
       return null;
+    }
+
+    if (runtimeFailure.ambiguous) {
+      return runtimeFailure;
     }
 
     return await this.trySendViaCommand(payload);
   }
 
-  private async trySendViaRuntime(payload: AlertSendInput): Promise<string | null> {
+  private async trySendViaRuntime(payload: AlertSendInput): Promise<AlertDeliveryFailure | null> {
     const runtimeContext = this.options.runtime;
     if (!runtimeContext || !this.options.target.trim()) {
-      return "runtime delivery unavailable";
+      return {
+        error: "runtime delivery unavailable",
+        ambiguous: false,
+      };
     }
 
     const baseOptions = {
@@ -276,10 +283,16 @@ export class AlertService {
         default:
           // OpenClaw 2026.3.31 narrows the typed runtime channel surface.
           // Fall back to `openclaw message send` for channels not exposed here.
-          return `runtime delivery not supported for channel: ${this.channel}`;
+          return {
+            error: `runtime delivery not supported for channel: ${this.channel}`,
+            ambiguous: false,
+          };
       }
     } catch (error) {
-      return `runtime delivery failed: ${formatErrorMessage(error)}`;
+      return {
+        error: `runtime delivery failed: ${formatErrorMessage(error)}`,
+        ambiguous: true,
+      };
     }
   }
 
@@ -300,7 +313,7 @@ export class AlertService {
     await method.call(channelApi, target, message, options);
   }
 
-  private async trySendViaCommand(payload: AlertSendInput): Promise<string | null> {
+  private async trySendViaCommand(payload: AlertSendInput): Promise<AlertDeliveryFailure | null> {
     try {
       const result = await this.runCommandWithTimeout(
         this.buildCliArgs(payload),
@@ -310,13 +323,18 @@ export class AlertService {
         return null;
       }
 
-      return (
-        result.stderr.trim()
-        || result.stdout.trim()
-        || `command exited with ${result.code ?? "unknown"}`
-      );
+      return {
+        error:
+          result.stderr.trim()
+          || result.stdout.trim()
+          || `command exited with ${result.code ?? "unknown"}`,
+        ambiguous: true,
+      };
     } catch (error) {
-      return `command delivery failed: ${formatErrorMessage(error)}`;
+      return {
+        error: `command delivery failed: ${formatErrorMessage(error)}`,
+        ambiguous: false,
+      };
     }
   }
 

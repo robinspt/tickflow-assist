@@ -554,7 +554,7 @@ export class MonitorService {
       }
 
       const result = await this.sendAlertAndCleanupMedia(input);
-      if (!result.ok) {
+      if (!result.ok && !result.deliveryUncertain) {
         return false;
       }
 
