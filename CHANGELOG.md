@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.6 - 2026-04-14
+
+- 修复 Telegram 告警重复补发：统一改走 `openclaw message send`，去掉不稳定的 runtime-first 分流，并保留文本/图片场景的可靠回退。
+- 新增一套更稳的告警投递诊断与 QQBot 媒体修正：诊断日志默认关闭，可按需开启；QQBot 图片会先中转到 OpenClaw 媒体目录，避免“文字能到、图片被拒”。
+
 ## v0.3.5 - 2026-04-12
 
 - 对齐 OpenClaw `2026.4.11`：升级构建元数据与开发依赖，补充 manifest `activation` / `setup` / `secretInputs` 等社区发布所需元数据，并同步安装前配置说明。
