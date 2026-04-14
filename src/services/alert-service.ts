@@ -393,10 +393,12 @@ export class AlertService {
     payload: AlertSendInput,
     context: AlertSendDiagnosticContext,
   ): Promise<AlertDeliveryFailure | null> {
+    const commandOptions = this.getCommandRunOptions(payload);
+
     try {
       const result = await this.runCommandWithTimeout(
         this.buildCliArgs(payload),
-        { timeoutMs: 15_000 },
+        commandOptions,
       );
       if (result.code === 0) {
         await this.logDiagnostic("transport_success", {
@@ -407,6 +409,7 @@ export class AlertService {
           messageHash: context.messageHash,
           hasMedia: Boolean(payload.mediaPath),
           mediaFile: basenameOrUndefined(payload.mediaPath),
+          timeoutMs: commandOptions.timeoutMs,
           termination: result.termination,
         });
         return null;
@@ -421,6 +424,7 @@ export class AlertService {
       };
       await this.logTransportFailure("command_failed", context, payload, failure, {
         code: result.code,
+        timeoutMs: commandOptions.timeoutMs,
         termination: result.termination,
         stderr: truncateDiagnosticText(result.stderr.trim()),
         stdout: truncateDiagnosticText(result.stdout.trim()),
@@ -434,6 +438,14 @@ export class AlertService {
       await this.logTransportFailure("command_error", context, payload, failure);
       return failure;
     }
+  }
+
+  private getCommandRunOptions(payload: AlertSendInput): { timeoutMs: number } {
+    if (payload.mediaPath) {
+      return { timeoutMs: 45_000 };
+    }
+
+    return { timeoutMs: 15_000 };
   }
 
   private buildCliArgs(payload: AlertSendInput): string[] {

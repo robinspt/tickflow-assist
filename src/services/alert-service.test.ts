@@ -106,6 +106,31 @@ test("buildCliArgs omits --message for media-only sends", () => {
   ]);
 });
 
+test("getCommandRunOptions uses longer timeout for media sends", () => {
+  const options = (alertService as unknown as {
+    getCommandRunOptions: (input: { message: string; mediaPath?: string }) => { timeoutMs: number };
+  }).getCommandRunOptions({
+    message: "test",
+    mediaPath: "/tmp/alert-card.png",
+  });
+
+  assert.deepEqual(options, {
+    timeoutMs: 45_000,
+  });
+});
+
+test("getCommandRunOptions keeps short timeout for text-only sends", () => {
+  const options = (alertService as unknown as {
+    getCommandRunOptions: (input: { message: string; mediaPath?: string }) => { timeoutMs: number };
+  }).getCommandRunOptions({
+    message: "test",
+  });
+
+  assert.deepEqual(options, {
+    timeoutMs: 15_000,
+  });
+});
+
 test("sendWithResult falls back to text-only on definite media pre-send failure", async () => {
   const calls: Array<{ message: string; mediaPath?: string }> = [];
   const service = new AlertService({
