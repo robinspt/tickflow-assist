@@ -256,6 +256,13 @@ export class AlertService {
     payload: AlertSendInput,
     context: AlertSendDiagnosticContext,
   ): Promise<AlertDeliveryFailure | null> {
+    // OpenClaw documents `api.runtime.channel` as channel-plugin-specific helper
+    // surface. For a regular tool/service plugin like tickflow-assist, Telegram
+    // delivery is more reliable via the shared `openclaw message send` CLI path.
+    if (this.channel === "telegram") {
+      return await this.trySendViaCommand(payload, context);
+    }
+
     const runtimeFailure = await this.trySendViaRuntime(payload, context);
     if (runtimeFailure === null) {
       return null;
@@ -294,16 +301,6 @@ export class AlertService {
 
     try {
       switch (this.channel) {
-        case "telegram":
-          await this.invokeRuntimeChannelSend(
-            runtimeContext.runtime.channel,
-            "telegram",
-            "sendMessageTelegram",
-            this.options.target,
-            payload.message,
-            baseOptions,
-          );
-          break;
         case "discord":
           await this.invokeRuntimeChannelSend(
             runtimeContext.runtime.channel,

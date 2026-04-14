@@ -174,8 +174,11 @@ test("sendWithResult falls back to text-only on definite media pre-send failure"
   });
 });
 
-test("sendWithResult avoids split retries after ambiguous telegram media failure", async () => {
-  let cliCalled = false;
+test("sendWithResult avoids split retries after ambiguous telegram command failure", async () => {
+  const commandCalls: Array<{
+    argv: string[];
+    options: number | { timeoutMs: number };
+  }> = [];
   const service = new AlertService({
     openclawCliBin: "openclaw",
     channel: "telegram",
@@ -185,15 +188,25 @@ test("sendWithResult avoids split retries after ambiguous telegram media failure
       config: {} as never,
       runtime: {
         system: {
-          runCommandWithTimeout: async () => {
-            cliCalled = true;
-            throw new Error("CLI fallback should not run after ambiguous runtime failure");
+          runCommandWithTimeout: async (
+            argv: string[],
+            options: number | { timeoutMs: number },
+          ) => {
+            commandCalls.push({ argv, options });
+            return {
+              stdout: "",
+              stderr: "message send timed out after upload",
+              code: null,
+              signal: null,
+              killed: true,
+              termination: "timeout" as const,
+            };
           },
         },
         channel: {
           telegram: {
             async sendMessageTelegram() {
-              throw new Error("message send timed out after upload");
+              throw new Error("telegram runtime should not be used");
             },
           },
         },
@@ -207,18 +220,19 @@ test("sendWithResult avoids split retries after ambiguous telegram media failure
     mediaLocalRoots: ["/tmp"],
   });
 
-  assert.equal(cliCalled, false);
+  assert.equal(commandCalls.length, 1);
   assert.deepEqual(result, {
     ok: false,
     mediaAttempted: true,
     mediaDelivered: false,
-    error: "runtime delivery failed: message send timed out after upload",
+    error: "message send timed out after upload",
     deliveryUncertain: true,
   });
 });
 
-test("sendWithResult falls back to CLI when telegram runtime method is unavailable", async () => {
+test("sendWithResult uses CLI for telegram media alerts even when runtime is available", async () => {
   let cliCalled = false;
+  let runtimeCalled = false;
   const service = new AlertService({
     openclawCliBin: "openclaw",
     channel: "telegram",
@@ -238,86 +252,6 @@ test("sendWithResult falls back to CLI when telegram runtime method is unavailab
               killed: false,
               termination: "exit" as const,
             };
-          },
-        },
-        channel: {},
-      } as never,
-    },
-  });
-
-  const result = await service.sendWithResult({
-    message: "caption",
-    mediaPath: "/tmp/alert-card.png",
-    mediaLocalRoots: ["/tmp"],
-  });
-
-  assert.equal(cliCalled, true);
-  assert.deepEqual(result, {
-    ok: true,
-    mediaAttempted: true,
-    mediaDelivered: true,
-    error: null,
-  });
-});
-
-test("sendWithResult falls back to CLI for text-only telegram notifications", async () => {
-  let cliCalled = false;
-  const service = new AlertService({
-    openclawCliBin: "openclaw",
-    channel: "telegram",
-    account: "default",
-    target: "telegram:@mychat",
-    runtime: {
-      config: {} as never,
-      runtime: {
-        system: {
-          runCommandWithTimeout: async () => {
-            cliCalled = true;
-            return {
-              stdout: "",
-              stderr: "",
-              code: 0,
-              signal: null,
-              killed: false,
-              termination: "exit" as const,
-            };
-          },
-        },
-        channel: {},
-      } as never,
-    },
-  });
-
-  const result = await service.sendWithResult({
-    message: "🔔 上午盯盘结束",
-  });
-
-  assert.equal(cliCalled, true);
-  assert.deepEqual(result, {
-    ok: true,
-    mediaAttempted: false,
-    mediaDelivered: false,
-    error: null,
-  });
-});
-
-test("sendWithResult uses telegram runtime before CLI when available", async () => {
-  const telegramCalls: Array<{
-    target: string;
-    message: string;
-    options: Record<string, unknown>;
-  }> = [];
-  const service = new AlertService({
-    openclawCliBin: "openclaw",
-    channel: "telegram",
-    account: "default",
-    target: "telegram:@mychat",
-    runtime: {
-      config: {} as never,
-      runtime: {
-        system: {
-          runCommandWithTimeout: async () => {
-            throw new Error("CLI fallback should not run when telegram runtime succeeds");
           },
         },
         channel: {
@@ -327,7 +261,10 @@ test("sendWithResult uses telegram runtime before CLI when available", async () 
               message: string,
               options: Record<string, unknown>,
             ) {
-              telegramCalls.push({ target, message, options });
+              runtimeCalled = true;
+              throw new Error(
+                `telegram runtime should not be used: ${target} ${message} ${JSON.stringify(options)}`,
+              );
             },
           },
         },
@@ -342,22 +279,62 @@ test("sendWithResult uses telegram runtime before CLI when available", async () 
     filename: "alert-card.png",
   });
 
-  assert.deepEqual(telegramCalls, [
-    {
-      target: "telegram:@mychat",
-      message: "caption",
-      options: {
-        accountId: "default",
-        cfg: {},
-        mediaUrl: "/tmp/alert-card.png",
-        mediaLocalRoots: ["/tmp"],
-      },
-    },
-  ]);
+  assert.equal(cliCalled, true);
+  assert.equal(runtimeCalled, false);
   assert.deepEqual(result, {
     ok: true,
     mediaAttempted: true,
     mediaDelivered: true,
+    error: null,
+  });
+});
+
+test("sendWithResult uses CLI for text-only telegram notifications even when runtime is available", async () => {
+  let cliCalled = false;
+  let runtimeCalled = false;
+  const service = new AlertService({
+    openclawCliBin: "openclaw",
+    channel: "telegram",
+    account: "default",
+    target: "telegram:@mychat",
+    runtime: {
+      config: {} as never,
+      runtime: {
+        system: {
+          runCommandWithTimeout: async () => {
+            cliCalled = true;
+            return {
+              stdout: "",
+              stderr: "",
+              code: 0,
+              signal: null,
+              killed: false,
+              termination: "exit" as const,
+            };
+          },
+        },
+        channel: {
+          telegram: {
+            async sendMessageTelegram() {
+              runtimeCalled = true;
+              throw new Error("telegram runtime should not be used");
+            },
+          },
+        },
+      } as never,
+    },
+  });
+
+  const result = await service.sendWithResult({
+    message: "🔔 上午盯盘结束",
+  });
+
+  assert.equal(cliCalled, true);
+  assert.equal(runtimeCalled, false);
+  assert.deepEqual(result, {
+    ok: true,
+    mediaAttempted: false,
+    mediaDelivered: false,
     error: null,
   });
 });
