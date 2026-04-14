@@ -222,6 +222,12 @@ test("community install manifest does not require secrets before setup", () => {
   const manifestPath = path.resolve(process.cwd(), "openclaw.plugin.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as {
     activation?: { onCapabilities?: string[] };
+    providerAuthEnvVars?: Record<string, string[]>;
+    providerAuthChoices?: Array<{
+      provider?: string;
+      choiceId?: string;
+      assistantVisibility?: string;
+    }>;
     setup?: {
       requiresRuntime?: boolean;
       providers?: Array<{ id?: string; envVars?: string[] }>;
@@ -235,6 +241,29 @@ test("community install manifest does not require secrets before setup", () => {
   };
 
   assert.deepEqual(manifest.activation?.onCapabilities, ["tool", "hook"]);
+  assert.deepEqual(manifest.providerAuthEnvVars, {
+    tickflow: ["TICKFLOW_ASSIST_TICKFLOW_API_KEY", "TICKFLOW_API_KEY"],
+    llm: ["TICKFLOW_ASSIST_LLM_API_KEY", "LLM_API_KEY"],
+    "mx-search": [
+      "TICKFLOW_ASSIST_MX_SEARCH_API_KEY",
+      "MX_SEARCH_API_KEY",
+      "MX_APIKEY",
+    ],
+    jin10: ["TICKFLOW_ASSIST_JIN10_API_TOKEN", "JIN10_API_TOKEN"],
+  });
+  assert.deepEqual(
+    (manifest.providerAuthChoices ?? []).map((choice) => [
+      choice.provider,
+      choice.choiceId,
+      choice.assistantVisibility,
+    ]),
+    [
+      ["tickflow", "tickflow-api-key", "manual-only"],
+      ["llm", "llm-api-key", "manual-only"],
+      ["mx-search", "mx-search-api-key", "manual-only"],
+      ["jin10", "jin10-api-token", "manual-only"],
+    ],
+  );
   assert.equal(manifest.setup?.requiresRuntime, true);
   assert.deepEqual(
     Object.fromEntries(
@@ -299,6 +328,9 @@ test("stock analysis skill no longer hard-requires plaintext plugin secrets", ()
   const skillPath = path.resolve(process.cwd(), "skills/stock-analysis/SKILL.md");
   const skillMarkdown = readFileSync(skillPath, "utf-8");
 
+  assert.ok(skillMarkdown.includes("\"always\":true"));
+  assert.ok(skillMarkdown.includes("\"primaryEnv\":\"TICKFLOW_ASSIST_TICKFLOW_API_KEY\""));
+  assert.ok(skillMarkdown.includes("TICKFLOW_ASSIST_LLM_API_KEY"));
   assert.ok(skillMarkdown.includes("plugins.entries.tickflow-assist.enabled"));
   assert.ok(!skillMarkdown.includes("plugins.entries.tickflow-assist.config.tickflowApiKey"));
   assert.ok(!skillMarkdown.includes("plugins.entries.tickflow-assist.config.llmApiKey"));

@@ -1,12 +1,7 @@
 ---
 name: stock_analysis
 description: Analyze A-share watchlist symbols, update daily K-line data, run monitor, and report status through the TickFlow Assist plugin.
-metadata:
-  openclaw:
-    skillKey: stock_analysis
-    requires:
-      config:
-        - plugins.entries.tickflow-assist.enabled
+metadata: {"openclaw":{"skillKey":"stock_analysis","always":true,"primaryEnv":"TICKFLOW_ASSIST_TICKFLOW_API_KEY","requires":{"config":["plugins.entries.tickflow-assist.enabled"],"env":["TICKFLOW_ASSIST_TICKFLOW_API_KEY","TICKFLOW_ASSIST_LLM_API_KEY","TICKFLOW_ASSIST_LLM_BASE_URL","TICKFLOW_ASSIST_LLM_MODEL"]}}}
 ---
 # 股票分析与监控
 
@@ -15,7 +10,7 @@ metadata:
 
 此技能随插件加载，不需要手动复制到 workspace。
 
-优先使用 TickFlow Assist 插件工具，不要改用 `exec`、shell 命令、`node -e`、`python -c`、直接文件读写或数据库脚本，也不要在没有工具结果的前提下自行推断分析结论、监控状态或数据更新结果。
+优先通过 TickFlow Assist 插件工具完成相关任务，并以工具返回结果为准。
 
 适用场景：
 - 添加或删除自选股
@@ -57,15 +52,15 @@ metadata:
 - “测试告警” -> `test_alert`
 
 参数理解规则：
-- 对“添加自选 / 删除自选 / 查看自选 / 监控状态 / 日更状态”这类一跳即可完成的意图，首个动作必须直接调用对应插件工具；禁止先调用 `read`、`write`、`edit`、`query_database`、子代理、会话生成、环境探测工具，禁止先说“我先找一下方法”“我先确认工具”之类的话。
-- 当用户消息中已经包含足够参数时，必须直接执行，不得额外探索：
+- 对“添加自选 / 删除自选 / 查看自选 / 监控状态 / 日更状态”这类直接型意图，如果用户已经给出足够参数，应直接调用对应插件工具。
+- 当用户消息中已经包含足够参数时，不要额外补充假设：
   - “添加自选 601872” -> 直接调用 `add_stock`
   - “添加自选 601872 成本 5.32” -> 直接调用 `add_stock`
   - “删除自选 601872” -> 直接调用 `remove_stock`
   - “自选列表” -> 直接调用 `list_watchlist`
   - “查立讯精密最新研报” -> 直接调用 `mx_search`
   - “找今天涨幅 2% 的股票” -> 直接调用 `mx_select_stock`
-- 如果工具必需参数缺失，只能补充缺失项本身；不要以“我需要摸索当前环境里的工具”“我需要确认执行方式”为由拒绝或拖延。
+- 如果工具必需参数缺失，只补充缺失项本身。
 - 股票代码按用户原始输入提取，例如 `002261`。
 - 成本价对应 `costPrice`；若用户未提供成本价，可以省略该字段。
 - `add_stock` 默认会在添加成功后自动拉取日K并计算指标。
@@ -79,13 +74,8 @@ metadata:
 - 对自然语言选股、板块成分股、条件筛选、候选池推荐等任务，优先使用 `mx_select_stock`；若问题本质是“找哪些标的符合条件”，不要误用 `mx_search`。
 - 用户在“添加自选”意图中提到的“`N`天”对应 `add_stock.count`（或 `klineCount`），例如“添加 002261 成本 34.15 并获取 120 天日K”应调用 `add_stock`，其中 `count=120`。若用户未提供成本价但明确要求拉取 `N` 天日K，可只传 `symbol` 与 `count`。
 - 用户询问 TickFlow / 自选股 的日更状态时，必须调用 `daily_update_status`，不要把它解释成其他 crontab、系统任务或无关插件的定时更新。
-- 对 `daily_update_status`、`monitor_status`、`list_watchlist` 这类轻量状态查询，禁止使用 `sessions_spawn`、子代理、并行子任务、`query_database`、文件读取或任何“先分析再回答”的编排；必须在当前回合直接调用对应插件工具并返回结果。
-- 对 `add_stock`、`remove_stock` 同样适用上述限制：不得先读文件、读目录、读 skill、自查工具列表或推测执行方法，必须直接调用工具。
-- `daily_update_status` 不依赖数据库查询工具；如果模型想改用 `query_database`、读取状态文件、读取交易日历文件，或拆成多个子任务，应视为错误策略并立即改回直接调用 `daily_update_status`。
-- 如果模型想调用 `read` 查看仓库、配置、数据库目录、SKILL 内容或工具脚本来决定是否添加/删除自选，应视为错误策略并立即改回 `add_stock` / `remove_stock`。
-- 禁止使用 `exec`、shell、`node -e`、`python -c`、SQL/LanceDB 脚本、直接编辑数据文件或任何“自己写脚本完成工具能力”的替代路径。
-- 如果当前环境拿不到对应插件工具，应直接说明无法通过该技能执行，不要回退到 `exec` 或命令行绕过。
-- 当用户追问“这个任务怎么执行的”“刚才是怎么做的”时，如果任务是通过插件工具完成的，应只说明实际调用的工具名与关键参数；不要默认展开成 `npm run tool -- ...`、shell 命令、`cd ~/projects/...`，也不要把本地调试命令当成对话里的真实执行链路。只有用户明确要求“给我命令行等价命令”时，才允许给出 CLI 示例。
+- 如果当前会话没有暴露对应插件工具，应直接说明当前技能暂不可用。
+- 当用户追问“这个任务怎么执行的”“刚才是怎么做的”时，如果任务是通过插件工具完成的，应只说明实际调用的工具名与关键参数；只有用户明确要求命令行等价命令时，再给出 CLI 示例。
 - 对 `daily_update_status` 的返回结果，不要额外追加“当前是 local_config”“插件配置问题”“已重试但结果相同”这类解释性警告。先完整原样输出工具结果；只有用户继续追问原因时，才再解释调用链路差异。
 - 仅在工具必需参数缺失时，才简短指出缺少的字段。
 - 不要臆造股票代码、成本价、日期、阈值、分析结果或监控状态。

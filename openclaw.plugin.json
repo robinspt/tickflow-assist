@@ -9,6 +9,83 @@
   "activation": {
     "onCapabilities": ["tool", "hook"]
   },
+  "providerAuthEnvVars": {
+    "tickflow": [
+      "TICKFLOW_ASSIST_TICKFLOW_API_KEY",
+      "TICKFLOW_API_KEY"
+    ],
+    "llm": [
+      "TICKFLOW_ASSIST_LLM_API_KEY",
+      "LLM_API_KEY"
+    ],
+    "mx-search": [
+      "TICKFLOW_ASSIST_MX_SEARCH_API_KEY",
+      "MX_SEARCH_API_KEY",
+      "MX_APIKEY"
+    ],
+    "jin10": [
+      "TICKFLOW_ASSIST_JIN10_API_TOKEN",
+      "JIN10_API_TOKEN"
+    ]
+  },
+  "providerAuthChoices": [
+    {
+      "provider": "tickflow",
+      "method": "api-key",
+      "choiceId": "tickflow-api-key",
+      "choiceLabel": "TickFlow API key",
+      "groupId": "tickflow-assist",
+      "groupLabel": "TickFlow Assist",
+      "groupHint": "TickFlow, analysis LLM, and optional data-service credentials.",
+      "optionKey": "tickflowApiKey",
+      "cliFlag": "--tickflow-api-key",
+      "cliOption": "--tickflow-api-key <key>",
+      "cliDescription": "TickFlow API key",
+      "assistantVisibility": "manual-only"
+    },
+    {
+      "provider": "llm",
+      "method": "api-key",
+      "choiceId": "llm-api-key",
+      "choiceLabel": "LLM API key",
+      "groupId": "tickflow-assist",
+      "groupLabel": "TickFlow Assist",
+      "groupHint": "TickFlow, analysis LLM, and optional data-service credentials.",
+      "optionKey": "llmApiKey",
+      "cliFlag": "--llm-api-key",
+      "cliOption": "--llm-api-key <key>",
+      "cliDescription": "Analysis LLM API key",
+      "assistantVisibility": "manual-only"
+    },
+    {
+      "provider": "mx-search",
+      "method": "api-key",
+      "choiceId": "mx-search-api-key",
+      "choiceLabel": "MX Search API key",
+      "groupId": "tickflow-assist",
+      "groupLabel": "TickFlow Assist",
+      "groupHint": "TickFlow, analysis LLM, and optional data-service credentials.",
+      "optionKey": "mxSearchApiKey",
+      "cliFlag": "--mx-search-api-key",
+      "cliOption": "--mx-search-api-key <key>",
+      "cliDescription": "MX Search API key",
+      "assistantVisibility": "manual-only"
+    },
+    {
+      "provider": "jin10",
+      "method": "api-key",
+      "choiceId": "jin10-api-token",
+      "choiceLabel": "Jin10 API token",
+      "groupId": "tickflow-assist",
+      "groupLabel": "TickFlow Assist",
+      "groupHint": "TickFlow, analysis LLM, and optional data-service credentials.",
+      "optionKey": "jin10ApiToken",
+      "cliFlag": "--jin10-api-token",
+      "cliOption": "--jin10-api-token <token>",
+      "cliDescription": "Jin10 API token",
+      "assistantVisibility": "manual-only"
+    }
+  ],
   "setup": {
     "providers": [
       {

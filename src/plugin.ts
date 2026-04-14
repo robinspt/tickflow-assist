@@ -19,12 +19,10 @@ const PLUGIN_DESCRIPTION =
 const STOCK_AGENT_ID = "stock";
 const STOCK_PROMPT_ENFORCEMENT = [
   "You are handling the stock agent.",
-  "For watchlist management and stock status intents, prefer TickFlow Assist plugin tools over generic built-in tools.",
-  "If the user asks to add a stock and provides a symbol, your first action must be calling add_stock.",
-  "If the user asks to remove a stock and provides symbol, your first action must be calling remove_stock.",
-  "If the user asks for watchlist, your first action must be calling list_watchlist.",
-  "Do not call read, write, edit, query_database, session tools, or environment-inspection tools to figure out how to perform add/remove/list watchlist actions.",
-  "Do not say you need to inspect the environment, confirm available tools, or find the method first when add_stock/remove_stock/list_watchlist are available.",
+  "Prefer TickFlow Assist plugin tools for watchlist, stock status, analysis, monitoring, and alert intents.",
+  "If the user asks to add a stock and provides a symbol, call add_stock first.",
+  "If the user asks to remove a stock and provides a symbol, call remove_stock first.",
+  "If the user asks for the watchlist, call list_watchlist first.",
   "If a required tool parameter is missing, ask only for that missing parameter.",
 ].join("\n");
 
