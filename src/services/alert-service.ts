@@ -261,7 +261,10 @@ export class AlertService {
       return null;
     }
 
-    if (runtimeFailure.ambiguous) {
+    // Only image/media sends are risky to replay after an ambiguous transport error.
+    // Text-only notifications (for example session boundary notifications) should
+    // still fall back to the CLI path so transient runtime failures do not drop them.
+    if (runtimeFailure.ambiguous && payload.mediaPath) {
       return runtimeFailure;
     }
 
@@ -359,9 +362,10 @@ export class AlertService {
       });
       return null;
     } catch (error) {
+      const detail = formatErrorMessage(error);
       const failure = {
-        error: `runtime delivery failed: ${formatErrorMessage(error)}`,
-        ambiguous: true,
+        error: `runtime delivery failed: ${detail}`,
+        ambiguous: !isRuntimeCapabilityUnavailableError(detail),
       };
       await this.logTransportFailure("runtime_failed", context, payload, failure);
       return failure;
@@ -515,6 +519,10 @@ function formatErrorMessage(error: unknown): string {
   } catch {
     return String(error);
   }
+}
+
+function isRuntimeCapabilityUnavailableError(detail: string): boolean {
+  return /runtime channel .* unavailable/i.test(detail);
 }
 
 function normalizeSendInput(input: string | AlertSendInput): AlertSendInput {
