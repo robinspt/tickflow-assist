@@ -5,6 +5,7 @@ import path from "node:path";
 import { formatChinaDateTime } from "./china-time.js";
 
 const DEFAULT_LOG_FILE = "alert-delivery-debug.ndjson";
+export const ALERT_DIAGNOSTIC_LOG_ENV = "TICKFLOW_ALERT_DIAGNOSTIC_LOG";
 
 export class AlertDiagnosticLogger {
   private readonly filePath: string;
@@ -34,6 +35,22 @@ export class AlertDiagnosticLogger {
       // Diagnostic logging must never break alert delivery.
     }
   }
+}
+
+export function createAlertDiagnosticLogger(
+  baseDir: string,
+  env: NodeJS.ProcessEnv = process.env,
+): AlertDiagnosticLogger | undefined {
+  if (!isAlertDiagnosticLogEnabled(env)) {
+    return undefined;
+  }
+
+  return new AlertDiagnosticLogger(baseDir);
+}
+
+function isAlertDiagnosticLogEnabled(env: NodeJS.ProcessEnv): boolean {
+  const raw = env[ALERT_DIAGNOSTIC_LOG_ENV]?.trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
 }
 
 export function buildAlertMessageHash(message: string): string {
