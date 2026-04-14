@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { access, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { AlertService } from "./alert-service.js";
@@ -379,8 +382,7 @@ test("sendWithResult uses CLI for qqbot alerts even when runtime is available", 
 
   const result = await service.sendWithResult({
     message: "caption",
-    mediaPath: "/tmp/alert-card.png",
-    mediaLocalRoots: ["/tmp"],
+    mediaPath: "https://example.com/alert-card.png",
   });
 
   assert.equal(cliCalled, true);
@@ -394,7 +396,17 @@ test("sendWithResult uses CLI for qqbot alerts even when runtime is available", 
 });
 
 test("sendWithResult treats qqbot command JSON error as a definite failure", async () => {
+  const tempHome = await mkdtemp(path.join(os.tmpdir(), "tickflow-alert-home-"));
+  const originalHome = process.env.HOME;
+  process.env.HOME = tempHome;
+
+  const sourceDir = path.join(tempHome, "project");
+  await mkdir(sourceDir, { recursive: true });
+  const sourcePath = path.join(sourceDir, "alert-card.png");
+  await writeFile(sourcePath, Buffer.from("png"));
+
   let callCount = 0;
+  let stagedMediaPath: string | undefined;
   const service = new AlertService({
     openclawCliBin: "openclaw",
     channel: "qqbot",
@@ -404,8 +416,12 @@ test("sendWithResult treats qqbot command JSON error as a definite failure", asy
       config: {} as never,
       runtime: {
         system: {
-          runCommandWithTimeout: async () => {
+          runCommandWithTimeout: async (argv: string[]) => {
             callCount += 1;
+            const mediaIndex = argv.indexOf("--media");
+            if (mediaIndex >= 0) {
+              stagedMediaPath = argv[mediaIndex + 1];
+            }
             if (callCount === 1) {
               return {
                 stdout: JSON.stringify({
@@ -417,7 +433,10 @@ test("sendWithResult treats qqbot command JSON error as a definite failure", asy
                     via: "direct",
                     result: {
                       channel: "qqbot",
-                      error: "recipient is not reachable for proactive message",
+                      messageId: "",
+                      meta: {
+                        error: "recipient is not reachable for proactive message",
+                      },
                     },
                   },
                 }, null, 2),
@@ -455,17 +474,115 @@ test("sendWithResult treats qqbot command JSON error as a definite failure", asy
     },
   });
 
-  const result = await service.sendWithResult({
-    message: "caption",
-    mediaPath: "/tmp/alert-card.png",
-    mediaLocalRoots: ["/tmp"],
+  try {
+    const result = await service.sendWithResult({
+      message: "caption",
+      mediaPath: sourcePath,
+      mediaLocalRoots: [sourceDir],
+    });
+
+    assert.equal(callCount, 2);
+    assert.ok(stagedMediaPath);
+    assert.notEqual(stagedMediaPath, sourcePath);
+    assert.equal(
+      path.relative(path.join(tempHome, ".openclaw", "media", "qqbot"), stagedMediaPath ?? "").startsWith(".."),
+      false,
+    );
+    await assert.rejects(access(stagedMediaPath ?? ""));
+    assert.deepEqual(result, {
+      ok: true,
+      mediaAttempted: true,
+      mediaDelivered: false,
+      error: "recipient is not reachable for proactive message",
+    });
+  } finally {
+    if (originalHome == null) {
+      delete process.env.HOME;
+    } else {
+      process.env.HOME = originalHome;
+    }
+    await rm(tempHome, { recursive: true, force: true });
+  }
+});
+
+test("sendWithResult stages qqbot local media under openclaw media storage before command send", async () => {
+  const tempHome = await mkdtemp(path.join(os.tmpdir(), "tickflow-alert-home-"));
+  const originalHome = process.env.HOME;
+  process.env.HOME = tempHome;
+
+  const sourceDir = path.join(tempHome, "project");
+  await mkdir(sourceDir, { recursive: true });
+  const sourcePath = path.join(sourceDir, "alert-card.png");
+  await writeFile(sourcePath, Buffer.from("png"));
+
+  let stagedMediaPath: string | undefined;
+  const service = new AlertService({
+    openclawCliBin: "openclaw",
+    channel: "qqbot",
+    account: "default",
+    target: "qqbot:c2c:USER_OPENID",
+    runtime: {
+      config: {} as never,
+      runtime: {
+        system: {
+          runCommandWithTimeout: async (argv: string[]) => {
+            const mediaIndex = argv.indexOf("--media");
+            if (mediaIndex >= 0) {
+              stagedMediaPath = argv[mediaIndex + 1];
+            }
+
+            return {
+              stdout: JSON.stringify({
+                action: "send",
+                channel: "qqbot",
+                payload: {
+                  channel: "qqbot",
+                  to: "qqbot:c2c:USER_OPENID",
+                  via: "direct",
+                  result: {
+                    channel: "qqbot",
+                    messageId: "msg-123",
+                  },
+                },
+              }, null, 2),
+              stderr: "",
+              code: 0,
+              signal: null,
+              killed: false,
+              termination: "exit" as const,
+            };
+          },
+        },
+      } as never,
+    },
   });
 
-  assert.equal(callCount, 2);
-  assert.deepEqual(result, {
-    ok: true,
-    mediaAttempted: true,
-    mediaDelivered: false,
-    error: "recipient is not reachable for proactive message",
-  });
+  try {
+    const result = await service.sendWithResult({
+      message: "caption",
+      mediaPath: sourcePath,
+      mediaLocalRoots: [sourceDir],
+    });
+
+    assert.ok(stagedMediaPath);
+    assert.notEqual(stagedMediaPath, sourcePath);
+    assert.equal(
+      path.relative(path.join(tempHome, ".openclaw", "media", "qqbot"), stagedMediaPath ?? "").startsWith(".."),
+      false,
+    );
+    await assert.rejects(access(stagedMediaPath ?? ""));
+    assert.deepEqual(result, {
+      ok: true,
+      mediaAttempted: true,
+      mediaDelivered: true,
+      error: null,
+    });
+  } finally {
+    if (originalHome == null) {
+      delete process.env.HOME;
+    } else {
+      process.env.HOME = originalHome;
+    }
+    await rm(tempHome, { recursive: true, force: true });
+  }
 });

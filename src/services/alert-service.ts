@@ -1,3 +1,8 @@
+import { randomBytes } from "node:crypto";
+import { copyFile, mkdir, unlink } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+
 import { createCommandRunner, type RunCommandWithTimeout } from "../runtime/command-runner.js";
 import type {
   OpenClawPluginConfig,
@@ -51,6 +56,11 @@ interface AlertSendDiagnosticContext {
   sendId: string;
   step: "primary" | "text_fallback";
   messageHash: string;
+}
+
+interface PreparedCommandPayload {
+  payload: AlertSendInput;
+  cleanup: () => Promise<void>;
 }
 
 export class AlertService {
@@ -391,11 +401,12 @@ export class AlertService {
     payload: AlertSendInput,
     context: AlertSendDiagnosticContext,
   ): Promise<AlertDeliveryFailure | null> {
-    const commandOptions = this.getCommandRunOptions(payload);
+    const prepared = await this.prepareCommandPayload(payload);
+    const commandOptions = this.getCommandRunOptions(prepared.payload);
 
     try {
       const result = await this.runCommandWithTimeout(
-        this.buildCliArgs(payload),
+        this.buildCliArgs(prepared.payload),
         commandOptions,
       );
       if (result.code === 0) {
@@ -451,7 +462,33 @@ export class AlertService {
       };
       await this.logTransportFailure("command_error", context, payload, failure);
       return failure;
+    } finally {
+      await prepared.cleanup();
     }
+  }
+
+  private async prepareCommandPayload(payload: AlertSendInput): Promise<PreparedCommandPayload> {
+    if (!shouldStageQQBotMedia(this.channel, payload.mediaPath)) {
+      return {
+        payload,
+        cleanup: async () => {},
+      };
+    }
+
+    const stagedMediaPath = await stageQQBotMediaFile(payload.mediaPath);
+    return {
+      payload: {
+        ...payload,
+        mediaPath: stagedMediaPath,
+      },
+      cleanup: async () => {
+        await unlink(stagedMediaPath).catch((error: unknown) => {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+            throw error;
+          }
+        });
+      },
+    };
   }
 
   private getCommandRunOptions(payload: AlertSendInput): { timeoutMs: number } {
@@ -568,8 +605,13 @@ function inspectCommandDeliveryResult(stdout: string): {
   }
 
   const directResult = isRecord(payload.result) ? payload.result : null;
-  const error = getNonEmptyString(directResult?.error) ?? getNonEmptyString(payload.error);
-  const messageId = getNonEmptyString(directResult?.messageId) ?? getNonEmptyString(payload.messageId);
+  const directResultMeta = isRecord(directResult?.meta) ? directResult.meta : null;
+  const error = getNonEmptyString(directResult?.error)
+    ?? getNonEmptyString(directResultMeta?.error)
+    ?? getNonEmptyString(payload.error);
+  const messageId = getNonEmptyString(directResult?.messageId)
+    ?? getNonEmptyString(directResultMeta?.messageId)
+    ?? getNonEmptyString(payload.messageId);
 
   if (!error && !messageId) {
     return null;
@@ -632,6 +674,64 @@ function getNonEmptyString(value: unknown): string | undefined {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function shouldStageQQBotMedia(channel: string, mediaPath?: string): mediaPath is string {
+  return channel === "qqbot"
+    && typeof mediaPath === "string"
+    && mediaPath.length > 0
+    && !isRemoteMediaPath(mediaPath)
+    && !isUnderQQBotManagedMediaRoot(mediaPath);
+}
+
+function isRemoteMediaPath(mediaPath: string): boolean {
+  return /^(?:https?:|data:)/i.test(mediaPath.trim());
+}
+
+function isUnderQQBotManagedMediaRoot(mediaPath: string): boolean {
+  const candidate = path.resolve(mediaPath);
+  const mediaRoot = path.resolve(getQQBotManagedMediaRoot());
+  const relative = path.relative(mediaRoot, candidate);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+async function stageQQBotMediaFile(mediaPath: string): Promise<string> {
+  const destinationDir = path.join(getQQBotManagedMediaRoot(), "tickflow-assist");
+  await mkdir(destinationDir, { recursive: true });
+
+  const sourceExt = path.extname(mediaPath);
+  const sourceBase = path.basename(mediaPath, sourceExt);
+  const safeBase = sanitizeFileNamePart(sourceBase) || "alert-media";
+  const safeExt = sanitizeFileExtension(sourceExt);
+  const stagedName = `${safeBase}-${Date.now()}-${randomBytes(3).toString("hex")}${safeExt}`;
+  const stagedPath = path.join(destinationDir, stagedName);
+  await copyFile(mediaPath, stagedPath);
+  return stagedPath;
+}
+
+function getQQBotManagedMediaRoot(): string {
+  return path.join(resolveHomeDir(), ".openclaw", "media", "qqbot");
+}
+
+function resolveHomeDir(): string {
+  const fromOs = os.homedir();
+  if (fromOs) {
+    return fromOs;
+  }
+
+  return process.env.HOME || process.env.USERPROFILE || ".";
+}
+
+function sanitizeFileNamePart(value: string): string {
+  return value.replace(/[^a-zA-Z0-9._-]+/g, "_");
+}
+
+function sanitizeFileExtension(value: string): string {
+  if (!value) {
+    return "";
+  }
+
+  return /^\.[a-zA-Z0-9]+$/.test(value) ? value.toLowerCase() : "";
 }
 
 function getAlertStyle(ruleCode: string, fallbackTitle: string): { banner: string; label: string } {
