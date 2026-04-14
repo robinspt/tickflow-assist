@@ -399,6 +399,21 @@ export class AlertService {
         commandOptions,
       );
       if (result.code === 0) {
+        const commandOutcome = inspectCommandDeliveryResult(result.stdout);
+        if (commandOutcome?.error) {
+          const failure = {
+            error: commandOutcome.error,
+            ambiguous: false,
+          };
+          await this.logTransportFailure("command_reported_error", context, payload, failure, {
+            timeoutMs: commandOptions.timeoutMs,
+            termination: result.termination,
+            messageId: commandOutcome.messageId,
+            stdout: truncateDiagnosticText(result.stdout.trim()),
+          });
+          return failure;
+        }
+
         await this.logDiagnostic("transport_success", {
           sendId: context.sendId,
           step: context.step,
@@ -409,6 +424,7 @@ export class AlertService {
           mediaFile: basenameOrUndefined(payload.mediaPath),
           timeoutMs: commandOptions.timeoutMs,
           termination: result.termination,
+          messageId: commandOutcome?.messageId,
         });
         return null;
       }
@@ -468,6 +484,7 @@ export class AlertService {
     if (this.options.account) {
       args.push("--account", this.options.account);
     }
+    args.push("--json");
     return args;
   }
 
@@ -541,6 +558,60 @@ function normalizeSendInput(input: string | AlertSendInput): AlertSendInput {
     : input;
 }
 
+function inspectCommandDeliveryResult(stdout: string): {
+  error?: string;
+  messageId?: string;
+} | null {
+  const payload = extractCommandJsonPayload(stdout);
+  if (!payload) {
+    return null;
+  }
+
+  const directResult = isRecord(payload.result) ? payload.result : null;
+  const error = getNonEmptyString(directResult?.error) ?? getNonEmptyString(payload.error);
+  const messageId = getNonEmptyString(directResult?.messageId) ?? getNonEmptyString(payload.messageId);
+
+  if (!error && !messageId) {
+    return null;
+  }
+
+  return {
+    ...(error ? { error } : {}),
+    ...(messageId ? { messageId } : {}),
+  };
+}
+
+function extractCommandJsonPayload(stdout: string): Record<string, unknown> | null {
+  const root = extractTrailingJsonObject(stdout);
+  if (!root) {
+    return null;
+  }
+
+  return isRecord(root.payload) ? root.payload : root;
+}
+
+function extractTrailingJsonObject(stdout: string): Record<string, unknown> | null {
+  const trimmed = stdout.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  for (let start = trimmed.lastIndexOf("{"); start >= 0; start = trimmed.lastIndexOf("{", start - 1)) {
+    const candidate = trimmed.slice(start);
+    try {
+      const parsed = JSON.parse(candidate);
+      const record = isRecord(parsed) ? parsed : null;
+      if (record) {
+        return record;
+      }
+    } catch {
+      // Keep scanning backward until the trailing JSON object is found.
+    }
+  }
+
+  return null;
+}
+
 function getRuntimeChannelApi(runtimeChannel: unknown, channelName: string): Record<string, unknown> | null {
   if (!isRecord(runtimeChannel)) {
     return null;
@@ -552,6 +623,15 @@ function getRuntimeChannelApi(runtimeChannel: unknown, channelName: string): Rec
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getNonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function getAlertStyle(ruleCode: string, fallbackTitle: string): { banner: string; label: string } {

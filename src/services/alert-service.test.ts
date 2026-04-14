@@ -84,6 +84,7 @@ test("buildCliArgs includes media path when sending image alerts", () => {
     "test",
     "--media",
     "/tmp/alert-card.png",
+    "--json",
   ]);
 });
 
@@ -103,6 +104,7 @@ test("buildCliArgs omits --message for media-only sends", () => {
     "telegram",
     "--media",
     "/tmp/alert-card.png",
+    "--json",
   ]);
 });
 
@@ -388,5 +390,82 @@ test("sendWithResult uses CLI for qqbot alerts even when runtime is available", 
     mediaAttempted: true,
     mediaDelivered: true,
     error: null,
+  });
+});
+
+test("sendWithResult treats qqbot command JSON error as a definite failure", async () => {
+  let callCount = 0;
+  const service = new AlertService({
+    openclawCliBin: "openclaw",
+    channel: "qqbot",
+    account: "default",
+    target: "qqbot:c2c:USER_OPENID",
+    runtime: {
+      config: {} as never,
+      runtime: {
+        system: {
+          runCommandWithTimeout: async () => {
+            callCount += 1;
+            if (callCount === 1) {
+              return {
+                stdout: JSON.stringify({
+                  action: "send",
+                  channel: "qqbot",
+                  payload: {
+                    channel: "qqbot",
+                    to: "qqbot:c2c:USER_OPENID",
+                    via: "direct",
+                    result: {
+                      channel: "qqbot",
+                      error: "recipient is not reachable for proactive message",
+                    },
+                  },
+                }, null, 2),
+                stderr: "",
+                code: 0,
+                signal: null,
+                killed: false,
+                termination: "exit" as const,
+              };
+            }
+
+            return {
+              stdout: JSON.stringify({
+                action: "send",
+                channel: "qqbot",
+                payload: {
+                  channel: "qqbot",
+                  to: "qqbot:c2c:USER_OPENID",
+                  via: "direct",
+                  result: {
+                    channel: "qqbot",
+                    messageId: "msg-123",
+                  },
+                },
+              }, null, 2),
+              stderr: "",
+              code: 0,
+              signal: null,
+              killed: false,
+              termination: "exit" as const,
+            };
+          },
+        },
+      } as never,
+    },
+  });
+
+  const result = await service.sendWithResult({
+    message: "caption",
+    mediaPath: "/tmp/alert-card.png",
+    mediaLocalRoots: ["/tmp"],
+  });
+
+  assert.equal(callCount, 2);
+  assert.deepEqual(result, {
+    ok: true,
+    mediaAttempted: true,
+    mediaDelivered: false,
+    error: "recipient is not reachable for proactive message",
   });
 });
