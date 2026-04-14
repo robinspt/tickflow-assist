@@ -4,6 +4,12 @@ import path from "node:path";
 import type { WatchlistItem, KeyLevels } from "../types/domain.js";
 import type { TickFlowIntradayKlineRow, TickFlowQuote } from "../types/tickflow.js";
 import type { MonitorState } from "../types/monitor.js";
+import {
+  AlertDiagnosticLogger,
+  basenameOrUndefined,
+  buildAlertMessageHash,
+  truncateDiagnosticText,
+} from "../utils/alert-diagnostic-log.js";
 import { formatChinaDateTime } from "../utils/china-time.js";
 import { calculateProfitPct, formatCostPrice } from "../utils/cost-price.js";
 import { QuoteService } from "./quote-service.js";
@@ -55,6 +61,7 @@ export class MonitorService {
     private readonly klineService: KlineService,
     private readonly alertService: AlertService,
     private readonly alertMediaService: AlertMediaService,
+    private readonly diagnosticLogger?: AlertDiagnosticLogger,
   ) {}
 
   async start(): Promise<string> {
@@ -541,30 +548,71 @@ export class MonitorService {
 
   private async trySendAlert(symbol: string, ruleName: string, input: string | AlertSendInput): Promise<boolean> {
     const sessionKey = getSessionKey();
+    const message = typeof input === "string" ? input : input.message;
+    const messageHash = buildAlertMessageHash(message);
+    const hasMedia = typeof input !== "string" && Boolean(input.mediaPath);
+
+    await this.logDiagnostic("try_send_alert_enter", {
+      symbol,
+      ruleName,
+      sessionKey,
+      messageHash,
+      hasMedia,
+      mediaFile: typeof input === "string" ? undefined : basenameOrUndefined(input.mediaPath),
+    });
+
     const claim = await this.tryAcquireAlertClaim(symbol, ruleName, sessionKey);
     if (!claim) {
+      await this.logDiagnostic("try_send_alert_claim_busy", {
+        symbol,
+        ruleName,
+        sessionKey,
+        messageHash,
+      });
       await this.cleanupAlertMedia(input);
       return false;
     }
 
     try {
       if (await this.alertLogRepository.isSentThisSession(symbol, ruleName, sessionKey)) {
+        await this.logDiagnostic("try_send_alert_already_sent", {
+          symbol,
+          ruleName,
+          sessionKey,
+          messageHash,
+        });
         await this.cleanupAlertMedia(input);
         return false;
       }
 
       const result = await this.sendAlertAndCleanupMedia(input);
+      await this.logDiagnostic("try_send_alert_result", {
+        symbol,
+        ruleName,
+        sessionKey,
+        messageHash,
+        ok: result.ok,
+        mediaAttempted: result.mediaAttempted,
+        mediaDelivered: result.mediaDelivered,
+        deliveryUncertain: result.deliveryUncertain === true,
+        error: result.error ? truncateDiagnosticText(result.error) : null,
+      });
       if (!result.ok && !result.deliveryUncertain) {
         return false;
       }
 
-      const message = typeof input === "string" ? input : input.message;
       await this.alertLogRepository.append({
         symbol,
         alert_date: sessionKey,
         rule_name: ruleName,
         message,
         triggered_at: formatChinaDateTime(),
+      });
+      await this.logDiagnostic("try_send_alert_logged", {
+        symbol,
+        ruleName,
+        sessionKey,
+        messageHash,
       });
       return true;
     } finally {
@@ -729,6 +777,10 @@ export class MonitorService {
       "alert-claims",
       `${sanitizeAlertClaimPart(sessionKey)}_${sanitizeAlertClaimPart(symbol)}_${sanitizeAlertClaimPart(ruleName)}.lock`,
     );
+  }
+
+  private async logDiagnostic(event: string, details: Record<string, unknown>): Promise<void> {
+    await this.diagnosticLogger?.append("monitor_service", event, details);
   }
 }
 

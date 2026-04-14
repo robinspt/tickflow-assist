@@ -4,6 +4,13 @@ import type {
   OpenClawPluginRuntime,
 } from "../runtime/plugin-api.js";
 import type { KeyLevels } from "../types/domain.js";
+import {
+  AlertDiagnosticLogger,
+  basenameOrUndefined,
+  buildAlertMessageHash,
+  buildAlertSendId,
+  truncateDiagnosticText,
+} from "../utils/alert-diagnostic-log.js";
 import { calculateProfitPct, formatCostPrice } from "../utils/cost-price.js";
 
 interface AlertRuntimeContext {
@@ -17,6 +24,7 @@ interface AlertServiceOptions {
   account: string;
   target: string;
   runtime?: AlertRuntimeContext;
+  diagnosticLogger?: AlertDiagnosticLogger;
 }
 
 export interface AlertSendInput {
@@ -39,6 +47,12 @@ interface AlertDeliveryFailure {
   ambiguous: boolean;
 }
 
+interface AlertSendDiagnosticContext {
+  sendId: string;
+  step: "primary" | "text_fallback";
+  messageHash: string;
+}
+
 export class AlertService {
   private lastError: string | null = null;
   private readonly runCommandWithTimeout: RunCommandWithTimeout;
@@ -56,54 +70,90 @@ export class AlertService {
   async sendWithResult(input: string | AlertSendInput): Promise<AlertSendResult> {
     this.lastError = null;
     const payload = normalizeSendInput(input);
+    const sendId = buildAlertSendId(payload.message);
+    const messageHash = buildAlertMessageHash(payload.message);
+    const diagnosticContext: AlertSendDiagnosticContext = {
+      sendId,
+      step: "primary",
+      messageHash,
+    };
 
     const mediaAttempted = Boolean(payload.mediaPath);
-    const primaryFailure = await this.trySendPayload(payload);
+    await this.logDiagnostic("send_started", {
+      sendId,
+      step: diagnosticContext.step,
+      channel: this.channel,
+      messageHash,
+      messageLength: payload.message.length,
+      hasMedia: mediaAttempted,
+      mediaFile: basenameOrUndefined(payload.mediaPath),
+      filename: payload.filename,
+      accountConfigured: Boolean(this.options.account.trim()),
+      targetConfigured: Boolean(this.options.target.trim()),
+      runtimeAvailable: Boolean(this.options.runtime),
+      messagePreview: truncateDiagnosticText(payload.message.split("\n")[0] ?? ""),
+    });
+
+    const primaryFailure = await this.trySendPayload(payload, diagnosticContext);
     if (primaryFailure === null) {
-      return {
+      const result = {
         ok: true,
         mediaAttempted,
         mediaDelivered: mediaAttempted,
         error: null,
       };
+      await this.logCompletion(sendId, messageHash, payload, result);
+      return result;
     }
 
     if (payload.mediaPath) {
       if (primaryFailure.ambiguous) {
-        return {
+        const result = {
           ok: false,
           mediaAttempted: true,
           mediaDelivered: false,
           error: primaryFailure.error,
           deliveryUncertain: true,
         };
+        await this.logCompletion(sendId, messageHash, payload, result);
+        return result;
       }
 
       const textFallback = normalizeSendInput(payload.message);
-      const textFallbackFailure = await this.trySendPayload(textFallback);
+      const textFallbackFailure = await this.trySendPayload(textFallback, {
+        sendId,
+        step: "text_fallback",
+        messageHash,
+      });
       if (textFallbackFailure === null) {
-        return {
+        const result = {
           ok: true,
           mediaAttempted: true,
           mediaDelivered: false,
           error: primaryFailure.error,
         };
+        await this.logCompletion(sendId, messageHash, payload, result);
+        return result;
       }
 
-      return {
+      const result = {
         ok: false,
         mediaAttempted: true,
         mediaDelivered: false,
         error: this.combineErrors(primaryFailure.error, textFallbackFailure.error),
       };
+      await this.logCompletion(sendId, messageHash, payload, result);
+      return result;
     }
 
-    return {
+    const result = {
       ok: false,
       mediaAttempted: false,
       mediaDelivered: false,
       error: primaryFailure.error,
     };
+    await this.logCompletion(sendId, messageHash, payload, result);
+    return result;
   }
 
   getLastError(): string | null {
@@ -202,8 +252,11 @@ export class AlertService {
     return `${runtimeError}; ${fallbackError}`;
   }
 
-  private async trySendPayload(payload: AlertSendInput): Promise<AlertDeliveryFailure | null> {
-    const runtimeFailure = await this.trySendViaRuntime(payload);
+  private async trySendPayload(
+    payload: AlertSendInput,
+    context: AlertSendDiagnosticContext,
+  ): Promise<AlertDeliveryFailure | null> {
+    const runtimeFailure = await this.trySendViaRuntime(payload, context);
     if (runtimeFailure === null) {
       return null;
     }
@@ -212,16 +265,21 @@ export class AlertService {
       return runtimeFailure;
     }
 
-    return await this.trySendViaCommand(payload);
+    return await this.trySendViaCommand(payload, context);
   }
 
-  private async trySendViaRuntime(payload: AlertSendInput): Promise<AlertDeliveryFailure | null> {
+  private async trySendViaRuntime(
+    payload: AlertSendInput,
+    context: AlertSendDiagnosticContext,
+  ): Promise<AlertDeliveryFailure | null> {
     const runtimeContext = this.options.runtime;
     if (!runtimeContext || !this.options.target.trim()) {
-      return {
+      const failure = {
         error: "runtime delivery unavailable",
         ambiguous: false,
       };
+      await this.logTransportFailure("runtime_unavailable", context, payload, failure);
+      return failure;
     }
 
     const baseOptions = {
@@ -242,7 +300,7 @@ export class AlertService {
             payload.message,
             baseOptions,
           );
-          return null;
+          break;
         case "discord":
           await this.invokeRuntimeChannelSend(
             runtimeContext.runtime.channel,
@@ -255,7 +313,7 @@ export class AlertService {
               filename: payload.filename,
             },
           );
-          return null;
+          break;
         case "slack":
           await this.invokeRuntimeChannelSend(
             runtimeContext.runtime.channel,
@@ -269,7 +327,7 @@ export class AlertService {
               uploadTitle: payload.filename,
             },
           );
-          return null;
+          break;
         case "signal":
           await this.invokeRuntimeChannelSend(
             runtimeContext.runtime.channel,
@@ -279,20 +337,34 @@ export class AlertService {
             payload.message,
             baseOptions,
           );
-          return null;
+          break;
         default:
           // OpenClaw 2026.3.31 narrows the typed runtime channel surface.
           // Fall back to `openclaw message send` for channels not exposed here.
-          return {
+          const failure = {
             error: `runtime delivery not supported for channel: ${this.channel}`,
             ambiguous: false,
           };
+          await this.logTransportFailure("runtime_unsupported", context, payload, failure);
+          return failure;
       }
+      await this.logDiagnostic("transport_success", {
+        sendId: context.sendId,
+        step: context.step,
+        transport: "runtime",
+        channel: this.channel,
+        messageHash: context.messageHash,
+        hasMedia: Boolean(payload.mediaPath),
+        mediaFile: basenameOrUndefined(payload.mediaPath),
+      });
+      return null;
     } catch (error) {
-      return {
+      const failure = {
         error: `runtime delivery failed: ${formatErrorMessage(error)}`,
         ambiguous: true,
       };
+      await this.logTransportFailure("runtime_failed", context, payload, failure);
+      return failure;
     }
   }
 
@@ -313,28 +385,50 @@ export class AlertService {
     await method.call(channelApi, target, message, options);
   }
 
-  private async trySendViaCommand(payload: AlertSendInput): Promise<AlertDeliveryFailure | null> {
+  private async trySendViaCommand(
+    payload: AlertSendInput,
+    context: AlertSendDiagnosticContext,
+  ): Promise<AlertDeliveryFailure | null> {
     try {
       const result = await this.runCommandWithTimeout(
         this.buildCliArgs(payload),
         { timeoutMs: 15_000 },
       );
       if (result.code === 0) {
+        await this.logDiagnostic("transport_success", {
+          sendId: context.sendId,
+          step: context.step,
+          transport: "command",
+          channel: this.channel,
+          messageHash: context.messageHash,
+          hasMedia: Boolean(payload.mediaPath),
+          mediaFile: basenameOrUndefined(payload.mediaPath),
+          termination: result.termination,
+        });
         return null;
       }
 
-      return {
+      const failure = {
         error:
           result.stderr.trim()
           || result.stdout.trim()
           || `command exited with ${result.code ?? "unknown"}`,
         ambiguous: true,
       };
+      await this.logTransportFailure("command_failed", context, payload, failure, {
+        code: result.code,
+        termination: result.termination,
+        stderr: truncateDiagnosticText(result.stderr.trim()),
+        stdout: truncateDiagnosticText(result.stdout.trim()),
+      });
+      return failure;
     } catch (error) {
-      return {
+      const failure = {
         error: `command delivery failed: ${formatErrorMessage(error)}`,
         ambiguous: false,
       };
+      await this.logTransportFailure("command_error", context, payload, failure);
+      return failure;
     }
   }
 
@@ -361,6 +455,51 @@ export class AlertService {
       args.push("--account", this.options.account);
     }
     return args;
+  }
+
+  private async logCompletion(
+    sendId: string,
+    messageHash: string,
+    payload: AlertSendInput,
+    result: AlertSendResult,
+  ): Promise<void> {
+    await this.logDiagnostic("send_completed", {
+      sendId,
+      channel: this.channel,
+      messageHash,
+      hasMedia: Boolean(payload.mediaPath),
+      mediaFile: basenameOrUndefined(payload.mediaPath),
+      ok: result.ok,
+      mediaAttempted: result.mediaAttempted,
+      mediaDelivered: result.mediaDelivered,
+      deliveryUncertain: result.deliveryUncertain === true,
+      error: result.error ? truncateDiagnosticText(result.error) : null,
+    });
+  }
+
+  private async logTransportFailure(
+    event: string,
+    context: AlertSendDiagnosticContext,
+    payload: AlertSendInput,
+    failure: AlertDeliveryFailure,
+    extra: Record<string, unknown> = {},
+  ): Promise<void> {
+    await this.logDiagnostic(event, {
+      sendId: context.sendId,
+      step: context.step,
+      transport: event.startsWith("command") ? "command" : "runtime",
+      channel: this.channel,
+      messageHash: context.messageHash,
+      hasMedia: Boolean(payload.mediaPath),
+      mediaFile: basenameOrUndefined(payload.mediaPath),
+      ambiguous: failure.ambiguous,
+      error: truncateDiagnosticText(failure.error),
+      ...extra,
+    });
+  }
+
+  private async logDiagnostic(event: string, details: Record<string, unknown>): Promise<void> {
+    await this.options.diagnosticLogger?.append("alert_service", event, details);
   }
 }
 

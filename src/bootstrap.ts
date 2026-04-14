@@ -84,6 +84,7 @@ import { RealtimeMonitorWorker } from "./background/realtime-monitor.worker.js";
 import { DailyUpdateWorker } from "./background/daily-update.worker.js";
 import { Jin10FlashWorker } from "./background/jin10-flash.worker.js";
 import type { WatchlistItem } from "./types/domain.js";
+import { AlertDiagnosticLogger } from "./utils/alert-diagnostic-log.js";
 
 export interface AppContext {
   config: PluginConfig;
@@ -155,6 +156,7 @@ export function createAppContext(
   );
   const watchlistProfileService = new WatchlistProfileService(mxApiService, analysisService);
   const tradingCalendarService = new TradingCalendarService(config.calendarFile);
+  const alertDiagnosticLogger = new AlertDiagnosticLogger(config.databasePath);
   const alertService = new AlertService({
     openclawCliBin: config.openclawCliBin,
     channel: config.alertChannel,
@@ -167,6 +169,7 @@ export function createAppContext(
             runtime: runtime.pluginRuntime,
           }
         : undefined,
+    diagnosticLogger: alertDiagnosticLogger,
   });
   const alertMediaService = new AlertMediaService(
     config.databasePath,
@@ -256,6 +259,7 @@ export function createAppContext(
     klineService,
     alertService,
     alertMediaService,
+    alertDiagnosticLogger,
   );
   const jin10FlashMonitorService = new Jin10FlashMonitorService(
     config.databasePath,
