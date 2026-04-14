@@ -258,8 +258,9 @@ export class AlertService {
   ): Promise<AlertDeliveryFailure | null> {
     // OpenClaw documents `api.runtime.channel` as channel-plugin-specific helper
     // surface. For a regular tool/service plugin like tickflow-assist, Telegram
-    // delivery is more reliable via the shared `openclaw message send` CLI path.
-    if (this.channel === "telegram") {
+    // and QQ Bot delivery are more reliable via the shared
+    // `openclaw message send` CLI path.
+    if (this.channel === "telegram" || this.channel === "qqbot") {
       return await this.trySendViaCommand(payload, context);
     }
 

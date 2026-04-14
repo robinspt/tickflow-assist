@@ -338,3 +338,55 @@ test("sendWithResult uses CLI for text-only telegram notifications even when run
     error: null,
   });
 });
+
+test("sendWithResult uses CLI for qqbot alerts even when runtime is available", async () => {
+  let cliCalled = false;
+  let runtimeCalled = false;
+  const service = new AlertService({
+    openclawCliBin: "openclaw",
+    channel: "qqbot",
+    account: "default",
+    target: "qqbot:c2c:USER_OPENID",
+    runtime: {
+      config: {} as never,
+      runtime: {
+        system: {
+          runCommandWithTimeout: async () => {
+            cliCalled = true;
+            return {
+              stdout: "",
+              stderr: "",
+              code: 0,
+              signal: null,
+              killed: false,
+              termination: "exit" as const,
+            };
+          },
+        },
+        channel: {
+          qqbot: {
+            async sendMessageQQBot() {
+              runtimeCalled = true;
+              throw new Error("qqbot runtime should not be used");
+            },
+          },
+        },
+      } as never,
+    },
+  });
+
+  const result = await service.sendWithResult({
+    message: "caption",
+    mediaPath: "/tmp/alert-card.png",
+    mediaLocalRoots: ["/tmp"],
+  });
+
+  assert.equal(cliCalled, true);
+  assert.equal(runtimeCalled, false);
+  assert.deepEqual(result, {
+    ok: true,
+    mediaAttempted: true,
+    mediaDelivered: true,
+    error: null,
+  });
+});
