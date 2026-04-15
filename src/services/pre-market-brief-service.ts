@@ -63,6 +63,9 @@ interface PreMarketWindow {
 interface FlashMatchContext {
   flash: Jin10FlashRecord;
   matchedItems: WatchlistItem[];
+  headline: string;
+  summary: string;
+  keyPoints: string[];
 }
 
 export class PreMarketBriefService {
@@ -114,10 +117,7 @@ export class PreMarketBriefService {
       };
     }
 
-    const matchContexts = flashes.map((flash) => ({
-      flash,
-      matchedItems: findMatchedItems(flash, watchlist),
-    }));
+    const matchContexts = flashes.map((flash) => buildFlashMatchContext(flash, watchlist));
     const matchedWatchlistCount = new Set(
       matchContexts.flatMap((context) => context.matchedItems.map((item) => item.symbol)),
     ).size;
@@ -177,7 +177,9 @@ export class PreMarketBriefService {
       watchlist,
       flashes: matchContexts.map((context) => ({
         publishedAt: context.flash.published_at,
-        headline: extractHeadlineFromContent(context.flash.content),
+        headline: context.headline,
+        summary: context.summary,
+        keyPoints: context.keyPoints,
         content: context.flash.content,
         url: context.flash.url,
         matchedSymbols: context.matchedItems.map((item) => item.symbol),
@@ -186,7 +188,7 @@ export class PreMarketBriefService {
 
     if (this.analysisService.isConfigured()) {
       try {
-        return await this.analysisService.generateText(
+        const generated = await this.analysisService.generateText(
           PRE_MARKET_BRIEF_SYSTEM_PROMPT,
           buildPreMarketBriefUserPrompt(promptInput),
           {
@@ -194,6 +196,9 @@ export class PreMarketBriefService {
             temperature: 0.2,
           },
         );
+        if (!isLowSignalSummary(generated, matchContexts)) {
+          return generated;
+        }
       } catch {
         // Fall through to deterministic fallback so the scheduled push still lands.
       }
@@ -255,6 +260,17 @@ function findMatchedItems(flash: Jin10FlashRecord, watchlist: WatchlistItem[]): 
   });
 }
 
+function buildFlashMatchContext(flash: Jin10FlashRecord, watchlist: WatchlistItem[]): FlashMatchContext {
+  const insight = extractFlashInsight(flash.content);
+  return {
+    flash,
+    matchedItems: findMatchedItems(flash, watchlist),
+    headline: insight.headline,
+    summary: insight.summary,
+    keyPoints: insight.keyPoints,
+  };
+}
+
 function buildFallbackSummary(matchContexts: FlashMatchContext[]): string {
   const opportunityContexts = matchContexts.filter((context) => containsAnyKeyword(context.flash.content, OPPORTUNITY_KEYWORDS));
   const riskContexts = matchContexts.filter((context) => containsAnyKeyword(context.flash.content, RISK_KEYWORDS));
@@ -286,7 +302,7 @@ function formatFlashBullets(contexts: FlashMatchContext[], limit: number): strin
     .slice(0, limit)
     .map((context) => {
       const time = context.flash.published_at.slice(11, 16);
-      return `• [${time}] ${extractHeadlineFromContent(context.flash.content)}`;
+      return `• [${time}] ${formatContextSummary(context)}`;
     })
     .join("\n");
 }
@@ -299,7 +315,7 @@ function formatMatchedBullets(contexts: FlashMatchContext[], limit: number): str
 
   return matched.map((context) => {
     const labels = context.matchedItems.map((item) => `${item.name}（${item.symbol}）`).join("、");
-    return `• ${labels}: ${extractHeadlineFromContent(context.flash.content)}`;
+    return `• ${labels}: ${formatContextSummary(context)}`;
   }).join("\n");
 }
 
@@ -309,12 +325,12 @@ function buildFocusBullets(contexts: FlashMatchContext[]): string {
 
   for (const context of matchedContexts.slice(0, 3)) {
     const labels = context.matchedItems.map((item) => item.name).join("、");
-    bullets.push(`• 关注 ${labels} 开盘后的量价反馈，核实“${extractHeadlineFromContent(context.flash.content)}”是否继续发酵。`);
+    bullets.push(`• 关注 ${labels} 开盘后的量价反馈，重点核实“${formatFocusCue(context)}”是否继续发酵。`);
   }
 
   if (bullets.length < 3) {
     for (const context of contexts.slice(0, 3 - bullets.length)) {
-      bullets.push(`• 关注“${extractHeadlineFromContent(context.flash.content)}”对应板块是否出现竞价强化或高开分歧。`);
+      bullets.push(`• 关注“${formatFocusCue(context)}”对应板块是否出现竞价强化或高开分歧。`);
     }
   }
 
@@ -340,6 +356,167 @@ function extractHeadlineFromContent(content: string): string {
 
 function extractHeadlineText(content: string): string {
   return content.split(/[\n。！!]/)[0]?.trim() ?? "";
+}
+
+function extractFlashInsight(content: string): { headline: string; summary: string; keyPoints: string[] } {
+  const headline = extractHeadlineFromContent(content);
+  const keyPoints = extractFlashKeyPoints(content, headline);
+  if (keyPoints.length === 0) {
+    return {
+      headline,
+      summary: buildTitleOnlySummary(headline),
+      keyPoints: [],
+    };
+  }
+
+  return {
+    headline,
+    summary: keyPoints.slice(0, 2).join("；"),
+    keyPoints,
+  };
+}
+
+function extractFlashKeyPoints(content: string, headline: string): string[] {
+  const body = stripHeadline(content, headline);
+  if (!body) {
+    return [];
+  }
+
+  const lineCandidates = body
+    .replace(/\r/g, "\n")
+    .replace(/\n{2,}/g, "\n")
+    .replace(/([。；！？!?])\s*(?=\d+\s*[、.．)）])/g, "$1\n")
+    .split(/\n+/)
+    .map((segment) => cleanFlashSegment(segment))
+    .filter(Boolean);
+
+  const candidates = lineCandidates.length > 1
+    ? lineCandidates
+    : body
+      .split(/[。；！？!?]/)
+      .map((segment) => cleanFlashSegment(segment))
+      .filter(Boolean);
+
+  const normalizedHeadline = normalizeText(headline);
+  const deduped = new Set<string>();
+  const keyPoints: string[] = [];
+
+  for (const segment of candidates) {
+    const normalizedSegment = normalizeText(segment);
+    if (!normalizedSegment || normalizedSegment === normalizedHeadline) {
+      continue;
+    }
+    if (normalizedHeadline && normalizedHeadline.includes(normalizedSegment) && segment.length < Math.max(12, headline.length)) {
+      continue;
+    }
+    if (segment.length < 8) {
+      continue;
+    }
+    if (deduped.has(normalizedSegment)) {
+      continue;
+    }
+    deduped.add(normalizedSegment);
+    keyPoints.push(truncateText(segment, 88));
+    if (keyPoints.length >= 3) {
+      break;
+    }
+  }
+
+  return keyPoints;
+}
+
+function stripHeadline(content: string, headline: string): string {
+  const trimmed = content.trim();
+  if (!headline) {
+    return trimmed;
+  }
+  if (!trimmed.startsWith(headline)) {
+    return trimmed;
+  }
+  return trimmed.slice(headline.length).replace(/^[：:。；，、\s-]+/, "").trim();
+}
+
+function cleanFlashSegment(segment: string): string {
+  return segment
+    .trim()
+    .replace(/^[-•●▪◦]\s*/, "")
+    .replace(/^\d+\s*[、.．)）]\s*/, "")
+    .replace(/^[（(]?\d+[)）]\s*/, "")
+    .replace(/^[：:；，。、\s]+/, "")
+    .replace(/[：:；，。、\s]+$/, "")
+    .replace(/\s+/g, " ");
+}
+
+function buildTitleOnlySummary(headline: string): string {
+  const coreHeadline = headline.replace(/^【?金十数据整理[:：]\s*/, "").replace(/】$/, "").trim();
+  if (!coreHeadline) {
+    return "该整理快讯未提取到可用细节，暂只能作为标题级线索参考。";
+  }
+  return `${coreHeadline}，但正文未提取到更具体细节，暂只能作为标题级线索参考。`;
+}
+
+function formatContextSummary(context: FlashMatchContext): string {
+  return context.summary || buildTitleOnlySummary(context.headline);
+}
+
+function formatFocusCue(context: FlashMatchContext): string {
+  return context.keyPoints[0] ?? context.summary ?? context.headline;
+}
+
+function truncateText(value: string, maxLength: number): string {
+  return value.length <= maxLength ? value : `${value.slice(0, maxLength)}...`;
+}
+
+function isLowSignalSummary(summary: string, contexts: FlashMatchContext[]): boolean {
+  const bulletLines = summary
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter((line) => /^(?:•|-|\d+\.)/.test(line));
+  if (bulletLines.length === 0) {
+    return true;
+  }
+
+  const titleOnlyCount = bulletLines.filter((line) => isTitleOnlyBullet(line, contexts)).length;
+  return titleOnlyCount >= Math.max(2, Math.ceil(bulletLines.length / 3));
+}
+
+function isTitleOnlyBullet(line: string, contexts: FlashMatchContext[]): boolean {
+  const candidates = normalizeBulletForComparison(line);
+  if (candidates.length === 0) {
+    return false;
+  }
+  return contexts.some((context) => {
+    const headlineForms = [
+      normalizeDigestText(context.headline),
+      normalizeDigestText(stripDigestPrefix(context.headline)),
+    ].filter(Boolean);
+    return headlineForms.some((headline) => candidates.some((candidate) => candidate.includes(headline) && candidate.length <= headline.length + 6));
+  });
+}
+
+function normalizeBulletForComparison(line: string): string[] {
+  const cleaned = line
+    .replace(/^(?:•|-|\d+\.)\s*/, "")
+    .replace(/^\[[0-9:]+\]\s*/, "");
+  const normalizedVariants = [
+    cleaned,
+    cleaned.split(/[：:]/).at(-1) ?? cleaned,
+  ]
+    .map((item) => normalizeDigestText(item))
+    .filter(Boolean);
+  return [...new Set(normalizedVariants)];
+}
+
+function stripDigestPrefix(value: string): string {
+  return value.replace(/^【?金十数据整理[:：]\s*/, "").replace(/】$/, "").trim();
+}
+
+function normalizeDigestText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[【】[\]()（）"'“”‘’]/g, "")
+    .replace(/[：:]/g, "")
+    .replace(/\s+/g, "");
 }
 
 function toFlashRecord(item: { content: string; time: string; url: string; raw: Record<string, unknown> }): Jin10FlashRecord | null {

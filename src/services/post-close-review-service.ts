@@ -19,6 +19,8 @@ import { IntradayKlinesRepository } from "../storage/repositories/intraday-kline
 import { Jin10FlashDeliveryRepository } from "../storage/repositories/jin10-flash-delivery-repo.js";
 import { Jin10FlashRepository } from "../storage/repositories/jin10-flash-repo.js";
 import { IndustryPeerService } from "./industry-peer-service.js";
+import type { TickFlowKlineRow, TickFlowQuote } from "../types/tickflow.js";
+import { formatCostPrice } from "../utils/cost-price.js";
 
 const LEVEL_BUFFER = 0.005;
 const INTRADAY_PERIOD = "1m";
@@ -43,6 +45,11 @@ interface ReviewFailureEntry {
 }
 
 type ReviewEntry = ReviewSuccessEntry | ReviewFailureEntry;
+
+interface ReviewMarketSummary {
+  latestClose: number | null;
+  dailyChangePct: number | null;
+}
 
 export interface PostCloseReviewRunResult {
   overviewMessage: string;
@@ -82,8 +89,10 @@ export class PostCloseReviewService {
 
     for (const item of watchlist) {
       let compositeResult: CompositeAnalysisResult | null = null;
+      let marketSummary: ReviewMarketSummary | null = null;
       try {
         const input = await this.compositeAnalysisOrchestrator.buildInput(item.symbol);
+        marketSummary = buildReviewMarketSummary(input.market.klines, input.market.realtimeQuote);
         marketOverview ??= input.market.marketOverview;
         const tradeDate = input.market.klines[input.market.klines.length - 1]?.trade_date ?? formatChinaDateTime().slice(0, 10);
         const validation = await this.buildValidationContext(item.symbol, tradeDate);
@@ -119,7 +128,7 @@ export class PostCloseReviewService {
           flashContext,
           peerContext,
         });
-        const message = this.formatDetailMessage(item, validation, review);
+        const message = this.formatDetailMessage(item, validation, review, marketSummary);
         await this.persistReview(item.symbol, message, review);
 
         entries.push({
@@ -135,7 +144,7 @@ export class PostCloseReviewService {
           await this.persistFallbackCompositeReview(item.symbol, compositeResult);
         }
         entries.push({ ok: false, item, errorMessage: message });
-        detailMessages.push(this.formatFailureMessage(item, message, compositeResult));
+        detailMessages.push(this.formatFailureMessage(item, message, compositeResult, marketSummary));
       }
     }
 
@@ -300,16 +309,18 @@ export class PostCloseReviewService {
     item: WatchlistItem,
     validation: PriorKeyLevelValidationContext,
     review: PostCloseReviewResult,
+    marketSummary: ReviewMarketSummary | null,
   ): string {
-    return formatPostCloseReviewDetailMessage(item, validation, review);
+    return formatPostCloseReviewDetailMessage(item, validation, review, marketSummary);
   }
 
   private formatFailureMessage(
     item: WatchlistItem,
     errorMessage: string,
     compositeResult: CompositeAnalysisResult | null,
+    marketSummary: ReviewMarketSummary | null,
   ): string {
-    return formatPostCloseReviewFailureMessage(item, errorMessage, compositeResult);
+    return formatPostCloseReviewFailureMessage(item, errorMessage, compositeResult, marketSummary);
   }
 }
 
@@ -317,10 +328,13 @@ export function formatPostCloseReviewDetailMessage(
   item: WatchlistItem,
   validation: PriorKeyLevelValidationContext,
   review: PostCloseReviewResult,
+  marketSummary: ReviewMarketSummary | null = null,
 ): string {
+  const marketMeta = formatReviewMarketMeta(item, marketSummary);
   const lines = [
     `**📘 收盘复盘｜${item.name}（${item.symbol}）**`,
     `${formatValidationVerdictBadge(validation.verdict)} 昨日验证：${formatValidationVerdictLabel(validation.verdict)} | ${formatDecisionBadge(review.decision)} 明日处理：${formatDecisionLabel(review.decision)}`,
+    ...(marketMeta ? [marketMeta] : []),
     "",
     formatSectionTitle("📍", "昨日关键位验证"),
     `• 结论：${validation.summary}`,
@@ -378,12 +392,15 @@ export function formatPostCloseReviewFailureMessage(
   item: WatchlistItem,
   errorMessage: string,
   compositeResult: CompositeAnalysisResult | null,
+  marketSummary: ReviewMarketSummary | null = null,
 ): string {
   const fallback = compositeResult?.levels
     ? "已保留综合分析生成的关键位，可稍后用 view_analysis 或 analyze 复核。"
     : "本轮未生成可用关键位。";
+  const marketMeta = formatReviewMarketMeta(item, marketSummary);
   return [
     `**⚠️ 收盘复盘｜${item.name}（${item.symbol}）**`,
+    ...(marketMeta ? ["", marketMeta] : []),
     "",
     formatSectionTitle("❌", "失败原因"),
     errorMessage,
@@ -416,6 +433,52 @@ function toHistoryEntry(
     analysis_text: analysisText,
     score: levels.score,
   };
+}
+
+function buildReviewMarketSummary(
+  klines: TickFlowKlineRow[],
+  realtimeQuote: TickFlowQuote | null,
+): ReviewMarketSummary | null {
+  const latestKline = klines[klines.length - 1] ?? null;
+  if (!latestKline && !realtimeQuote) {
+    return null;
+  }
+
+  const latestClose = latestKline?.close ?? realtimeQuote?.last_price ?? null;
+  const quoteChangePct = realtimeQuote?.ext?.change_pct;
+  const dailyChangePct = quoteChangePct != null && Number.isFinite(quoteChangePct)
+    ? quoteChangePct
+    : deriveDailyChangePct(latestKline?.close ?? null, latestKline?.prev_close ?? null);
+
+  return {
+    latestClose,
+    dailyChangePct,
+  };
+}
+
+function deriveDailyChangePct(close: number | null, prevClose: number | null): number | null {
+  if (!(close != null && Number.isFinite(close) && prevClose != null && Number.isFinite(prevClose) && prevClose > 0)) {
+    return null;
+  }
+  return ((close - prevClose) / prevClose) * 100;
+}
+
+function formatReviewMarketMeta(item: WatchlistItem, marketSummary: ReviewMarketSummary | null): string | null {
+  const parts: string[] = [];
+  if (marketSummary?.latestClose != null && Number.isFinite(marketSummary.latestClose)) {
+    parts.push(`• 收盘 ${marketSummary.latestClose.toFixed(2)}`);
+  }
+  if (marketSummary?.dailyChangePct != null && Number.isFinite(marketSummary.dailyChangePct)) {
+    parts.push(`当日 ${formatSignedPct(marketSummary.dailyChangePct)}`);
+  }
+  if (item.costPrice != null && Number.isFinite(item.costPrice) && item.costPrice > 0) {
+    parts.push(`成本 ${formatCostPrice(item.costPrice)}`);
+  }
+  return parts.length > 0 ? parts.join(" | ") : null;
+}
+
+function formatSignedPct(value: number): string {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 }
 
 function evaluateSupport(snapshot: KeyLevelsHistoryEntry, row: { low: number; close: number }): string {

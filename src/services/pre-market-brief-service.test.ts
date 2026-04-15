@@ -112,7 +112,89 @@ test("run builds pre-market brief from Jin10 window and watchlist context", asyn
   assert.match(capturedPrompt, /机器人（300024\.SZ）/);
   assert.match(capturedPrompt, /海康威视（002415\.SZ）/);
   assert.match(capturedPrompt, /金十数据整理：A股每日市场要闻回顾/);
+  assert.match(capturedPrompt, /提炼摘要:/);
+  assert.match(capturedPrompt, /正文要点:/);
   assert.doesNotMatch(result.message, /更早一条/);
+});
+
+test("run falls back to extracted details when llm output only repeats titles", async () => {
+  const stored: Jin10FlashRecord[] = [];
+
+  const service = new PreMarketBriefService(
+    {
+      async list() {
+        return watchlist;
+      },
+    } as never,
+    {
+      getConfigurationError() {
+        return null;
+      },
+      async listFlash(): Promise<Jin10FlashPage> {
+        return {
+          hasMore: false,
+          nextCursor: null,
+          items: [
+            makeFlashItem(
+              [
+                "金十数据整理：中东局势跟踪（4月15日）",
+                "1. 霍尔木兹海峡交通再次中断，多艘油轮选择绕行。",
+                "2. 中东油气设施受损，全球能源供应链扰动加剧。",
+              ].join("\n"),
+              "2026-04-15T05:15:00+08:00",
+              "https://flash.example/middle-east",
+            ),
+            makeFlashItem(
+              [
+                "金十数据整理：每日科技要闻速递（4月15日）",
+                "1. 新一代人形机器人发布，带动机器人产业链关注度升温。",
+                "2. AI 基础设施需求预期继续上修。",
+              ].join("\n"),
+              "2026-04-15T07:27:00+08:00",
+              "https://flash.example/tech",
+            ),
+          ],
+        };
+      },
+    } as never,
+    {
+      async saveAll(entries: Jin10FlashRecord[]) {
+        stored.push(...entries);
+        return {
+          added: entries.length,
+          skipped: 0,
+          addedKeys: entries.map((entry) => entry.flash_key),
+        };
+      },
+      async listByPublishedRange(startTs: number, endTs: number) {
+        return stored
+          .filter((entry) => entry.published_ts >= startTs && entry.published_ts <= endTs)
+          .sort((left, right) => left.published_ts - right.published_ts);
+      },
+    } as never,
+    {
+      isConfigured() {
+        return true;
+      },
+      async generateText() {
+        return [
+          "**【🧭 重大要闻】**",
+          "• [05:15] 【金十数据整理：中东局势跟踪（4月15日）】",
+          "",
+          "**【🎯 自选相关】**",
+          "• 机器人（300024.SZ）: 【金十数据整理：每日科技要闻速递（4月15日）】",
+        ].join("\n");
+      },
+    } as never,
+  );
+
+  const result = await service.run(new Date("2026-04-15T09:21:00+08:00"));
+
+  assert.equal(result.resultType, "success");
+  assert.match(result.message, /霍尔木兹海峡交通再次中断/);
+  assert.match(result.message, /中东油气设施受损/);
+  assert.match(result.message, /新一代人形机器人发布/);
+  assert.doesNotMatch(result.message, /• \[05:15\] 【金十数据整理：中东局势跟踪（4月15日）】/);
 });
 
 function makeFlashItem(content: string, time: string, url: string) {

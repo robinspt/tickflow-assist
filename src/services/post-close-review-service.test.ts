@@ -57,10 +57,14 @@ test("formatPostCloseReviewDetailMessage renders bold section titles and level r
     },
   };
 
-  const message = formatPostCloseReviewDetailMessage(item, validation, review);
+  const message = formatPostCloseReviewDetailMessage(item, validation, review, {
+    latestClose: 27.72,
+    dailyChangePct: 2.97,
+  });
 
   assert.match(message, /\*\*📘 收盘复盘｜金风科技（002202\.SZ）\*\*/);
   assert.match(message, /🟨 昨日验证：效果偏混合 \| 🟩 明日处理：沿用/);
+  assert.match(message, /• 收盘 27\.72 \| 当日 \+2\.97% \| 成本 30\.57/);
   assert.match(message, /\*\*【📍 昨日关键位验证】\*\*/);
   assert.match(message, /\*\*【🎯 更新后关键位】\*\*/);
   assert.match(message, /价位框架：⛔止损 26\.80 → 🛡️支撑 27\.05 → 💹现价 27\.72 → 🚧压力\/🚀突破 28\.80 → 🎯止盈 29\.50/);

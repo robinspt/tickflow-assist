@@ -16,7 +16,9 @@ export const PRE_MARKET_BRIEF_SYSTEM_PROMPT = `
 5. “风险提示”要指出不利于开盘决策的扰动项，例如监管、海外扰动、业绩风险、题材退潮、消息不确定性。
 6. “开盘前关注清单”输出 3-6 条可执行观察点，尽量写清楚应观察的股票、板块或信号。
 7. 不要编造未在输入中出现的公司、政策、行业信息或快讯结论。
-8. 输出正文即可，不要附加 JSON。
+8. 严禁只复述“金十数据整理：...”标题。每条要点都必须优先使用输入中的“提炼摘要”或“正文要点”，写出至少一个具体事实、影响链条或观察方向。
+9. 如果某条整理快讯只有标题、没有可用细节，可以明确写“仅为标题级线索，细节不足”，但不要把标题本身当成完整结论。
+10. 输出正文即可，不要附加 JSON。
 `;
 
 export function buildPreMarketBriefUserPrompt(params: {
@@ -26,6 +28,8 @@ export function buildPreMarketBriefUserPrompt(params: {
   flashes: Array<{
     publishedAt: string;
     headline: string;
+    summary: string;
+    keyPoints: string[];
     content: string;
     url: string;
     matchedSymbols: string[];
@@ -60,6 +64,8 @@ function formatFlash(
   flash: {
     publishedAt: string;
     headline: string;
+    summary: string;
+    keyPoints: string[];
     content: string;
     url: string;
     matchedSymbols: string[];
@@ -68,6 +74,8 @@ function formatFlash(
   return [
     `${index}. [${flash.publishedAt}] ${flash.headline || "未提取到标题"}`,
     `   关联提示: ${flash.matchedSymbols.length > 0 ? flash.matchedSymbols.join("、") : "无直接规则命中"}`,
+    `   提炼摘要: ${flash.summary}`,
+    `   正文要点: ${flash.keyPoints.length > 0 ? flash.keyPoints.map((item) => `- ${item}`).join("； ") : "未提取到稳定要点"}`,
     `   正文: ${flash.content}`,
     `   来源: ${flash.url}`,
   ].join("\n");

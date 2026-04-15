@@ -64,12 +64,14 @@ export function buildPostCloseReviewUserPrompt(input: PostCloseReviewInput): str
   const latestClose = input.market.klines[input.market.klines.length - 1]?.close ?? 0;
   const latestRealtimePrice = input.market.realtimeQuote?.last_price ?? latestClose;
   const watchlistItem = input.market.watchlistItem;
+  const latestChangePct = resolveDailyChangePct(input);
 
   return [
     `请对 ${input.market.companyName}（${input.market.symbol}）生成收盘复盘。`,
     `用户成本价: ${formatCostPrice(watchlistItem?.costPrice ?? null)}`,
     `最新收盘价: ${latestClose.toFixed(2)}`,
     `最新实时价: ${latestRealtimePrice.toFixed(2)}`,
+    `当日涨跌幅: ${formatSignedPct(latestChangePct)}`,
     `相对成本价: ${formatCostRelationship(latestRealtimePrice, watchlistItem?.costPrice ?? null)}`,
     `申万行业分类: ${watchlistItem?.sector ?? "未记录"}`,
     `概念板块: ${watchlistItem?.themes.length ? watchlistItem.themes.join("；") : "未记录"}`,
@@ -195,4 +197,25 @@ function formatPeerMovers(movers: IndustryPeerMover[]): string {
 
 function isNonEmptyText(value: string | null): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function resolveDailyChangePct(input: PostCloseReviewInput): number | null {
+  const quoteChangePct = input.market.realtimeQuote?.ext?.change_pct;
+  if (quoteChangePct != null && Number.isFinite(quoteChangePct)) {
+    return quoteChangePct;
+  }
+
+  const latestKline = input.market.klines[input.market.klines.length - 1];
+  if (!latestKline || !(latestKline.prev_close > 0)) {
+    return null;
+  }
+
+  return ((latestKline.close - latestKline.prev_close) / latestKline.prev_close) * 100;
+}
+
+function formatSignedPct(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) {
+    return "未获取";
+  }
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 }
