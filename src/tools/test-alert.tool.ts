@@ -1,3 +1,5 @@
+import { performance } from "node:perf_hooks";
+
 import { AlertService } from "../services/alert-service.js";
 import { AlertMediaService } from "../services/alert-media-service.js";
 import { formatChinaDateTime } from "../utils/china-time.js";
@@ -12,6 +14,7 @@ export function testAlertTool(
     description: "Send a test alert through the configured OpenClaw alert delivery path. Plugin mode includes PNG; local mode sends text only.",
     optional: true,
     async run(): Promise<string> {
+      const totalStart = performance.now();
       const now = formatChinaDateTime();
       const message = alertService.formatSystemNotification("🧪 TickFlow 测试告警", [
         `时间: ${now}`,
@@ -19,33 +22,46 @@ export function testAlertTool(
       ]);
 
       if (configSource === "local_config") {
+        const sendStart = performance.now();
         const result = await alertService.sendWithResult({ message });
+        const sendMs = performance.now() - sendStart;
+        const totalMs = performance.now() - totalStart;
         if (result.ok) {
           return [
             "✅ 测试告警文本已发送（本地命令模式）",
+            formatTimingLine({ sendMs, totalMs }),
             "说明: `npm run tool -- test_alert` 仅验证文本链路；请通过 `/ta_testalert` 验证 PNG 图片链路。",
           ].join("\n");
         }
 
         const detail = result.error ?? alertService.getLastError();
-        return detail
-          ? `❌ 测试告警发送失败\n原因: ${detail}`
-          : "❌ 测试告警发送失败";
+        return [
+          "❌ 测试告警发送失败",
+          detail ? `原因: ${detail}` : null,
+          formatTimingLine({ sendMs, totalMs }),
+        ].filter(Boolean).join("\n");
       }
 
       let mediaFile: Awaited<ReturnType<AlertMediaService["writeAlertCard"]>> | null = null;
+      let renderMs: number | undefined;
       try {
+        const renderStart = performance.now();
         mediaFile = await alertMediaService.writeAlertCard({
           symbol: "000001.SZ",
           ruleName: "test_alert",
           image: buildTestAlertImage(now),
         });
+        renderMs = performance.now() - renderStart;
       } catch (error) {
+        const sendStart = performance.now();
         const textOnlyResult = await alertService.sendWithResult({ message });
+        const sendMs = performance.now() - sendStart;
+        const totalMs = performance.now() - totalStart;
         if (textOnlyResult.ok) {
           return [
             "⚠️ 测试告警文本已发送，但 PNG 生成失败",
             `原因: ${formatErrorMessage(error)}`,
+            formatTimingLine({ sendMs, totalMs }),
           ].join("\n");
         }
 
@@ -54,43 +70,51 @@ export function testAlertTool(
           "❌ 测试告警发送失败",
           `PNG 生成失败: ${formatErrorMessage(error)}`,
           `文本发送失败: ${detail}`,
+          formatTimingLine({ sendMs, totalMs }),
         ].join("\n");
       }
 
       try {
+        const sendStart = performance.now();
         const result = await alertService.sendWithResult({
           message,
           mediaPath: mediaFile.filePath,
           mediaLocalRoots: mediaFile.mediaLocalRoots,
           filename: mediaFile.filename,
         });
+        const sendMs = performance.now() - sendStart;
+        const totalMs = performance.now() - totalStart;
 
         if (result.deliveryUncertain) {
-          return result.error
-            ? `⚠️ PNG 告警疑似已送达，但通道返回异常；为避免重复未执行拆分补发\n原因: ${result.error}`
-            : "⚠️ PNG 告警疑似已送达，但通道返回异常；为避免重复未执行拆分补发";
+          return [
+            "⚠️ PNG 告警疑似已送达，但通道返回异常；为避免重复未执行拆分补发",
+            result.error ? `原因: ${result.error}` : null,
+            formatTimingLine({ renderMs, sendMs, totalMs }),
+          ].filter(Boolean).join("\n");
         }
 
         if (result.ok && result.mediaDelivered) {
-          if (result.error) {
-            return [
-              "⚠️ PNG 告警卡已发送，但文本补发失败",
-              `原因: ${result.error}`,
-            ].join("\n");
-          }
-          return "✅ 测试告警发送成功（文本 + PNG）";
+          return [
+            result.error ? "⚠️ PNG 告警卡已发送，但文本补发失败" : "✅ 测试告警发送成功（文本 + PNG）",
+            result.error ? `原因: ${result.error}` : null,
+            formatTimingLine({ renderMs, sendMs, totalMs }),
+          ].filter(Boolean).join("\n");
         }
 
         if (result.ok) {
-          return result.error
-            ? `⚠️ 测试告警文本已发送，但 PNG 未送达，已回退为纯文本\n原因: ${result.error}`
-            : "⚠️ 测试告警文本已发送，但 PNG 未送达，已回退为纯文本";
+          return [
+            "⚠️ 测试告警文本已发送，但 PNG 未送达，已回退为纯文本",
+            result.error ? `原因: ${result.error}` : null,
+            formatTimingLine({ renderMs, sendMs, totalMs }),
+          ].filter(Boolean).join("\n");
         }
 
         const detail = result.error ?? alertService.getLastError();
-        return detail
-          ? `❌ 测试告警发送失败\n原因: ${detail}`
-          : "❌ 测试告警发送失败";
+        return [
+          "❌ 测试告警发送失败",
+          detail ? `原因: ${detail}` : null,
+          formatTimingLine({ renderMs, sendMs, totalMs }),
+        ].filter(Boolean).join("\n");
       } finally {
         if (mediaFile) {
           await alertMediaService.removeFile(mediaFile.filePath).catch(() => {});
@@ -142,4 +166,24 @@ function formatErrorMessage(error: unknown): string {
     return error.message;
   }
   return String(error);
+}
+
+function formatTimingLine(params: {
+  renderMs?: number;
+  sendMs: number;
+  totalMs: number;
+}): string {
+  const parts = [
+    params.renderMs == null ? null : `PNG 生成 ${formatDuration(params.renderMs)}`,
+    `发送 ${formatDuration(params.sendMs)}`,
+    `总计 ${formatDuration(params.totalMs)}`,
+  ].filter((value): value is string => Boolean(value));
+  return `耗时: ${parts.join(" | ")}`;
+}
+
+function formatDuration(valueMs: number): string {
+  if (valueMs >= 1000) {
+    return `${(valueMs / 1000).toFixed(2)}s`;
+  }
+  return `${Math.round(valueMs)}ms`;
 }

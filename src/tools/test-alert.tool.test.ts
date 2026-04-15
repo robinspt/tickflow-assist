@@ -70,7 +70,8 @@ test("test_alert sends text plus png when media delivery succeeds", async () => 
 
   const result = await tool.run();
 
-  assert.equal(result, "✅ 测试告警发送成功（文本 + PNG）");
+  assert.match(result, /^✅ 测试告警发送成功（文本 \+ PNG）$/m);
+  assert.match(result, /^耗时: PNG 生成 .* \| 发送 .* \| 总计 .*$/m);
   assert.equal(alert.calls.length, 1);
   assert.match(alert.calls[0]?.message ?? "", /PNG 告警卡投递链路/);
   assert.equal(alert.calls[0]?.mediaPath, "/tmp/test-alert-card.png");
@@ -99,7 +100,9 @@ test("test_alert reports text-only fallback when png delivery fails in plugin mo
 
   const result = await tool.run();
 
-  assert.equal(result, "⚠️ 测试告警文本已发送，但 PNG 未送达，已回退为纯文本\n原因: media upload failed");
+  assert.match(result, /^⚠️ 测试告警文本已发送，但 PNG 未送达，已回退为纯文本$/m);
+  assert.match(result, /^原因: media upload failed$/m);
+  assert.match(result, /^耗时: PNG 生成 .* \| 发送 .* \| 总计 .*$/m);
   assert.equal(alert.calls.length, 1);
   assert.equal(alert.calls[0]?.mediaPath, "/tmp/test-alert-card.png");
   assert.deepEqual(media.removed, ["/tmp/test-alert-card.png"]);
@@ -125,11 +128,9 @@ test("test_alert reports ambiguous png delivery without split retries", async ()
 
   const result = await tool.run();
 
-  assert.equal(
-    result,
-    "⚠️ PNG 告警疑似已送达，但通道返回异常；为避免重复未执行拆分补发\n"
-      + "原因: runtime delivery failed: message send timed out after upload",
-  );
+  assert.match(result, /^⚠️ PNG 告警疑似已送达，但通道返回异常；为避免重复未执行拆分补发$/m);
+  assert.match(result, /^原因: runtime delivery failed: message send timed out after upload$/m);
+  assert.match(result, /^耗时: PNG 生成 .* \| 发送 .* \| 总计 .*$/m);
   assert.equal(alert.calls.length, 1);
   assert.equal(alert.calls[0]?.mediaPath, "/tmp/test-alert-card.png");
   assert.deepEqual(media.removed, ["/tmp/test-alert-card.png"]);
@@ -154,11 +155,9 @@ test("test_alert treats png fallback as expected in local command mode", async (
 
   const result = await tool.run();
 
-  assert.equal(
-    result,
-    "✅ 测试告警文本已发送（本地命令模式）\n"
-      + "说明: `npm run tool -- test_alert` 仅验证文本链路；请通过 `/ta_testalert` 验证 PNG 图片链路。",
-  );
+  assert.match(result, /^✅ 测试告警文本已发送（本地命令模式）$/m);
+  assert.match(result, /^耗时: 发送 .* \| 总计 .*$/m);
+  assert.match(result, /说明: `npm run tool -- test_alert` 仅验证文本链路；请通过 `\/ta_testalert` 验证 PNG 图片链路。/);
   assert.equal(alert.calls.length, 1);
   assert.equal(alert.calls[0]?.mediaPath, undefined);
   assert.equal(media.writeCalls.length, 0);
