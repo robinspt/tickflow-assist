@@ -18,6 +18,7 @@ import { KlinesRepository } from "../storage/repositories/klines-repo.js";
 import { IntradayKlinesRepository } from "../storage/repositories/intraday-klines-repo.js";
 import { Jin10FlashDeliveryRepository } from "../storage/repositories/jin10-flash-delivery-repo.js";
 import { Jin10FlashRepository } from "../storage/repositories/jin10-flash-repo.js";
+import { IndustryPeerService } from "./industry-peer-service.js";
 
 const LEVEL_BUFFER = 0.005;
 const INTRADAY_PERIOD = "1m";
@@ -61,6 +62,7 @@ export class PostCloseReviewService {
     private readonly intradayKlinesRepository: IntradayKlinesRepository,
     private readonly flashDeliveryRepository: Jin10FlashDeliveryRepository,
     private readonly flashRepository: Jin10FlashRepository,
+    private readonly industryPeerService: IndustryPeerService,
   ) {}
 
   async run(): Promise<PostCloseReviewRunResult> {
@@ -85,6 +87,28 @@ export class PostCloseReviewService {
         marketOverview ??= input.market.marketOverview;
         const tradeDate = input.market.klines[input.market.klines.length - 1]?.trade_date ?? formatChinaDateTime().slice(0, 10);
         const validation = await this.buildValidationContext(item.symbol, tradeDate);
+        const peerContext = await this.industryPeerService.buildContext(item.symbol)
+          .catch((error) => ({
+            available: false,
+            summary: "未获取到申万三级同业表现。",
+            sw1Name: null,
+            sw2Name: null,
+            sw3Name: null,
+            sw3UniverseId: null,
+            peerCount: 0,
+            otherStockCount: 0,
+            advanceCount: 0,
+            declineCount: 0,
+            flatCount: 0,
+            averageChangePct: null,
+            medianChangePct: null,
+            targetChangePct: null,
+            targetRank: null,
+            targetPercentile: null,
+            leaders: [],
+            laggards: [],
+            note: error instanceof Error ? error.message : String(error),
+          }));
 
         compositeResult = await this.compositeAnalysisOrchestrator.analyzeInput(input);
         const flashContext = await this.buildFlashContext(item.symbol, tradeDate);
@@ -93,6 +117,7 @@ export class PostCloseReviewService {
           compositeResult,
           validation,
           flashContext,
+          peerContext,
         });
         const message = this.formatDetailMessage(item, validation, review);
         await this.persistReview(item.symbol, message, review);

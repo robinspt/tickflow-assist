@@ -156,7 +156,7 @@
       },
       "tickflowApiKeyLevel": {
         "type": "string",
-        "enum": ["Free", "Start", "Pro", "Expert"],
+        "enum": ["Free", "Starter", "Pro", "Expert"],
         "default": "Free",
         "description": "TickFlow subscription level. Pro and Expert enable intraday K-line fetching. Can also come from TICKFLOW_ASSIST_TICKFLOW_API_KEY_LEVEL or TICKFLOW_API_KEY_LEVEL."
       },

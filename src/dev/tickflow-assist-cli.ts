@@ -35,7 +35,7 @@ type CliOptions = {
 type PluginConfigInput = {
   tickflowApiUrl: string;
   tickflowApiKey: string;
-  tickflowApiKeyLevel: "Free" | "Start" | "Pro" | "Expert";
+  tickflowApiKeyLevel: "Free" | "Starter" | "Pro" | "Expert";
   mxSearchApiUrl: string;
   mxSearchApiKey: string;
   jin10McpUrl: string;
@@ -99,7 +99,7 @@ Options:
   --no-font-setup             Do not print Chinese font setup guidance
   --openclaw-bin <path>       OpenClaw CLI binary name used in printed next steps
   --tickflow-api-key <key>
-  --tickflow-api-key-level <Free|Start|Pro|Expert>
+  --tickflow-api-key-level <Free|Starter|Pro|Expert>
   --mx-search-api-key <key>
   --jin10-mcp-url <url>
   --jin10-api-token <token>
@@ -255,7 +255,8 @@ function normalizeApiKeyLevel(value: string): PluginConfigInput["tickflowApiKeyL
     case "free":
       return "Free";
     case "start":
-      return "Start";
+    case "starter":
+      return "Starter";
     case "pro":
       return "Pro";
     case "expert":
@@ -590,7 +591,7 @@ async function promptForConfig(
     seed.tickflowApiKeyLevel = normalizeApiKeyLevel(
       await promptSelect(rl, "TickFlow 订阅等级", [
         { value: "Free", label: "Free" },
-        { value: "Start", label: "Start" },
+        { value: "Starter", label: "Starter" },
         { value: "Pro", label: "Pro" },
         { value: "Expert", label: "Expert" },
       ], seed.tickflowApiKeyLevel),

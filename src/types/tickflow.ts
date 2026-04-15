@@ -9,6 +9,7 @@ export interface TickFlowInstrument {
 
 export interface TickFlowQuote {
   symbol: string;
+  name?: string | null;
   last_price: number;
   prev_close: number;
   timestamp: number;
@@ -17,6 +18,19 @@ export interface TickFlowQuote {
     name?: string;
     change_pct?: number;
   };
+}
+
+export interface TickFlowUniverseSummary {
+  id: string;
+  name: string;
+  description?: string | null;
+  region: string;
+  category: string;
+  symbol_count: number;
+}
+
+export interface TickFlowUniverseDetail extends TickFlowUniverseSummary {
+  symbols: string[];
 }
 
 export interface TickFlowCompactKline {

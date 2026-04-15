@@ -1,5 +1,10 @@
 import type { KeyLevels } from "../../types/domain.js";
-import type { FlashNewsItem, PostCloseReviewInput } from "../../analysis/types/composite-analysis.js";
+import type {
+  FlashNewsItem,
+  IndustryPeerContext,
+  IndustryPeerMover,
+  PostCloseReviewInput,
+} from "../../analysis/types/composite-analysis.js";
 import { formatCostPrice, formatCostRelationship } from "../../utils/cost-price.js";
 import { buildReferencedNarrative, truncatePromptText } from "./prompt-text-utils.js";
 import {
@@ -89,6 +94,9 @@ export function buildPostCloseReviewUserPrompt(input: PostCloseReviewInput): str
     "## 行业分类/概念板块资讯摘要",
     input.news.boardDocuments.length > 0 ? formatDocuments(input.news.boardDocuments) : "未获取到有效行业分类/概念板块资讯。",
     "",
+    "## 申万三级同业表现",
+    formatIndustryPeerContext(input.peerContext),
+    "",
     "## 结构化参考",
     `当前综合关键位: ${formatLevels(input.compositeResult.levels ?? input.technicalResult.levels)}`,
     `基本面评分/倾向: ${input.financialResult.score ?? "-"} / ${input.financialResult.bias}`,
@@ -98,7 +106,7 @@ export function buildPostCloseReviewUserPrompt(input: PostCloseReviewInput): str
     `资讯催化: ${joinList(input.newsResult.catalysts)}`,
     `资讯风险: ${joinList(input.newsResult.risks)}`,
     "",
-    "请按系统要求输出正文和最终 JSON。正文重点回答：昨天关键位到底是否有效；今天盘面是否得到大盘、行业分类/概念板块、新闻的解释；明天该沿用、微调、重算还是暂停关键位。",
+    "请按系统要求输出正文和最终 JSON。正文重点回答：昨天关键位到底是否有效；今天盘面是否得到大盘、行业分类/概念板块、申万三级同业强弱、新闻的解释；明天该沿用、微调、重算还是暂停关键位。",
   ].join("\n");
 }
 
@@ -160,4 +168,31 @@ function formatFlashSection(label: string, items: FlashNewsItem[]): string {
       return `- [${time}] ${item.headline ? `${item.headline}: ` : ""}${body}`;
     }),
   ].join("\n");
+}
+
+function formatIndustryPeerContext(context: IndustryPeerContext): string {
+  if (!context.available) {
+    return context.note ?? context.summary ?? "未获取到申万三级同业表现。";
+  }
+
+  return [
+    context.summary,
+    `行业层级: ${joinList([context.sw1Name, context.sw2Name, context.sw3Name].filter(isNonEmptyText))}`,
+    `领涨样本: ${formatPeerMovers(context.leaders)}`,
+    `领跌样本: ${formatPeerMovers(context.laggards)}`,
+  ].join("\n");
+}
+
+function formatPeerMovers(movers: IndustryPeerMover[]): string {
+  if (movers.length === 0) {
+    return "无";
+  }
+
+  return movers
+    .map((item) => `${item.name || item.symbol}（${item.symbol} ${item.changePct >= 0 ? "+" : ""}${item.changePct.toFixed(2)}%）`)
+    .join("；");
+}
+
+function isNonEmptyText(value: string | null): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }

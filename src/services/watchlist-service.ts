@@ -226,7 +226,7 @@ export class WatchlistService {
 }
 
 function shouldRefreshConceptBoards(item: WatchlistItem): boolean {
-  if (!item.sector || item.themes.length === 0 || !item.themeUpdatedAt) {
+  if (!item.sector || !item.themeUpdatedAt) {
     return true;
   }
 

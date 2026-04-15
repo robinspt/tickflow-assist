@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import type { PluginConfig } from "./config/schema.js";
+import { supportsUniverseAccess } from "./config/tickflow-access.js";
 import { TickFlowClient } from "./services/tickflow-client.js";
 import { InstrumentService } from "./services/instrument-service.js";
 import { KlineService } from "./services/kline-service.js";
@@ -24,6 +25,8 @@ import { NewsAnalysisRepository } from "./storage/repositories/news-analysis-rep
 import { CompositeAnalysisRepository } from "./storage/repositories/composite-analysis-repo.js";
 import { Jin10FlashRepository } from "./storage/repositories/jin10-flash-repo.js";
 import { Jin10FlashDeliveryRepository } from "./storage/repositories/jin10-flash-delivery-repo.js";
+import { UniverseRepository } from "./storage/repositories/universe-repo.js";
+import { UniverseMembershipRepository } from "./storage/repositories/universe-membership-repo.js";
 import { WatchlistService } from "./services/watchlist-service.js";
 import { WatchlistProfileService } from "./services/watchlist-profile-service.js";
 import { AnalysisService } from "./services/analysis-service.js";
@@ -39,6 +42,8 @@ import { KeyLevelsBacktestService } from "./services/key-levels-backtest-service
 import { PostCloseReviewService } from "./services/post-close-review-service.js";
 import { PreMarketBriefService } from "./services/pre-market-brief-service.js";
 import { ReviewMemoryService } from "./services/review-memory-service.js";
+import { TickFlowUniverseService } from "./services/tickflow-universe-service.js";
+import { IndustryPeerService } from "./services/industry-peer-service.js";
 import { CompositeAnalysisOrchestrator } from "./analysis/orchestrators/composite-analysis.orchestrator.js";
 import { MarketAnalysisProvider } from "./analysis/providers/market-analysis.provider.js";
 import { FinancialAnalysisProvider } from "./analysis/providers/financial-analysis.provider.js";
@@ -141,6 +146,8 @@ export function createAppContext(
   const compositeAnalysisRepository = new CompositeAnalysisRepository(database);
   const jin10FlashRepository = new Jin10FlashRepository(database);
   const jin10FlashDeliveryRepository = new Jin10FlashDeliveryRepository(database);
+  const universeRepository = new UniverseRepository(database);
+  const universeMembershipRepository = new UniverseMembershipRepository(database);
   const instrumentService = new InstrumentService(tickflowClient);
   const klineService = new KlineService(tickflowClient);
   const quoteService = new QuoteService(tickflowClient);
@@ -154,7 +161,18 @@ export function createAppContext(
     config.llmModel,
     analysisLogRepository,
   );
-  const watchlistProfileService = new WatchlistProfileService(mxApiService, analysisService);
+  const tickFlowUniverseService = supportsUniverseAccess(config.tickflowApiKeyLevel)
+    ? new TickFlowUniverseService(
+      tickflowClient,
+      universeRepository,
+      universeMembershipRepository,
+    )
+    : null;
+  const watchlistProfileService = new WatchlistProfileService(
+    tickFlowUniverseService,
+    mxApiService,
+    analysisService,
+  );
   const tradingCalendarService = new TradingCalendarService(config.calendarFile);
   const alertDiagnosticLogger = createAlertDiagnosticLogger(config.databasePath);
   const alertService = new AlertService({
@@ -283,6 +301,10 @@ export function createAppContext(
     watchlistService,
     tradingCalendarService,
   );
+  const industryPeerService = new IndustryPeerService(
+    tickFlowUniverseService,
+    quoteService,
+  );
   const postCloseReviewService = new PostCloseReviewService(
     watchlistService,
     compositeAnalysisOrchestrator,
@@ -294,6 +316,7 @@ export function createAppContext(
     intradayKlinesRepository,
     jin10FlashDeliveryRepository,
     jin10FlashRepository,
+    industryPeerService,
   );
   const preMarketBriefService = new PreMarketBriefService(
     watchlistService,
@@ -326,6 +349,7 @@ export function createAppContext(
     config,
     tools: [
       addStockTool(
+        config.tickflowApiKeyLevel,
         watchlistService,
         klineService,
         klinesRepository,
@@ -350,7 +374,7 @@ export function createAppContext(
       mxSelectStockTool(mxApiService),
       queryDatabaseTool(database),
       refreshWatchlistNamesTool(watchlistService),
-      refreshWatchlistProfilesTool(watchlistService),
+      refreshWatchlistProfilesTool(config.tickflowApiKeyLevel, watchlistService),
       removeStockTool(watchlistService),
       startDailyUpdateTool(dailyUpdateWorker, config, runtime.configSource, runtime),
       startMonitorTool(monitorService, runtime),

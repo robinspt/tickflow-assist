@@ -59,18 +59,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 
 ### 社区安装（适合正式发布包）
 
-如果你不需改动源码，可直接通过 OpenClaw 插件市场或 npm 安装：
-
-安装前建议先准备好以下配置：
-
-- 核心必需：`tickflowApiKey`、`llmApiKey`、`llmBaseUrl`、`llmModel`
-- 告警投递：`alertChannel`、`alertTarget`、`alertAccount`
-- 可选增强：`mxSearchApiKey`、`jin10ApiToken`
-
-其中，`configure-openclaw` 会把这些配置写入 `~/.openclaw/openclaw.json` 的 `plugins.entries["tickflow-assist"].config`；插件启用后会在本地 `databasePath` 下持久化 LanceDB 数据，并运行监控 / 日更等后台服务。
-如果你不想把密钥写进配置文件，运行时也支持环境变量回退，优先级是 `openclaw.json / local.config.json` > 环境变量 > 默认值。
-常用环境变量：`TICKFLOW_ASSIST_TICKFLOW_API_KEY` / `TICKFLOW_API_KEY`、`TICKFLOW_ASSIST_LLM_API_KEY` / `LLM_API_KEY`、`TICKFLOW_ASSIST_LLM_BASE_URL` / `LLM_BASE_URL`、`TICKFLOW_ASSIST_LLM_MODEL` / `LLM_MODEL`、`TICKFLOW_ASSIST_MX_SEARCH_API_KEY` / `MX_SEARCH_API_KEY` / `MX_APIKEY`、`TICKFLOW_ASSIST_JIN10_API_TOKEN` / `JIN10_API_TOKEN`。
-如果你希望尽量避免把密钥落盘，推荐先把这些变量写进 `~/.openclaw/.env`，再运行配置向导补齐非密钥项。
+如果你不需改动源码，可直接通过 OpenClaw 插件市场或 npm 安装。
 
 ```bash
 openclaw plugins install tickflow-assist
@@ -81,47 +70,9 @@ openclaw config validate
 openclaw gateway restart
 ```
 
-社区安装时允许先完成插件安装，再通过第二条命令写入 `tickflowApiKey`、`llmApiKey`、`llmBaseUrl`、`llmModel` 等正式配置。
-`configure-openclaw` 现在只负责写配置和打印下一步命令，不再自动执行 `openclaw`、`uv` 或系统包安装命令，也不会重新执行插件安装；如果你已经设置了环境变量，密钥项可留空，输入 `-` 可主动清空已有配置并切回环境变量。
-如果检测到 `plugins.installs["tickflow-assist"]` 来自 `clawhub`，向导还会把被旧版本钉死的 `spec` 归一化为 `clawhub:tickflow-assist`，避免后续升级一直锁在旧版本。
-运行时支持的环境变量回退如下：
-
-- `tickflowApiUrl`：`TICKFLOW_ASSIST_TICKFLOW_API_URL` / `TICKFLOW_API_URL`
-- `tickflowApiKey`：`TICKFLOW_ASSIST_TICKFLOW_API_KEY` / `TICKFLOW_API_KEY`
-- `tickflowApiKeyLevel`：`TICKFLOW_ASSIST_TICKFLOW_API_KEY_LEVEL` / `TICKFLOW_API_KEY_LEVEL`
-- `llmBaseUrl`：`TICKFLOW_ASSIST_LLM_BASE_URL` / `LLM_BASE_URL`
-- `llmApiKey`：`TICKFLOW_ASSIST_LLM_API_KEY` / `LLM_API_KEY`
-- `llmModel`：`TICKFLOW_ASSIST_LLM_MODEL` / `LLM_MODEL`
-- `mxSearchApiUrl`：`TICKFLOW_ASSIST_MX_SEARCH_API_URL` / `MX_SEARCH_API_URL`
-- `mxSearchApiKey`：`TICKFLOW_ASSIST_MX_SEARCH_API_KEY` / `MX_SEARCH_API_KEY` / `MX_APIKEY`
-- `jin10McpUrl`：`TICKFLOW_ASSIST_JIN10_MCP_URL` / `JIN10_MCP_URL`
-- `jin10ApiToken`：`TICKFLOW_ASSIST_JIN10_API_TOKEN` / `JIN10_API_TOKEN`
-
-如果你在 Linux 或 macOS 上需要 PNG 告警卡正常显示中文，请额外手动安装 `fontconfig` 与 Noto CJK 一类中文字体，例如：
-
-```bash
-# Debian / Ubuntu
-sudo apt-get update
-sudo apt-get install -y fontconfig fonts-noto-cjk
-fc-cache -fv
-
-# RHEL / Fedora / Rocky / AlmaLinux
-sudo dnf install -y fontconfig google-noto-sans-cjk-ttc-fonts
-fc-cache -fv
-
-# Arch / Manjaro
-sudo pacman -Sy --noconfirm fontconfig noto-fonts-cjk
-fc-cache -fv
-
-# Alpine
-sudo apk add fontconfig font-noto-cjk
-fc-cache -fv
-
-# macOS (Homebrew)
-brew install fontconfig
-brew install --cask font-noto-sans-cjk
-fc-cache -fv
-```
+- `configure-openclaw` 会把配置写入 `~/.openclaw/openclaw.json` 的 `plugins.entries["tickflow-assist"].config`。
+- 核心必填建议先准备：`tickflowApiKey`、`tickflowApiKeyLevel`、`llmApiKey`、`llmBaseUrl`、`llmModel`；告警场景再补 `alertChannel`、`alertTarget`、`alertAccount`。
+- 如果你不想把密钥落盘，优先把环境变量写进 `~/.openclaw/.env`，再运行配置向导补齐非密钥项；如需 PNG 告警卡正常显示中文，请自行安装 `fontconfig` 与 Noto CJK 字体。
 
 ### 手动源码安装
 
@@ -211,7 +162,7 @@ tickflow-assist/
 
 ## 🔌 依赖与可选能力
 
-- [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE)：提供日线、分钟线、实时行情与财务数据接口。
+- [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE)：`Free` 可用日线与实时行情；`Starter（对应配置值 starter）` 起可用标的池，插件会用来做申万行业映射与申万 3 级同业表现；`Pro` 起可用分钟K；`Expert` 才走 TickFlow 财务数据，非 `Expert` 默认回退妙想 lite。
 - OpenClaw：负责插件运行、工具注册、对话入口与消息投递。
 - [金十数据 MCP](https://mcp.jin10.com/app/)：可选，用于 24 小时快讯流接入、自选关联筛选与事件驱动告警。
 - [东方财富妙想 Skills](https://marketing.dfcfs.com/views/finskillshub/)：可选，用于 `mx_search` 与 `mx_select_stock`，也用于非 Expert 财务链路的 lite 补充。

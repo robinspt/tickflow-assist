@@ -12,6 +12,7 @@ import { formatChinaDateTime } from "../utils/china-time.js";
 import { AnalysisService } from "./analysis-service.js";
 import { Jin10McpService } from "./jin10-mcp-service.js";
 import { WatchlistService } from "./watchlist-service.js";
+import { extractSectorKeywords } from "./watchlist-profile-service.js";
 
 const PRE_MARKET_BRIEF_KEYWORD = "金十数据整理";
 const PRE_MARKET_READY_TIME = "09:20:00";
@@ -245,7 +246,7 @@ function findMatchedItems(flash: Jin10FlashRecord, watchlist: WatchlistItem[]): 
   const normalizedContent = normalizeText(flash.content);
   return watchlist.filter((item) => {
     const directKeywords = [item.symbol, item.symbol.slice(0, 6), item.name];
-    const boardKeywords = [item.sector ?? "", ...item.themes]
+    const boardKeywords = [...extractSectorKeywords(item.sector), ...item.themes]
       .map((keyword) => keyword.replace(/\s+/g, "").trim())
       .filter((keyword) => keyword.length >= 2);
     return [...directKeywords, ...boardKeywords]

@@ -3,6 +3,7 @@ import { KlineService } from "../services/kline-service.js";
 import { KlinesRepository } from "../storage/repositories/klines-repo.js";
 import { IndicatorService } from "../services/indicator-service.js";
 import { IndicatorsRepository } from "../storage/repositories/indicators-repo.js";
+import type { TickflowApiKeyLevel } from "../config/tickflow-access.js";
 import type { WatchlistItem } from "../types/domain.js";
 import { formatCostPrice } from "../utils/cost-price.js";
 
@@ -53,6 +54,7 @@ function parseOptionalPositiveNumber(value: unknown): number | undefined {
 }
 
 export function addStockTool(
+  tickflowApiKeyLevel: TickflowApiKeyLevel,
   watchlistService: WatchlistService,
   klineService: KlineService,
   klinesRepository: KlinesRepository,
@@ -92,6 +94,7 @@ export function addStockTool(
         if (rows.length === 0) {
           return [
             ...buildAddStockPrefix(item, profileError),
+            buildProfileSourceHint(tickflowApiKeyLevel),
             `⚠️ 已尝试拉取 ${klineCount} 天日K，但返回数据为空`,
           ].filter(Boolean).join("\n");
         }
@@ -104,6 +107,7 @@ export function addStockTool(
         const last = rows[rows.length - 1];
         return [
           ...buildAddStockPrefix(item, profileError),
+          buildProfileSourceHint(tickflowApiKeyLevel),
           `📊 已自动获取日K: ${rows.length} 根`,
           `区间: ${first.trade_date} ~ ${last.trade_date}`,
           `最新收盘: ${last.close.toFixed(2)}`,
@@ -113,6 +117,7 @@ export function addStockTool(
         const message = error instanceof Error ? error.message : String(error);
         return [
           ...buildAddStockPrefix(item, profileError),
+          buildProfileSourceHint(tickflowApiKeyLevel),
           `⚠️ 自动拉取 ${klineCount} 天日K失败: ${message}`,
         ].filter(Boolean).join("\n");
       }
@@ -146,6 +151,14 @@ function formatWatchlistProfileWarning(profileError: string | null): string | nu
     return null;
   }
   return `⚠️ 行业分类/概念板块获取失败: ${profileError}`;
+}
+
+function buildProfileSourceHint(tickflowApiKeyLevel: TickflowApiKeyLevel): string | null {
+  if (tickflowApiKeyLevel !== "free") {
+    return null;
+  }
+
+  return "ℹ️ 当前 TickFlow API Key Level 为 Free，标的池不可用，行业分类当前走妙想链路。";
 }
 
 function formatAddStockFailure(symbol: string | null, error: unknown): string {

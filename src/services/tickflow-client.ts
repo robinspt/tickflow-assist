@@ -6,6 +6,8 @@ import type {
   TickFlowIncomeRecord,
   TickFlowInstrument,
   TickFlowQuote,
+  TickFlowUniverseDetail,
+  TickFlowUniverseSummary,
 } from "../types/tickflow.js";
 
 export class TickFlowClientError extends Error {
@@ -50,6 +52,43 @@ export class TickFlowClient {
       body: JSON.stringify({ symbols }),
     });
     return response.data ?? [];
+  }
+
+  async listUniverses(): Promise<TickFlowUniverseSummary[]> {
+    const url = new URL("/v1/universes", this.baseUrl);
+    const response = await this.requestJson<{ data?: TickFlowUniverseSummary[] }>(url.toString(), {
+      method: "GET",
+    });
+    return response.data ?? [];
+  }
+
+  async fetchUniverse(id: string): Promise<TickFlowUniverseDetail | null> {
+    const normalizedId = String(id ?? "").trim();
+    if (!normalizedId) {
+      return null;
+    }
+
+    const url = new URL(`/v1/universes/${encodeURIComponent(normalizedId)}`, this.baseUrl);
+    const response = await this.requestJson<{ data?: TickFlowUniverseDetail | null }>(url.toString(), {
+      method: "GET",
+    });
+    return response.data ?? null;
+  }
+
+  async fetchUniverseBatch(ids: string[]): Promise<Record<string, TickFlowUniverseDetail>> {
+    const normalizedIds = ids
+      .map((id) => String(id ?? "").trim())
+      .filter(Boolean);
+    if (normalizedIds.length === 0) {
+      return {};
+    }
+
+    const url = new URL("/v1/universes/batch", this.baseUrl);
+    const response = await this.requestJson<{ data?: Record<string, TickFlowUniverseDetail> }>(url.toString(), {
+      method: "POST",
+      body: JSON.stringify({ ids: normalizedIds }),
+    });
+    return response.data ?? {};
   }
 
   async fetchKlinesBatch<T = unknown>(

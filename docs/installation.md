@@ -204,7 +204,7 @@ plugins.entries["tickflow-assist"].config
 |---|---|---|
 | `tickflowApiUrl` | 否 | TickFlow API 地址，默认 `https://api.tickflow.org` |
 | `tickflowApiKey` | 是 | TickFlow API Key |
-| `tickflowApiKeyLevel` | 否 | `Free` / `Start` / `Pro` / `Expert`；`Pro` 与 `Expert` 会尝试分钟 K |
+| `tickflowApiKeyLevel` | 否 | `Free` / `Starter` / `Pro` / `Expert`；`Pro` 与 `Expert` 会尝试分钟 K |
 | `mxSearchApiUrl` | 否 | 妙想 Skills 接口地址 |
 | `mxSearchApiKey` | 否 | 启用 `mx_search` / `mx_select_stock`，也用于非 Expert 财务链路的 lite 回退 |
 | `jin10McpUrl` | 否 | Jin10 MCP 地址，默认 `https://mcp.jin10.com/mcp` |

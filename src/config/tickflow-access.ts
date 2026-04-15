@@ -1,6 +1,7 @@
-export type TickflowApiKeyLevel = "free" | "start" | "pro" | "expert";
+export type TickflowApiKeyLevel = "free" | "starter" | "pro" | "expert";
 
 const INTRADAY_ENABLED_LEVELS = new Set<TickflowApiKeyLevel>(["pro", "expert"]);
+const UNIVERSE_ENABLED_LEVELS = new Set<TickflowApiKeyLevel>(["starter", "pro", "expert"]);
 
 export function normalizeTickflowApiKeyLevel(
   value: unknown,
@@ -13,7 +14,10 @@ export function normalizeTickflowApiKeyLevel(
   if (normalized === "export") {
     return "expert";
   }
-  if (normalized === "free" || normalized === "start" || normalized === "pro" || normalized === "expert") {
+  if (normalized === "start") {
+    return "starter";
+  }
+  if (normalized === "free" || normalized === "starter" || normalized === "pro" || normalized === "expert") {
     return normalized;
   }
   return fallback;
@@ -23,12 +27,16 @@ export function supportsIntradayKlines(level: TickflowApiKeyLevel): boolean {
   return INTRADAY_ENABLED_LEVELS.has(level);
 }
 
+export function supportsUniverseAccess(level: TickflowApiKeyLevel): boolean {
+  return UNIVERSE_ENABLED_LEVELS.has(level);
+}
+
 export function formatTickflowApiKeyLevel(level: TickflowApiKeyLevel): string {
   switch (level) {
     case "free":
       return "Free";
-    case "start":
-      return "Start";
+    case "starter":
+      return "Starter";
     case "pro":
       return "Pro";
     case "expert":

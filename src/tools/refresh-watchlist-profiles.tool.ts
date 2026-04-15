@@ -1,4 +1,5 @@
 import { WatchlistService } from "../services/watchlist-service.js";
+import type { TickflowApiKeyLevel } from "../config/tickflow-access.js";
 import { normalizeSymbol } from "../utils/symbol.js";
 
 interface RefreshWatchlistProfilesInput {
@@ -25,7 +26,10 @@ function parseInput(rawInput: unknown): RefreshWatchlistProfilesInput {
   return {};
 }
 
-export function refreshWatchlistProfilesTool(watchlistService: WatchlistService) {
+export function refreshWatchlistProfilesTool(
+  tickflowApiKeyLevel: TickflowApiKeyLevel,
+  watchlistService: WatchlistService,
+) {
   return {
     name: "refresh_watchlist_profiles",
     description: "Refresh industry and concept metadata for the whole watchlist or one symbol.",
@@ -46,6 +50,11 @@ export function refreshWatchlistProfilesTool(watchlistService: WatchlistService)
       const lines = [
         `🔄 行业分类/概念板块刷新完成: 目标 ${result.targetCount} 只 | 资料更新 ${result.updated.length} | 已复核 ${result.rechecked.length} | 失败 ${result.failed.length}`,
       ];
+
+      const profileSourceHint = buildProfileSourceHint(tickflowApiKeyLevel);
+      if (profileSourceHint) {
+        lines.push(profileSourceHint);
+      }
 
       if (result.updated.length > 0) {
         lines.push("", "已更新:");
@@ -88,4 +97,12 @@ function formatProfileLine(item: {
   const themes = item.themes.length > 0 ? item.themes.join("、") : "未识别";
   const updatedAt = item.themeUpdatedAt ?? "未记录";
   return `• ${item.name}（${item.symbol}） | 行业分类: ${sector} | 概念板块: ${themes} | 更新时间: ${updatedAt}`;
+}
+
+function buildProfileSourceHint(tickflowApiKeyLevel: TickflowApiKeyLevel): string | null {
+  if (tickflowApiKeyLevel !== "free") {
+    return null;
+  }
+
+  return "ℹ️ 当前 TickFlow API Key Level 为 Free，标的池不可用，行业分类当前走妙想链路。";
 }

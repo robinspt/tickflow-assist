@@ -379,6 +379,17 @@ test("normalizePluginConfig falls back to env vars when config values are blank"
   );
 });
 
+test("normalizePluginConfig accepts both legacy Start and canonical Starter levels", () => {
+  assert.equal(
+    normalizePluginConfig({ tickflowApiKeyLevel: "Start" }).tickflowApiKeyLevel,
+    "starter",
+  );
+  assert.equal(
+    normalizePluginConfig({ tickflowApiKeyLevel: "Starter" }).tickflowApiKeyLevel,
+    "starter",
+  );
+});
+
 test("normalizePluginConfig keeps explicit config values ahead of env fallbacks", async () => {
   await withTemporaryEnv(
     {

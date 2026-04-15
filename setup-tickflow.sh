@@ -1146,13 +1146,13 @@ collect_configuration() {
   echo ""
   echo -e "  ${BOLD}TickFlow 订阅等级 / Subscription Level${NC}"
   echo "  1) Free   (默认 / Default)"
-  echo "  2) Start"
+  echo "  2) Starter"
   echo "  3) Pro"
   echo "  4) Expert"
   DEFAULT_LEVEL_CHOICE=1
   case "$DEFAULT_TICKFLOW_LEVEL" in
     Free) DEFAULT_LEVEL_CHOICE=1 ;;
-    Start) DEFAULT_LEVEL_CHOICE=2 ;;
+    Start|Starter) DEFAULT_LEVEL_CHOICE=2 ;;
     Pro) DEFAULT_LEVEL_CHOICE=3 ;;
     Expert) DEFAULT_LEVEL_CHOICE=4 ;;
   esac
@@ -1161,7 +1161,7 @@ collect_configuration() {
     LEVEL_CHOICE=${LEVEL_CHOICE:-$DEFAULT_LEVEL_CHOICE}
     case "$LEVEL_CHOICE" in
       1) TICKFLOW_LEVEL="Free"; break ;;
-      2) TICKFLOW_LEVEL="Start"; break ;;
+      2) TICKFLOW_LEVEL="Starter"; break ;;
       3) TICKFLOW_LEVEL="Pro"; break ;;
       4) TICKFLOW_LEVEL="Expert"; break ;;
       *) warn "无效选择，请输入 1-4。" ;;

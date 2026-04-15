@@ -11,6 +11,21 @@ export const watchlistSchema = new Schema([
   new Field("themeUpdatedAt", new Utf8(), true),
 ]);
 
+export const universeSchema = new Schema([
+  new Field("id", new Utf8(), false),
+  new Field("name", new Utf8(), false),
+  new Field("description", new Utf8(), true),
+  new Field("region", new Utf8(), false),
+  new Field("category", new Utf8(), false),
+  new Field("symbolCount", new Int64(), false),
+  new Field("syncedAt", new Utf8(), false),
+]);
+
+export const universeMembershipSchema = new Schema([
+  new Field("universeId", new Utf8(), false),
+  new Field("symbol", new Utf8(), false),
+]);
+
 export const klinesDailySchema = new Schema([
   new Field("symbol", new Utf8(), false),
   new Field("trade_date", new Utf8(), false),

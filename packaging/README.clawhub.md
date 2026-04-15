@@ -32,41 +32,9 @@ openclaw config validate
 openclaw gateway restart
 ```
 
-安装阶段允许先落插件，再通过第二条命令写入 `tickflowApiKey`、`llmApiKey`、`llmBaseUrl`、`llmModel` 等正式配置。
-`configure-openclaw` 会写入 `~/.openclaw/openclaw.json` 中的 `plugins.entries["tickflow-assist"].config`，并打印后续建议执行的命令；它不再自动执行 `openclaw`、`uv` 或系统包安装命令，也不会重新执行插件安装；如果你已经设置了环境变量，密钥项可留空，输入 `-` 可主动清空已有配置并切回环境变量。
-如果检测到 `plugins.installs["tickflow-assist"]` 来自 `clawhub`，向导还会把被旧版本钉死的 `spec` 归一化为 `clawhub:tickflow-assist`，避免后续升级继续锁在旧版本。
-
-如果你希望先审阅配置，再只打印最少的后续步骤，可使用：
-
-```bash
-node ~/.openclaw/extensions/tickflow-assist/dist/dev/tickflow-assist-cli.js configure-openclaw --no-enable --no-restart
-```
-
-如果你在 Linux 或 macOS 上需要 PNG 告警卡正常显示中文，请额外手动安装 `fontconfig` 与 Noto CJK 一类中文字体，例如：
-
-```bash
-# Debian / Ubuntu
-sudo apt-get update
-sudo apt-get install -y fontconfig fonts-noto-cjk
-fc-cache -fv
-
-# RHEL / Fedora / Rocky / AlmaLinux
-sudo dnf install -y fontconfig google-noto-sans-cjk-ttc-fonts
-fc-cache -fv
-
-# Arch / Manjaro
-sudo pacman -Sy --noconfirm fontconfig noto-fonts-cjk
-fc-cache -fv
-
-# Alpine
-sudo apk add fontconfig font-noto-cjk
-fc-cache -fv
-
-# macOS (Homebrew)
-brew install fontconfig
-brew install --cask font-noto-sans-cjk
-fc-cache -fv
-```
+- `configure-openclaw` 会把配置写入 `~/.openclaw/openclaw.json` 的 `plugins.entries["tickflow-assist"].config`。
+- 核心必填建议先准备：`tickflowApiKey`、`tickflowApiKeyLevel`、`llmApiKey`、`llmBaseUrl`、`llmModel`；告警场景再补 `alertChannel`、`alertTarget`、`alertAccount`。
+- 如果你不想把密钥落盘，优先把环境变量写进 `~/.openclaw/.env`，再运行配置向导补齐非密钥项；如需 PNG 告警卡正常显示中文，请自行安装 `fontconfig` 与 Noto CJK 字体。
 
 社区安装后的升级方式：
 
@@ -126,7 +94,7 @@ plugins.entries["tickflow-assist"].config
 
 ## 依赖与可选能力
 
-- [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE)：提供日线、分钟线、实时行情与财务数据接口。
+- [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE)：`Free` 可用日线与实时行情；`Starter（对应配置值 starter）` 起可用标的池，插件会用来做申万行业映射与申万 3 级同业表现；`Pro` 起可用分钟K；`Expert` 才走 TickFlow 财务数据，非 `Expert` 默认回退妙想 lite。
 - [金十数据 MCP](https://mcp.jin10.com/app/)：可选，用于 24 小时快讯流接入、自选关联筛选与事件驱动告警。
 - [东方财富妙想 Skills](https://marketing.dfcfs.com/views/finskillshub/)：可选，用于 `mx_search`、`mx_select_stock` 与非 `Expert` 财务链路的 lite 补充。
 

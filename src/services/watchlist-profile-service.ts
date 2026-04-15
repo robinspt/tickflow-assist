@@ -6,6 +6,7 @@ import {
 import { AnalysisService } from "./analysis-service.js";
 import type { MxSearchDocument } from "../types/mx-search.js";
 import { MxApiService } from "./mx-search-service.js";
+import { TickFlowUniverseService } from "./tickflow-universe-service.js";
 
 const MAX_PROFILE_DOCUMENTS = 8;
 
@@ -18,53 +19,61 @@ export interface WatchlistProfile {
 
 export class WatchlistProfileService {
   constructor(
+    private readonly tickFlowUniverseService: TickFlowUniverseService | null,
     private readonly mxApiService: MxApiService,
     private readonly analysisService: AnalysisService,
   ) {}
 
   async resolve(symbol: string, companyName: string, updatedAt: string): Promise<WatchlistProfile> {
     const themeQuery = buildThemeQuery(companyName, symbol);
+    const industryProfile = this.tickFlowUniverseService
+      ? await this.tickFlowUniverseService.resolveIndustryProfile(symbol)
+        .catch((error) => {
+          console.warn(`[watchlist-profile] tickflow universe lookup skipped for ${symbol}: ${toErrorMessage(error)}`);
+          return null;
+        })
+      : null;
+
     const mxConfigError = this.mxApiService.getConfigurationError();
-    if (mxConfigError) {
-      throw new Error(mxConfigError);
-    }
-
     const llmConfigError = this.analysisService.getConfigurationError();
-    if (llmConfigError) {
-      throw new Error(llmConfigError);
-    }
+    const canUseMx = !mxConfigError && !llmConfigError;
 
-    const documents = (await this.mxApiService.search(themeQuery)).slice(0, MAX_PROFILE_DOCUMENTS);
-    if (documents.length === 0) {
-      return {
-        sector: null,
-        themes: [],
-        themeQuery,
-        themeUpdatedAt: updatedAt,
-      };
-    }
+    let parsedProfile: ReturnType<typeof parseWatchlistProfileExtraction> = null;
+    if (canUseMx) {
+      try {
+        const documents = (await this.mxApiService.search(themeQuery)).slice(0, MAX_PROFILE_DOCUMENTS);
+        if (documents.length > 0) {
+          const responseText = await this.analysisService.generateText(
+            WATCHLIST_PROFILE_EXTRACTION_SYSTEM_PROMPT,
+            buildWatchlistProfileExtractionUserPrompt({
+              symbol,
+              companyName,
+              documents,
+            }),
+            {
+              maxTokens: 1200,
+              temperature: 0.1,
+            },
+          );
 
-    const responseText = await this.analysisService.generateText(
-      WATCHLIST_PROFILE_EXTRACTION_SYSTEM_PROMPT,
-      buildWatchlistProfileExtractionUserPrompt({
-        symbol,
-        companyName,
-        documents,
-      }),
-      {
-        maxTokens: 1200,
-        temperature: 0.1,
-      },
-    );
-
-    const profile = parseWatchlistProfileExtraction(responseText);
-    if (!profile) {
-      throw new Error(`watchlist profile extraction returned invalid JSON for ${symbol}`);
+          parsedProfile = parseWatchlistProfileExtraction(responseText);
+          if (!parsedProfile) {
+            throw new Error(`watchlist profile extraction returned invalid JSON for ${symbol}`);
+          }
+        }
+      } catch (error) {
+        if (!industryProfile) {
+          throw error;
+        }
+        console.warn(`[watchlist-profile] mx profile enrichment skipped for ${symbol}: ${toErrorMessage(error)}`);
+      }
+    } else if (!industryProfile) {
+      throw new Error(mxConfigError ?? llmConfigError ?? "watchlist profile service unavailable");
     }
 
     return {
-      sector: profile.sector,
-      themes: profile.themes,
+      sector: industryProfile?.sectorPath ?? parsedProfile?.sector ?? null,
+      themes: parsedProfile?.themes ?? [],
       themeQuery,
       themeUpdatedAt: updatedAt,
     };
@@ -76,7 +85,7 @@ export function buildBoardNewsQuery(profile: {
   themes: string[];
 }): string | null {
   const keywords = [
-    String(profile.sector ?? "").trim(),
+    ...extractSectorKeywords(profile.sector),
     ...profile.themes
       .map((item) => String(item ?? "").trim())
       .filter(Boolean)
@@ -88,6 +97,20 @@ export function buildBoardNewsQuery(profile: {
   }
 
   return `${keywords.join(" ")} 板块 题材 最新新闻 政策 资金`;
+}
+
+export function extractSectorKeywords(sector: string | null | undefined): string[] {
+  const raw = String(sector ?? "").trim();
+  if (!raw) {
+    return [];
+  }
+
+  const keywords = raw
+    .split(/[-/|>|→｜]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return uniqueStrings(keywords.length > 0 ? keywords : [raw]);
 }
 
 function buildThemeQuery(companyName: string, symbol: string): string {
@@ -104,4 +127,12 @@ export function formatWatchlistProfileDocuments(documents: MxSearchDocument[]): 
       `正文: ${document.trunk || "无"}`,
     ].join("\n"))
     .join("\n\n");
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

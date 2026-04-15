@@ -17,6 +17,7 @@ import { Jin10McpService } from "./jin10-mcp-service.js";
 import { WatchlistService } from "./watchlist-service.js";
 import { Jin10FlashDeliveryRepository } from "../storage/repositories/jin10-flash-delivery-repo.js";
 import { Jin10FlashRepository } from "../storage/repositories/jin10-flash-repo.js";
+import { extractSectorKeywords } from "./watchlist-profile-service.js";
 
 const DEFAULT_STATE: FlashMonitorState = {
   initialized: false,
@@ -550,7 +551,7 @@ function buildDirectKeywords(item: WatchlistItem): string[] {
 
 function buildBoardKeywords(item: WatchlistItem): string[] {
   return uniqueStrings([
-    item.sector ?? "",
+    ...extractSectorKeywords(item.sector),
     ...item.themes,
   ]).filter((keyword) => isUsefulBoardKeyword(keyword));
 }

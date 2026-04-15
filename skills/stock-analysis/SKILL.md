@@ -69,7 +69,7 @@ metadata: {"openclaw":{"skillKey":"stock_analysis","always":true,"primaryEnv":"T
 - `update_all` 除了更新日K和日线指标，也会同步更新当日分钟K；本地分钟K默认仅保留近 30 个交易日。
 - `update_all` 是立即执行一次日更；`start_daily_update` / `stop_daily_update` 控制的是后台定时日更进程，两者不要混淆。
 - `backtest_key_levels` 默认回测全部关注股的活动价位；如果用户提到股票代码，应传入 `symbol`；如果用户提到“最近 N 次”，应传入 `recentLimit=N`。
-- 若配置中的 `tickflowApiKeyLevel` 为 `Free` 或 `Start`，则应自动跳过分钟K获取；若分钟K接口失败，也不要让 `analyze` 或 `update_all` 因此整体失败。
+- 若配置中的 `tickflowApiKeyLevel` 为 `Free` 或 `Starter`，则应自动跳过分钟K获取；若分钟K接口失败，也不要让 `analyze` 或 `update_all` 因此整体失败。
 - 对新闻、公告、研报、政策、交易规则、具体事件、时效性影响分析等外部检索类问题，优先使用 `mx_search`，不要直接凭常识回答，也不要先读仓库文件再决定是否搜索。
 - 对自然语言选股、板块成分股、条件筛选、候选池推荐等任务，优先使用 `mx_select_stock`；若问题本质是“找哪些标的符合条件”，不要误用 `mx_search`。
 - 用户在“添加自选”意图中提到的“`N`天”对应 `add_stock.count`（或 `klineCount`），例如“添加 002261 成本 34.15 并获取 120 天日K”应调用 `add_stock`，其中 `count=120`。若用户未提供成本价但明确要求拉取 `N` 天日K，可只传 `symbol` 与 `count`。

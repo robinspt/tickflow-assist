@@ -14,8 +14,12 @@ import {
   formatWatchlistProfileDocuments,
   WatchlistProfileService,
 } from "../services/watchlist-profile-service.js";
+import { TickFlowClient } from "../services/tickflow-client.js";
+import { TickFlowUniverseService } from "../services/tickflow-universe-service.js";
 import { Database } from "../storage/db.js";
 import { AnalysisLogRepository } from "../storage/repositories/analysis-log-repo.js";
+import { UniverseMembershipRepository } from "../storage/repositories/universe-membership-repo.js";
+import { UniverseRepository } from "../storage/repositories/universe-repo.js";
 import { WatchlistRepository } from "../storage/repositories/watchlist-repo.js";
 
 interface LocalConfigShape {
@@ -151,7 +155,7 @@ function runFixtureValidation(): void {
   });
   assert.equal(
     boardQuery,
-    "计算机-软件开发-垂直应用软件 OpenClaw概念 托育概念 一体机概念 板块 题材 最新新闻 政策 资金",
+    "计算机 软件开发 垂直应用软件 OpenClaw概念 托育概念 一体机概念 板块 题材 最新新闻 政策 资金",
   );
 
   const emptyBoardQuery = buildBoardNewsQuery({
@@ -171,7 +175,15 @@ async function runLiveValidation(limit: number): Promise<void> {
   const database = new Database(config.databasePath);
   const watchlistRepository = new WatchlistRepository(database);
   const analysisLogRepository = new AnalysisLogRepository(database);
+  const universeRepository = new UniverseRepository(database);
+  const universeMembershipRepository = new UniverseMembershipRepository(database);
   const mxApiService = new MxApiService(config.mxSearchApiUrl, config.mxSearchApiKey);
+  const tickFlowClient = new TickFlowClient(config.tickflowApiUrl, config.tickflowApiKey);
+  const tickFlowUniverseService = new TickFlowUniverseService(
+    tickFlowClient,
+    universeRepository,
+    universeMembershipRepository,
+  );
   const analysisService = new AnalysisService(
     config.llmBaseUrl,
     config.llmApiKey,
@@ -197,7 +209,11 @@ async function runLiveValidation(limit: number): Promise<void> {
     return;
   }
 
-  const watchlistProfileService = new WatchlistProfileService(mxApiService, analysisService);
+  const watchlistProfileService = new WatchlistProfileService(
+    tickFlowUniverseService,
+    mxApiService,
+    analysisService,
+  );
   console.log(`[validate:mx-search] live validation start: ${samples.length} samples`);
 
   for (const sample of samples) {

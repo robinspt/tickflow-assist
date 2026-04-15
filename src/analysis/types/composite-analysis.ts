@@ -130,10 +130,39 @@ export interface FlashNewsContext {
   marketOverviewFlashes: FlashNewsItem[];
 }
 
+export interface IndustryPeerMover {
+  symbol: string;
+  name: string;
+  changePct: number;
+}
+
+export interface IndustryPeerContext {
+  available: boolean;
+  summary: string;
+  sw1Name: string | null;
+  sw2Name: string | null;
+  sw3Name: string | null;
+  sw3UniverseId: string | null;
+  peerCount: number;
+  otherStockCount: number;
+  advanceCount: number;
+  declineCount: number;
+  flatCount: number;
+  averageChangePct: number | null;
+  medianChangePct: number | null;
+  targetChangePct: number | null;
+  targetRank: number | null;
+  targetPercentile: number | null;
+  leaders: IndustryPeerMover[];
+  laggards: IndustryPeerMover[];
+  note: string | null;
+}
+
 export interface PostCloseReviewInput extends CompositeAnalysisInput {
   compositeResult: CompositeAnalysisResult;
   validation: PriorKeyLevelValidationContext;
   flashContext: FlashNewsContext;
+  peerContext: IndustryPeerContext;
 }
 
 export interface PostCloseReviewResult {
