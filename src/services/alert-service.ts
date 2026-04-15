@@ -54,7 +54,7 @@ interface AlertDeliveryFailure {
 
 interface AlertSendDiagnosticContext {
   sendId: string;
-  step: "primary" | "text_fallback";
+  step: "primary" | "text_fallback" | "text_primary" | "media_followup";
   messageHash: string;
 }
 
@@ -104,29 +104,47 @@ export class AlertService {
       messagePreview: truncateDiagnosticText(payload.message.split("\n")[0] ?? ""),
     });
 
-    const primaryFailure = await this.trySendPayload(payload, diagnosticContext);
-    if (primaryFailure === null) {
-      const result = {
-        ok: true,
-        mediaAttempted,
-        mediaDelivered: mediaAttempted,
-        error: null,
-      };
+    if (this.shouldSplitMediaDelivery(payload)) {
+      const result = await this.sendTextThenMedia(payload, sendId, messageHash);
       await this.logCompletion(sendId, messageHash, payload, result);
       return result;
     }
 
+    const result = await this.sendCombined(payload, sendId, messageHash);
+    await this.logCompletion(sendId, messageHash, payload, result);
+    return result;
+  }
+
+  private async sendCombined(
+    payload: AlertSendInput,
+    sendId: string,
+    messageHash: string,
+  ): Promise<AlertSendResult> {
+    const diagnosticContext: AlertSendDiagnosticContext = {
+      sendId,
+      step: "primary",
+      messageHash,
+    };
+
+    const primaryFailure = await this.trySendPayload(payload, diagnosticContext);
+    if (primaryFailure === null) {
+      return {
+        ok: true,
+        mediaAttempted: Boolean(payload.mediaPath),
+        mediaDelivered: Boolean(payload.mediaPath),
+        error: null,
+      };
+    }
+
     if (payload.mediaPath) {
       if (primaryFailure.ambiguous) {
-        const result = {
+        return {
           ok: false,
           mediaAttempted: true,
           mediaDelivered: false,
           error: primaryFailure.error,
           deliveryUncertain: true,
         };
-        await this.logCompletion(sendId, messageHash, payload, result);
-        return result;
       }
 
       const textFallback = normalizeSendInput(payload.message);
@@ -136,34 +154,87 @@ export class AlertService {
         messageHash,
       });
       if (textFallbackFailure === null) {
-        const result = {
+        return {
           ok: true,
           mediaAttempted: true,
           mediaDelivered: false,
           error: primaryFailure.error,
         };
-        await this.logCompletion(sendId, messageHash, payload, result);
-        return result;
       }
 
-      const result = {
+      return {
         ok: false,
         mediaAttempted: true,
         mediaDelivered: false,
         error: this.combineErrors(primaryFailure.error, textFallbackFailure.error),
       };
-      await this.logCompletion(sendId, messageHash, payload, result);
-      return result;
     }
 
-    const result = {
+    return {
       ok: false,
       mediaAttempted: false,
       mediaDelivered: false,
       error: primaryFailure.error,
     };
-    await this.logCompletion(sendId, messageHash, payload, result);
-    return result;
+  }
+
+  private async sendTextThenMedia(
+    payload: AlertSendInput,
+    sendId: string,
+    messageHash: string,
+  ): Promise<AlertSendResult> {
+    const textFailure = await this.trySendPayload(
+      normalizeSendInput(payload.message),
+      {
+        sendId,
+        step: "text_primary",
+        messageHash,
+      },
+    );
+    if (textFailure !== null) {
+      return {
+        ok: false,
+        mediaAttempted: false,
+        mediaDelivered: false,
+        error: textFailure.error,
+      };
+    }
+
+    const mediaFailure = await this.trySendPayload(
+      {
+        ...payload,
+        message: "",
+      },
+      {
+        sendId,
+        step: "media_followup",
+        messageHash,
+      },
+    );
+    if (mediaFailure === null) {
+      return {
+        ok: true,
+        mediaAttempted: true,
+        mediaDelivered: true,
+        error: null,
+      };
+    }
+
+    return {
+      ok: true,
+      mediaAttempted: true,
+      mediaDelivered: false,
+      error: mediaFailure.error,
+      ...(mediaFailure.ambiguous ? { deliveryUncertain: true } : {}),
+    };
+  }
+
+  private shouldSplitMediaDelivery(payload: AlertSendInput): boolean {
+    // Telegram media uploads are materially slower than plain text delivery.
+    // Split text and image so the actionable text alert reaches the user first.
+    return this.channel === "telegram"
+      && Boolean(payload.mediaPath)
+      && payload.message.trim().length > 0;
   }
 
   getLastError(): string | null {

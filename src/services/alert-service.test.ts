@@ -136,7 +136,7 @@ test("getCommandRunOptions keeps short timeout for text-only sends", () => {
   });
 });
 
-test("sendWithResult falls back to text-only on definite media pre-send failure", async () => {
+test("sendWithResult sends telegram text first and tolerates definite media follow-up failure", async () => {
   const calls: Array<{ message: string; mediaPath?: string }> = [];
   const service = new AlertService({
     openclawCliBin: "openclaw",
@@ -153,7 +153,7 @@ test("sendWithResult falls back to text-only on definite media pre-send failure"
 
   runtimeService.trySendPayload = async (payload: { message: string; mediaPath?: string }) => {
     calls.push({ message: payload.message, mediaPath: payload.mediaPath });
-    if (payload.mediaPath && payload.message === "caption") {
+    if (payload.mediaPath) {
       return {
         error: "media file missing",
         ambiguous: false,
@@ -168,8 +168,8 @@ test("sendWithResult falls back to text-only on definite media pre-send failure"
   });
 
   assert.deepEqual(calls, [
-    { message: "caption", mediaPath: "/tmp/alert-card.png" },
     { message: "caption", mediaPath: undefined },
+    { message: "", mediaPath: "/tmp/alert-card.png" },
   ]);
   assert.deepEqual(result, {
     ok: true,
@@ -179,7 +179,7 @@ test("sendWithResult falls back to text-only on definite media pre-send failure"
   });
 });
 
-test("sendWithResult avoids split retries after ambiguous telegram command failure", async () => {
+test("sendWithResult does not attempt telegram media follow-up when text send fails", async () => {
   const commandCalls: Array<{
     argv: string[];
     options: number | { timeoutMs: number };
@@ -228,15 +228,14 @@ test("sendWithResult avoids split retries after ambiguous telegram command failu
   assert.equal(commandCalls.length, 1);
   assert.deepEqual(result, {
     ok: false,
-    mediaAttempted: true,
+    mediaAttempted: false,
     mediaDelivered: false,
     error: "message send timed out after upload",
-    deliveryUncertain: true,
   });
 });
 
-test("sendWithResult uses CLI for telegram media alerts even when runtime is available", async () => {
-  let cliCalled = false;
+test("sendWithResult sends telegram text and media in separate CLI calls", async () => {
+  const cliCalls: string[][] = [];
   let runtimeCalled = false;
   const service = new AlertService({
     openclawCliBin: "openclaw",
@@ -247,8 +246,8 @@ test("sendWithResult uses CLI for telegram media alerts even when runtime is ava
       config: {} as never,
       runtime: {
         system: {
-          runCommandWithTimeout: async () => {
-            cliCalled = true;
+          runCommandWithTimeout: async (argv: string[]) => {
+            cliCalls.push(argv);
             return {
               stdout: "",
               stderr: "",
@@ -284,13 +283,95 @@ test("sendWithResult uses CLI for telegram media alerts even when runtime is ava
     filename: "alert-card.png",
   });
 
-  assert.equal(cliCalled, true);
+  assert.equal(cliCalls.length, 2);
+  assert.deepEqual(cliCalls[0], [
+    "openclaw",
+    "message",
+    "send",
+    "--channel",
+    "telegram",
+    "--message",
+    "caption",
+    "--target",
+    "telegram:@mychat",
+    "--account",
+    "default",
+    "--json",
+  ]);
+  assert.deepEqual(cliCalls[1], [
+    "openclaw",
+    "message",
+    "send",
+    "--channel",
+    "telegram",
+    "--media",
+    "/tmp/alert-card.png",
+    "--target",
+    "telegram:@mychat",
+    "--account",
+    "default",
+    "--json",
+  ]);
   assert.equal(runtimeCalled, false);
   assert.deepEqual(result, {
     ok: true,
     mediaAttempted: true,
     mediaDelivered: true,
     error: null,
+  });
+});
+
+test("sendWithResult keeps telegram alert ok when media follow-up is ambiguous", async () => {
+  const commandCalls: string[][] = [];
+  const service = new AlertService({
+    openclawCliBin: "openclaw",
+    channel: "telegram",
+    account: "default",
+    target: "telegram:@mychat",
+    runtime: {
+      config: {} as never,
+      runtime: {
+        system: {
+          runCommandWithTimeout: async (argv: string[]) => {
+            commandCalls.push(argv);
+            if (argv.includes("--media")) {
+              return {
+                stdout: "",
+                stderr: "message send timed out after upload",
+                code: null,
+                signal: null,
+                killed: true,
+                termination: "timeout" as const,
+              };
+            }
+
+            return {
+              stdout: "",
+              stderr: "",
+              code: 0,
+              signal: null,
+              killed: false,
+              termination: "exit" as const,
+            };
+          },
+        },
+      } as never,
+    },
+  });
+
+  const result = await service.sendWithResult({
+    message: "caption",
+    mediaPath: "/tmp/alert-card.png",
+    mediaLocalRoots: ["/tmp"],
+  });
+
+  assert.equal(commandCalls.length, 2);
+  assert.deepEqual(result, {
+    ok: true,
+    mediaAttempted: true,
+    mediaDelivered: false,
+    error: "message send timed out after upload",
+    deliveryUncertain: true,
   });
 });
 
