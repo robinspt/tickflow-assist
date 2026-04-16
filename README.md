@@ -2,7 +2,7 @@
 
 基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件。它使用 [TickFlow API](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 获取行情与财务数据，并可选接入 [金十数据 MCP](https://mcp.jin10.com/app/) 快讯流，结合 LLM 生成技术面、基本面、资讯面的综合判断，并把结果持久化到本地 LanceDB。
 
-最近更新：`v0.3.6` 修复 Telegram 告警重复补发，并修复 QQBot 图片告警路径问题，确保图文告警通过 OpenClaw 稳定送达。完整发布记录见 [CHANGELOG.md](CHANGELOG.md)。
+最近更新：`v0.3.7` 接入 TickFlow 标的池行业映射与申万三级同业上下文，优化盘前简报提炼与收盘复盘市场信息展示，并对齐 OpenClaw `v2026.4.14` 兼容与社区元数据。完整发布记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 当前主线架构：
 

@@ -1,6 +1,6 @@
 {
   "name": "tickflow-assist",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "面向 A 股投资与盯盘场景的 OpenClaw 智能股票插件，基于 TickFlow API 提供实时监控、收盘后复盘、多维综合分析、关键价位跟踪与告警能力。OpenClaw smart stock plugin for A-share investing and watchlist workflows, powered by TickFlow API for realtime monitoring, post-close review, multi-dimensional analysis, key level tracking, and alerts.",
   "license": "MIT",
   "type": "module",
