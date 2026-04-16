@@ -5,6 +5,7 @@ import type {
   CompositeAnalysisResult,
   FlashNewsContext,
   FlashNewsItem,
+  IndustryPeerContext,
   MarketOverviewContext,
   PostCloseReviewResult,
   PriorKeyLevelValidationContext,
@@ -21,6 +22,7 @@ import { Jin10FlashRepository } from "../storage/repositories/jin10-flash-repo.j
 import { IndustryPeerService } from "./industry-peer-service.js";
 import type { TickFlowKlineRow, TickFlowQuote } from "../types/tickflow.js";
 import { formatCostPrice } from "../utils/cost-price.js";
+import { normalizeTickFlowChangePct, resolveTickFlowKlineChangePct } from "../utils/tickflow-quote.js";
 
 const LEVEL_BUFFER = 0.005;
 const INTRADAY_PERIOD = "1m";
@@ -128,7 +130,7 @@ export class PostCloseReviewService {
           flashContext,
           peerContext,
         });
-        const message = this.formatDetailMessage(item, validation, review, marketSummary);
+        const message = this.formatDetailMessage(item, validation, review, marketSummary, peerContext);
         await this.persistReview(item.symbol, message, review);
 
         entries.push({
@@ -310,8 +312,9 @@ export class PostCloseReviewService {
     validation: PriorKeyLevelValidationContext,
     review: PostCloseReviewResult,
     marketSummary: ReviewMarketSummary | null,
+    peerContext: IndustryPeerContext | null = null,
   ): string {
-    return formatPostCloseReviewDetailMessage(item, validation, review, marketSummary);
+    return formatPostCloseReviewDetailMessage(item, validation, review, marketSummary, peerContext);
   }
 
   private formatFailureMessage(
@@ -329,8 +332,10 @@ export function formatPostCloseReviewDetailMessage(
   validation: PriorKeyLevelValidationContext,
   review: PostCloseReviewResult,
   marketSummary: ReviewMarketSummary | null = null,
+  peerContext: IndustryPeerContext | null = null,
 ): string {
   const marketMeta = formatReviewMarketMeta(item, marketSummary);
+  const industryPosition = formatIndustryPosition(peerContext);
   const lines = [
     `**📘 收盘复盘｜${item.name}（${item.symbol}）**`,
     `${formatValidationVerdictBadge(validation.verdict)} 昨日验证：${formatValidationVerdictLabel(validation.verdict)} | ${formatDecisionBadge(review.decision)} 明日处理：${formatDecisionLabel(review.decision)}`,
@@ -344,7 +349,11 @@ export function formatPostCloseReviewDetailMessage(
     review.sessionSummary || "未生成盘面一句话总结。",
     "",
     formatSectionTitle("🌐", "大盘与板块"),
-    `• 风向：大盘 ${formatMarketBiasBadge(review.marketBias)}${formatMarketBiasLabel(review.marketBias)} | 板块 ${formatMarketBiasBadge(review.sectorBias)}${formatMarketBiasLabel(review.sectorBias)}`,
+    [
+      `• 风向：大盘 ${formatMarketBiasBadge(review.marketBias)}${formatMarketBiasLabel(review.marketBias)}`,
+      `板块 ${formatMarketBiasBadge(review.sectorBias)}${formatMarketBiasLabel(review.sectorBias)}`,
+      industryPosition ? `同业 ${industryPosition}` : null,
+    ].filter(Boolean).join(" | "),
     review.marketSectorSummary || "未生成大盘/板块总结。",
     "",
     formatSectionTitle("📰", "新闻与公告"),
@@ -445,22 +454,13 @@ function buildReviewMarketSummary(
   }
 
   const latestClose = latestKline?.close ?? realtimeQuote?.last_price ?? null;
-  const quoteChangePct = realtimeQuote?.ext?.change_pct;
-  const dailyChangePct = quoteChangePct != null && Number.isFinite(quoteChangePct)
-    ? quoteChangePct
-    : deriveDailyChangePct(latestKline?.close ?? null, latestKline?.prev_close ?? null);
+  const dailyChangePct = normalizeTickFlowChangePct(realtimeQuote?.ext?.change_pct)
+    ?? resolveTickFlowKlineChangePct(latestKline);
 
   return {
     latestClose,
     dailyChangePct,
   };
-}
-
-function deriveDailyChangePct(close: number | null, prevClose: number | null): number | null {
-  if (!(close != null && Number.isFinite(close) && prevClose != null && Number.isFinite(prevClose) && prevClose > 0)) {
-    return null;
-  }
-  return ((close - prevClose) / prevClose) * 100;
 }
 
 function formatReviewMarketMeta(item: WatchlistItem, marketSummary: ReviewMarketSummary | null): string | null {
@@ -479,6 +479,49 @@ function formatReviewMarketMeta(item: WatchlistItem, marketSummary: ReviewMarket
 
 function formatSignedPct(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
+}
+
+function formatIndustryPosition(context: IndustryPeerContext | null): string | null {
+  if (!context?.available || !context.targetRank || !(context.peerCount > 0)) {
+    return null;
+  }
+
+  return `${classifyIndustryPosition(context)}（${context.targetRank}/${context.peerCount}）`;
+}
+
+function classifyIndustryPosition(context: IndustryPeerContext): string {
+  const { targetRank, peerCount } = context;
+  if (!targetRank || !(peerCount > 0)) {
+    return "位置未知";
+  }
+
+  if (targetRank === 1) {
+    return "领涨";
+  }
+  if (targetRank === peerCount) {
+    return "领跌";
+  }
+
+  if (peerCount <= 3) {
+    return "中游";
+  }
+
+  const percentile = context.targetPercentile
+    ?? (peerCount > 1 ? 1 - ((targetRank - 1) / (peerCount - 1)) : 1);
+
+  if (percentile >= 0.8) {
+    return "领涨区";
+  }
+  if (percentile >= 0.6) {
+    return "偏强";
+  }
+  if (percentile > 0.4) {
+    return "中游";
+  }
+  if (percentile > 0.2) {
+    return "偏弱";
+  }
+  return "领跌区";
 }
 
 function evaluateSupport(snapshot: KeyLevelsHistoryEntry, row: { low: number; close: number }): string {

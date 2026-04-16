@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type {
+  IndustryPeerContext,
   PostCloseReviewResult,
   PriorKeyLevelValidationContext,
 } from "../analysis/types/composite-analysis.js";
@@ -57,14 +58,37 @@ test("formatPostCloseReviewDetailMessage renders bold section titles and level r
     },
   };
 
+  const peerContext: IndustryPeerContext = {
+    available: true,
+    summary: "申万3级风电设备共 8 只；除本股外上涨 5 / 下跌 2 / 平 0；均值 +1.42%；中位数 +1.11%；本股 +2.97%，位列 2/8",
+    sw1Name: "电力设备",
+    sw2Name: "风电设备",
+    sw3Name: "风机零部件",
+    sw3UniverseId: "sw3-demo",
+    peerCount: 8,
+    otherStockCount: 7,
+    advanceCount: 5,
+    declineCount: 2,
+    flatCount: 0,
+    averageChangePct: 1.42,
+    medianChangePct: 1.11,
+    targetChangePct: 2.97,
+    targetRank: 2,
+    targetPercentile: 0.8571428571428572,
+    leaders: [],
+    laggards: [],
+    note: null,
+  };
+
   const message = formatPostCloseReviewDetailMessage(item, validation, review, {
     latestClose: 27.72,
     dailyChangePct: 2.97,
-  });
+  }, peerContext);
 
   assert.match(message, /\*\*📘 收盘复盘｜金风科技（002202\.SZ）\*\*/);
   assert.match(message, /🟨 昨日验证：效果偏混合 \| 🟩 明日处理：沿用/);
   assert.match(message, /• 收盘 27\.72 \| 当日 \+2\.97% \| 成本 30\.57/);
+  assert.match(message, /• 风向：大盘 🟨中性 \| 板块 🟥逆风 \| 同业 领涨区（2\/8）/);
   assert.match(message, /\*\*【📍 昨日关键位验证】\*\*/);
   assert.match(message, /\*\*【🎯 更新后关键位】\*\*/);
   assert.match(message, /价位框架：⛔止损 26\.80 → 🛡️支撑 27\.05 → 💹现价 27\.72 → 🚧压力\/🚀突破 28\.80 → 🎯止盈 29\.50/);

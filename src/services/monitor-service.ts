@@ -12,6 +12,7 @@ import {
 } from "../utils/alert-diagnostic-log.js";
 import { formatChinaDateTime } from "../utils/china-time.js";
 import { calculateProfitPct, formatCostPrice } from "../utils/cost-price.js";
+import { resolveTickFlowQuoteChangePct } from "../utils/tickflow-quote.js";
 import { QuoteService } from "./quote-service.js";
 import { TradingCalendarService } from "./trading-calendar-service.js";
 import { WatchlistService } from "./watchlist-service.js";
@@ -894,13 +895,7 @@ function formatTradingPhase(phase: string): string {
 
 function formatQuoteLine(item: WatchlistItem, quote: TickFlowQuote): string {
   const lastPrice = Number(quote.last_price ?? 0);
-  const prevClose = Number(quote.prev_close ?? 0);
-  const tickflowChangePct = quote.ext?.change_pct;
-  const changePct = tickflowChangePct != null
-    ? Number(tickflowChangePct) * 100
-    : prevClose > 0
-      ? ((lastPrice - prevClose) / prevClose) * 100
-      : null;
+  const changePct = resolveTickFlowQuoteChangePct(quote);
   const quoteTime = formatQuoteTimestamp(quote.timestamp);
   const profitPct = calculateProfitPct(lastPrice, item.costPrice);
 
@@ -1233,16 +1228,5 @@ function resolveAlertImageLabel(ruleName: string, fallbackTitle: string): string
 }
 
 function getQuoteChangePct(quote: TickFlowQuote): number | null {
-  const tickflowChangePct = quote.ext?.change_pct;
-  if (tickflowChangePct != null && Number.isFinite(Number(tickflowChangePct))) {
-    return Number(tickflowChangePct) * 100;
-  }
-
-  const lastPrice = Number(quote.last_price ?? 0);
-  const prevClose = Number(quote.prev_close ?? 0);
-  if (!(prevClose > 0)) {
-    return null;
-  }
-
-  return ((lastPrice - prevClose) / prevClose) * 100;
+  return resolveTickFlowQuoteChangePct(quote);
 }

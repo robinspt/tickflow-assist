@@ -2,6 +2,7 @@ import type { IndicatorRow } from "../../types/indicator.js";
 import type { TickFlowIntradayKlineRow, TickFlowKlineRow, TickFlowQuote } from "../../types/tickflow.js";
 import type { ReviewMemoryContext } from "../../analysis/types/composite-analysis.js";
 import { formatCostPrice, formatCostRelationship } from "../../utils/cost-price.js";
+import { resolveTickFlowQuoteChangePct } from "../../utils/tickflow-quote.js";
 
 const MAX_INTRADAY_FULL_ROWS = 40;
 const MAX_INTRADAY_OPEN_ROWS = 8;
@@ -178,7 +179,7 @@ function buildRealtimeLines(quote: TickFlowQuote | null): string[] {
     "",
     `- 最新价: ${fmt(quote.last_price)}`,
     `- 前收: ${fmt(quote.prev_close)}`,
-    `- 涨跌幅: ${fmtPercent(quote.ext?.change_pct)}`,
+    `- 涨跌幅: ${fmtPercent(resolveTickFlowQuoteChangePct(quote))}`,
     `- 成交量: ${Math.trunc(Number(quote.volume ?? 0))}`,
     `- 行情时间: ${formatTimestamp(quote.timestamp)}`,
   ];

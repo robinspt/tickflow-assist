@@ -6,6 +6,7 @@ import type {
   PostCloseReviewInput,
 } from "../../analysis/types/composite-analysis.js";
 import { formatCostPrice, formatCostRelationship } from "../../utils/cost-price.js";
+import { normalizeTickFlowChangePct, resolveTickFlowKlineChangePct } from "../../utils/tickflow-quote.js";
 import { buildReferencedNarrative, truncatePromptText } from "./prompt-text-utils.js";
 import {
   indentPromptBlock,
@@ -200,17 +201,9 @@ function isNonEmptyText(value: string | null): value is string {
 }
 
 function resolveDailyChangePct(input: PostCloseReviewInput): number | null {
-  const quoteChangePct = input.market.realtimeQuote?.ext?.change_pct;
-  if (quoteChangePct != null && Number.isFinite(quoteChangePct)) {
-    return quoteChangePct;
-  }
-
   const latestKline = input.market.klines[input.market.klines.length - 1];
-  if (!latestKline || !(latestKline.prev_close > 0)) {
-    return null;
-  }
-
-  return ((latestKline.close - latestKline.prev_close) / latestKline.prev_close) * 100;
+  return normalizeTickFlowChangePct(input.market.realtimeQuote?.ext?.change_pct)
+    ?? resolveTickFlowKlineChangePct(latestKline);
 }
 
 function formatSignedPct(value: number | null): string {
