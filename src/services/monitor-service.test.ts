@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { mock } from "node:test";
 
 import { MonitorService } from "./monitor-service.js";
 import { formatChinaDateTime } from "../utils/china-time.js";
@@ -435,6 +435,135 @@ test("alert claim prevents duplicate concurrent deliveries for the same symbol a
   }
 });
 
+test("runMonitorOnce keeps session notifications idempotent even if state sent markers are overwritten", {
+  concurrency: false,
+}, async (t) => {
+  mock.timers.enable({ apis: ["Date"], now: new Date("2026-04-17T09:32:00+08:00") });
+  t.after(() => {
+    mock.timers.reset();
+  });
+
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "tickflow-monitor-test-"));
+  const sentKeys = new Set<string>();
+  let sendCalls = 0;
+
+  try {
+    await writeFile(
+      path.join(tempRoot, "monitor-state.json"),
+      JSON.stringify({
+        running: true,
+        lastObservedPhase: "pre_market",
+        lastObservedPhaseDate: "2026-04-17",
+        sessionNotificationsDate: "2026-04-17",
+        sessionNotificationsSent: [],
+      }),
+      "utf-8",
+    );
+
+    const service = createMonitorService(tempRoot, {
+      watchlistService: {
+        async list() {
+          return [watchlistItem];
+        },
+      },
+      quoteService: {
+        async fetchQuotes() {
+          return [];
+        },
+      },
+      tradingCalendarService: {
+        async getTradingPhase() {
+          return "trading";
+        },
+      },
+      alertLogRepository: {
+        async isSentThisSession(symbol: string, ruleName: string, sessionKey: string) {
+          return sentKeys.has(`${symbol}:${ruleName}:${sessionKey}`);
+        },
+        async append(entry: { symbol: string; alert_date: string; rule_name: string }) {
+          sentKeys.add(`${entry.symbol}:${entry.rule_name}:${entry.alert_date}`);
+        },
+      },
+      alertService: {
+        async sendWithResult() {
+          sendCalls += 1;
+          return {
+            ok: true,
+            mediaAttempted: false,
+            mediaDelivered: false,
+            error: null,
+          };
+        },
+      },
+    });
+
+    const firstCount = await service.runMonitorOnce();
+
+    await writeFile(
+      path.join(tempRoot, "monitor-state.json"),
+      JSON.stringify({
+        running: true,
+        lastObservedPhase: "trading",
+        lastObservedPhaseDate: "2026-04-17",
+        sessionNotificationsDate: "2026-04-17",
+        sessionNotificationsSent: [],
+      }),
+      "utf-8",
+    );
+
+    const secondCount = await service.runMonitorOnce();
+
+    assert.equal(firstCount, 1);
+    assert.equal(secondCount, 0);
+    assert.equal(sendCalls, 1);
+    assert.deepEqual([...sentKeys], ["__system_session__:morning_start:2026-04-17_AM"]);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("getStatusReport excludes session boundary notifications from today's alert count", {
+  concurrency: false,
+}, async (t) => {
+  mock.timers.enable({ apis: ["Date"], now: new Date("2026-04-17T10:00:00+08:00") });
+  t.after(() => {
+    mock.timers.reset();
+  });
+
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "tickflow-monitor-test-"));
+
+  try {
+    const service = createMonitorService(tempRoot, {
+      alertLogRepository: {
+        async listByNaturalDate() {
+          return [
+            {
+              symbol: "__system_session__",
+              alert_date: "2026-04-17_AM",
+              rule_name: "morning_start",
+              message: "session",
+              triggered_at: "2026-04-17 09:32:00",
+            },
+            {
+              symbol: "000001.SZ",
+              alert_date: "2026-04-17_AM",
+              rule_name: "support_near",
+              message: "price",
+              triggered_at: "2026-04-17 09:35:00",
+            },
+          ];
+        },
+      },
+    });
+
+    const report = await service.getStatusReport();
+
+    assert.match(report, /今日告警: 1条/);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 function createMonitorService(
   baseDir: string,
   overrides: {
@@ -444,7 +573,7 @@ function createMonitorService(
     keyLevelsRepository?: Partial<{ getBySymbol(symbol: string): Promise<KeyLevels | null> }>;
     alertLogRepository?: Partial<{
       isSentThisSession(symbol: string, ruleName: string, sessionKey: string): Promise<boolean>;
-      append(entry: { rule_name: string }): Promise<void>;
+      append(entry: { symbol: string; alert_date: string; rule_name: string }): Promise<void>;
       listByNaturalDate(date: string): Promise<unknown[]>;
     }>;
     klinesRepository?: Partial<{ listBySymbol(symbol: string): Promise<Array<{ volume: number }>> }>;

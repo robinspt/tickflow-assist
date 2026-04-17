@@ -7,12 +7,14 @@ export class RealtimeMonitorWorker {
     private readonly intervalMs: number,
   ) {}
 
-  async runOnce(): Promise<number> {
+  async runOnce(
+    runtimeHost?: "plugin_service" | "fallback_process",
+  ): Promise<number> {
     const state = await this.monitorService.getState();
     if (!state.running) {
       return 0;
     }
-    return this.monitorService.runMonitorOnce();
+    return this.monitorService.runMonitorOnce(runtimeHost);
   }
 
   async runLoop(
@@ -20,9 +22,8 @@ export class RealtimeMonitorWorker {
     runtimeHost?: "plugin_service" | "fallback_process",
   ): Promise<void> {
     while (!signal?.aborted) {
-      await this.monitorService.recordHeartbeat(runtimeHost);
       try {
-        await this.runOnce();
+        await this.runOnce(runtimeHost);
       } catch (error) {
         await this.monitorService.recordLoopError(error);
       }

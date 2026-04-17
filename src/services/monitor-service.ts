@@ -46,6 +46,7 @@ const DEFAULT_STATE: MonitorState = {
 const INTRADAY_PERIOD = "1m";
 const MONITOR_RUN_LOCK_MIN_STALE_MS = 90_000;
 const ALERT_CLAIM_MIN_STALE_MS = 90_000;
+const SYSTEM_SESSION_ALERT_SYMBOL = "__system_session__";
 
 export class MonitorService {
   constructor(
@@ -209,13 +210,16 @@ export class MonitorService {
     return lines.join("\n");
   }
 
-  async runMonitorOnce(): Promise<number> {
+  async runMonitorOnce(
+    runtimeHost?: "plugin_service" | "fallback_process",
+  ): Promise<number> {
     const runLease = await this.tryAcquireRunLease();
     if (!runLease) {
       return 0;
     }
 
     try {
+      await this.recordHeartbeat(runtimeHost);
       await this.alertMediaService.maybeCleanupExpired();
       const phase = await this.tradingCalendarService.getTradingPhase();
       let alertCount = await this.maybeSendSessionNotification(phase);
@@ -296,15 +300,21 @@ export class MonitorService {
     }
 
     const watchlistCount = (await this.watchlistService.list()).length;
-    const ok = await this.alertService.send(
-      this.alertService.formatSystemNotification(event.title, [
-        `时间: ${now}`,
-        `阶段: ${event.phaseText}`,
-        `关注列表: ${watchlistCount}只`,
-      ]),
-    );
+    const message = this.alertService.formatSystemNotification(event.title, [
+      `时间: ${now}`,
+      `阶段: ${event.phaseText}`,
+      `关注列表: ${watchlistCount}只`,
+    ]);
+    const ok = await this.trySendAlert(SYSTEM_SESSION_ALERT_SYMBOL, event.id, message);
 
-    if (ok) {
+    if (
+      ok
+      || await this.alertLogRepository.isSentThisSession(
+        SYSTEM_SESSION_ALERT_SYMBOL,
+        event.id,
+        getSessionKey(),
+      )
+    ) {
       nextState.sessionNotificationsSent.push(event.id);
     }
 
@@ -361,7 +371,8 @@ export class MonitorService {
 
   private async buildAlertLine(): Promise<string> {
     const today = formatChinaDateTime().slice(0, 10);
-    const alerts = await this.alertLogRepository.listByNaturalDate(today);
+    const alerts = (await this.alertLogRepository.listByNaturalDate(today))
+      .filter((entry) => entry.symbol !== SYSTEM_SESSION_ALERT_SYMBOL);
     if (alerts.length === 0) {
       return "今日告警: 无";
     }
