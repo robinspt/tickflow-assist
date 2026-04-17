@@ -964,7 +964,10 @@ function resolveSessionNotification(
     !hasSent("morning_start")
     && currentPhase === "trading"
     && hhmm <= "11:30"
-    && ((previousPhase === "pre_market") || isWithinWindow(hhmm, "09:30", "09:40"))
+    && (
+      (previousPhase === "pre_market")
+      || (previousPhase !== "trading" && isWithinWindow(hhmm, "09:30", "09:40"))
+    )
   ) {
     return {
       id: "morning_start",
@@ -976,7 +979,10 @@ function resolveSessionNotification(
   if (
     !hasSent("morning_end")
     && currentPhase === "lunch_break"
-    && ((previousPhase === "trading") || isWithinWindow(hhmm, "11:30", "11:40"))
+    && (
+      (previousPhase === "trading")
+      || (previousPhase !== "lunch_break" && isWithinWindow(hhmm, "11:30", "11:40"))
+    )
   ) {
     return {
       id: "morning_end",
@@ -989,7 +995,10 @@ function resolveSessionNotification(
     !hasSent("afternoon_start")
     && currentPhase === "trading"
     && hhmm >= "13:00"
-    && ((previousPhase === "lunch_break") || isWithinWindow(hhmm, "13:00", "13:10"))
+    && (
+      (previousPhase === "lunch_break")
+      || (previousPhase !== "trading" && isWithinWindow(hhmm, "13:00", "13:10"))
+    )
   ) {
     return {
       id: "afternoon_start",
@@ -1001,7 +1010,10 @@ function resolveSessionNotification(
   if (
     !hasSent("day_end")
     && currentPhase === "closed"
-    && ((previousPhase === "trading") || isWithinWindow(hhmm, "15:00", "15:10"))
+    && (
+      (previousPhase === "trading")
+      || (previousPhase !== "closed" && isWithinWindow(hhmm, "15:00", "15:10"))
+    )
   ) {
     return {
       id: "day_end",

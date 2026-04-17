@@ -564,6 +564,58 @@ test("getStatusReport excludes session boundary notifications from today's alert
   }
 });
 
+test("runMonitorOnce does not replay morning end notification inside catch-up window when phase is already lunch break", {
+  concurrency: false,
+}, async (t) => {
+  mock.timers.enable({ apis: ["Date"], now: new Date("2026-04-17T11:35:00+08:00") });
+  t.after(() => {
+    mock.timers.reset();
+  });
+
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "tickflow-monitor-test-"));
+  let sendCalls = 0;
+
+  try {
+    await writeFile(
+      path.join(tempRoot, "monitor-state.json"),
+      JSON.stringify({
+        running: true,
+        lastObservedPhase: "lunch_break",
+        lastObservedPhaseDate: "2026-04-17",
+        sessionNotificationsDate: "2026-04-17",
+        sessionNotificationsSent: [],
+      }),
+      "utf-8",
+    );
+
+    const service = createMonitorService(tempRoot, {
+      tradingCalendarService: {
+        async getTradingPhase() {
+          return "lunch_break";
+        },
+      },
+      alertService: {
+        async sendWithResult() {
+          sendCalls += 1;
+          return {
+            ok: true,
+            mediaAttempted: false,
+            mediaDelivered: false,
+            error: null,
+          };
+        },
+      },
+    });
+
+    const count = await service.runMonitorOnce();
+
+    assert.equal(count, 0);
+    assert.equal(sendCalls, 0);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 function createMonitorService(
   baseDir: string,
   overrides: {
