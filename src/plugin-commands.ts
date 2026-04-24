@@ -44,6 +44,14 @@ function parseRequiredSymbol(args: string | undefined, usage: string): string {
   return symbol;
 }
 
+function parseRequiredKeyword(args: string | undefined, usage: string): string {
+  const keyword = (args ?? "").trim();
+  if (!keyword) {
+    throw new Error(`用法: ${usage}`);
+  }
+  return keyword;
+}
+
 async function runToolText(tool: LocalTool, rawInput?: unknown): Promise<string> {
   return tool.run({ rawInput });
 }
@@ -103,6 +111,7 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
   const updateAll = getTool(tools, "update_all");
   const dailyUpdateStatus = getTool(tools, "daily_update_status");
   const testAlert = getTool(tools, "test_alert");
+  const screenStockCandidates = getTool(tools, "screen_stock_candidates");
 
   const commands: RegisteredCommand[] = [
     {
@@ -256,6 +265,31 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       requireAuth: true,
       handler: async () => runCommandText(
         () => runToolText(testAlert),
+      ),
+    },
+    {
+      name: "ta_xuangu",
+      description:
+        "智能选股并生成小规模候选池，不经过 AI 对话。用法: /ta_xuangu <自然语言选股条件>",
+      acceptsArgs: true,
+      requireAuth: true,
+      handler: async ({ args }) => runCommandText(
+        () => runToolText(screenStockCandidates, {
+          keyword: parseRequiredKeyword(args, "/ta_xuangu <自然语言选股条件>"),
+        }),
+      ),
+    },
+    {
+      name: "ta_xuangu_llm",
+      description:
+        "智能选股并生成小规模候选池，再调用 LLM 做候选整理。用法: /ta_xuangu_llm <自然语言选股条件>",
+      acceptsArgs: true,
+      requireAuth: true,
+      handler: async ({ args }) => runCommandText(
+        () => runToolText(screenStockCandidates, {
+          keyword: parseRequiredKeyword(args, "/ta_xuangu_llm <自然语言选股条件>"),
+          summarize: true,
+        }),
       ),
     },
     {

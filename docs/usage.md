@@ -183,6 +183,8 @@ npm run tool -- backtest_key_levels '{"symbol":"002261","recentLimit":5}'
 npm run tool -- mx_search '{"query":"立讯精密最新研报","limit":5}'
 npm run tool -- mx_data '{"query":"东方财富最新价 涨跌幅","limit":20}'
 npm run tool -- mx_select_stock '{"keyword":"今日涨幅2%的股票","pageNo":1,"pageSize":20}'
+npm run tool -- screen_stock_candidates '{"keyword":"今日涨幅大于2%的A股","limit":3,"dailyKlineCount":20}'
+npm run tool -- screen_stock_candidates '{"keyword":"沪深A股中今日涨幅大于2%，市盈率小于30，市净率小于3，净利润同比增长为正，总市值小于300亿，属于半导体、人工智能或机器人相关板块的股票","limit":3,"dailyKlineCount":10,"summarize":true}'
 npm run tool -- list_eastmoney_watchlist
 npm run tool -- sync_eastmoney_watchlist
 npm run tool -- push_eastmoney_watchlist '{"symbol":"002261"}'
@@ -228,6 +230,8 @@ npm run daily-update-loop
 | 财务面（非 Expert / TickFlow 完整财务失败） | 回退到 `mx_select_stock` 的 lite 指标链路；可用 `mx_data` 单独查询官方行情、财务、资金流等数据 |
 | 财务面仍不可用 | 财务子任务返回降级结果，但综合分析继续执行 |
 | 资讯面不可用 | 资讯子任务返回降级结果，但综合分析继续执行 |
+| 智能选股联动 | `screen_stock_candidates` 默认只取 3 只候选，硬上限 8 只；默认补 TickFlow 行情与少量日K，分钟K仅 `Pro` / `Expert` 且默认关闭，完整财务仅 `Expert` 且默认关闭 |
+| 智能选股 Slash Command | `/ta_xuangu <自然语言选股条件>` 生成结构化候选池；`/ta_xuangu_llm <自然语言选股条件>` 在候选池后追加 LLM 整理 |
 | 分钟 K 保留策略 | `analyze` / `update_all` 会保留近 30 个交易日；单独执行 `fetch_intraday_klines` 会保留近 10 个交易日 |
 
 ### 后台运行规则

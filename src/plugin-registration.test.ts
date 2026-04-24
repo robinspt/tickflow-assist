@@ -200,6 +200,7 @@ test("plugin registration marks state-changing tools as optional", () => {
     "mx_search",
     "mx_select_stock",
     "query_database",
+    "screen_stock_candidates",
     "view_analysis",
   ]) {
     assert.equal(optionality.get(toolName), false, `${toolName} should remain required`);
@@ -216,6 +217,14 @@ test("plugin registration marks state-changing tools as optional", () => {
   assert.ok(
     registeredCommands.some((command) => command.name === "ta_flashstatus"),
     "flash status command should be registered",
+  );
+  assert.ok(
+    registeredCommands.some((command) => command.name === "ta_xuangu"),
+    "smart screening command should be registered",
+  );
+  assert.ok(
+    registeredCommands.some((command) => command.name === "ta_xuangu_llm"),
+    "LLM smart screening command should be registered",
   );
   assert.ok(
     hookEvents.includes("before_prompt_build"),

@@ -76,6 +76,7 @@ import { refreshWatchlistNamesTool } from "./tools/refresh-watchlist-names.tool.
 import { refreshWatchlistProfilesTool } from "./tools/refresh-watchlist-profiles.tool.js";
 import { queryDatabaseTool } from "./tools/query-database.tool.js";
 import { removeStockTool } from "./tools/remove-stock.tool.js";
+import { screenStockCandidatesTool } from "./tools/screen-stock-candidates.tool.js";
 import { startDailyUpdateTool } from "./tools/start-daily-update.tool.js";
 import { startMonitorTool } from "./tools/start-monitor.tool.js";
 import { stopDailyUpdateTool } from "./tools/stop-daily-update.tool.js";
@@ -387,6 +388,15 @@ export function createAppContext(
       refreshWatchlistProfilesTool(config.tickflowApiKeyLevel, watchlistService),
       removeEastmoneyWatchlistTool(mxApiService),
       removeStockTool(watchlistService),
+      screenStockCandidatesTool(
+        config.tickflowApiKeyLevel,
+        mxApiService,
+        quoteService,
+        klineService,
+        financialService,
+        watchlistService,
+        analysisService,
+      ),
       startDailyUpdateTool(dailyUpdateWorker, config, runtime.configSource, runtime),
       startMonitorTool(monitorService, runtime),
       syncEastmoneyWatchlistTool(mxApiService, watchlistService),
