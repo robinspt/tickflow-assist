@@ -268,26 +268,26 @@ export function registerPluginCommands(api: PluginApi, tools: LocalTool[], app: 
       ),
     },
     {
-      name: "ta_xuangu",
+      name: "ta_screenstocks",
       description:
-        "智能选股并生成小规模候选池，不经过 AI 对话。用法: /ta_xuangu <自然语言选股条件>",
+        "智能选股并生成小规模候选池，不经过 AI 对话。用法: /ta_screenstocks <自然语言选股条件>",
       acceptsArgs: true,
       requireAuth: true,
       handler: async ({ args }) => runCommandText(
         () => runToolText(screenStockCandidates, {
-          keyword: parseRequiredKeyword(args, "/ta_xuangu <自然语言选股条件>"),
+          keyword: parseRequiredKeyword(args, "/ta_screenstocks <自然语言选股条件>"),
         }),
       ),
     },
     {
-      name: "ta_xuangu_llm",
+      name: "ta_screenstocks_llm",
       description:
-        "智能选股并生成小规模候选池，再调用 LLM 做候选整理。用法: /ta_xuangu_llm <自然语言选股条件>",
+        "智能选股并生成小规模候选池，再调用 LLM 做候选整理。用法: /ta_screenstocks_llm <自然语言选股条件>",
       acceptsArgs: true,
       requireAuth: true,
       handler: async ({ args }) => runCommandText(
         () => runToolText(screenStockCandidates, {
-          keyword: parseRequiredKeyword(args, "/ta_xuangu_llm <自然语言选股条件>"),
+          keyword: parseRequiredKeyword(args, "/ta_screenstocks_llm <自然语言选股条件>"),
           summarize: true,
         }),
       ),

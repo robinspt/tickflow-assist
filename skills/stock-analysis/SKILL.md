@@ -100,7 +100,7 @@ metadata: {"openclaw":{"skillKey":"stock_analysis","always":true,"primaryEnv":"T
 - 对官方数据查询类问题，包括实时行情、历史行情、财务指标、主力资金、估值、公司简介、主营业务、股东、高管、板块 / 指数数据，优先使用 `mx_data`；如果问题是在问“发生了什么 / 有什么新闻 / 如何解读事件”，才使用 `mx_search`。
 - 对自然语言选股、板块成分股、条件筛选、候选池推荐等任务，优先使用 `mx_select_stock`；若问题本质是“找哪些标的符合条件”，不要误用 `mx_search`。
 - 对“选股 + 初步补充数据 / 候选池 / 对比看看”这类任务，优先使用 `screen_stock_candidates`，不要对大量候选逐只调用 `analyze`。该工具默认只补少量候选：候选默认 3 只、硬上限 8 只；分钟K仅 Pro / Expert 可用且默认关闭；TickFlow 完整财务仅 Expert 可用且默认关闭。
-- `screen_stock_candidates` 默认不调用 LLM；只有用户明确要求“LLM整理 / 总结 / 排优先级”或 Slash Command 使用 `/ta_xuangu_llm` 时，才传 `summarize=true`。
+- `screen_stock_candidates` 默认不调用 LLM；只有用户明确要求“LLM整理 / 总结 / 排优先级”或 Slash Command 使用 `/ta_screenstocks_llm` 时，才传 `summarize=true`。
 - 用户在“添加自选”意图中提到的“`N`天”对应 `add_stock.count`（或 `klineCount`），例如“添加 002261 成本 34.15 并获取 120 天日K”应调用 `add_stock`，其中 `count=120`。若用户未提供成本价但明确要求拉取 `N` 天日K，可只传 `symbol` 与 `count`。
 - 用户询问 TickFlow / 自选股 的日更状态时，必须调用 `daily_update_status`，不要把它解释成其他 crontab、系统任务或无关插件的定时更新。
 - 如果当前会话没有暴露对应插件工具，应直接说明当前技能暂不可用。

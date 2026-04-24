@@ -219,11 +219,11 @@ test("plugin registration marks state-changing tools as optional", () => {
     "flash status command should be registered",
   );
   assert.ok(
-    registeredCommands.some((command) => command.name === "ta_xuangu"),
+    registeredCommands.some((command) => command.name === "ta_screenstocks"),
     "smart screening command should be registered",
   );
   assert.ok(
-    registeredCommands.some((command) => command.name === "ta_xuangu_llm"),
+    registeredCommands.some((command) => command.name === "ta_screenstocks_llm"),
     "LLM smart screening command should be registered",
   );
   assert.ok(
