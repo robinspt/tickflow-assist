@@ -5,7 +5,7 @@ metadata: {"openclaw":{"skillKey":"stock_analysis","always":true,"primaryEnv":"T
 ---
 # 股票分析与监控
 
-这是 TickFlow Assist 插件内置的技能，用于通过插件工具完成 A 股自选股管理、日线更新、分钟K抓取、技术分析、关键价位回测、实时监控、定时日更、结果查看与告警测试。
+这是 TickFlow Assist 插件内置的技能，用于通过插件工具完成 A 股自选股管理、东方财富自选同步、日线更新、分钟K抓取、技术分析、关键价位回测、实时监控、定时日更、结果查看与告警测试。
 运行前需要提供 TickFlow / LLM 等凭证；这些值既可以来自 `plugins.entries["tickflow-assist"].config`，也可以来自文档约定的环境变量 fallback，不要求必须明文写在插件配置里。
 
 此技能随插件加载，不需要手动复制到 workspace。
@@ -15,6 +15,10 @@ metadata: {"openclaw":{"skillKey":"stock_analysis","always":true,"primaryEnv":"T
 适用场景：
 - 添加或删除自选股
 - 查看自选列表
+- 查看东方财富自选股列表
+- 从东方财富同步自选股到本地关注列表
+- 将本地关注列表推送到东方财富自选
+- 从东方财富自选中删除股票
 - 刷新自选股名称
 - 拉取单只股票的 K 线数据
 - 拉取单只股票的分钟 K 线数据
@@ -32,6 +36,10 @@ metadata: {"openclaw":{"skillKey":"stock_analysis","always":true,"primaryEnv":"T
 - “添加自选”、“加入观察”、“加股票” -> `add_stock`
 - “删除自选”、“移除股票”、“删掉这只股票” -> `remove_stock`
 - “查看自选”、“自选列表” -> `list_watchlist`
+- “查看东方财富自选”、“妙想自选列表”、“东财自选列表” -> `list_eastmoney_watchlist`
+- “从东方财富同步自选”、“导入东财自选”、“同步妙想自选到本地” -> `sync_eastmoney_watchlist`
+- “把本地自选添加到东方财富”、“推送本地自选到东财”、“同步本插件自选到东方财富” -> `push_eastmoney_watchlist`
+- “删除东方财富自选”、“从东财自选删除”、“移除妙想自选” -> `remove_eastmoney_watchlist`
 - “刷新股票名称”、“刷新名称” -> `refresh_watchlist_names`
 - “拉 K 线”、“更新 K 线”、“获取日线” -> `fetch_klines`
 - “获取分钟K”、“拉取分钟线”、“抓分时K” -> `fetch_intraday_klines`
@@ -53,17 +61,27 @@ metadata: {"openclaw":{"skillKey":"stock_analysis","always":true,"primaryEnv":"T
 
 参数理解规则：
 - 对“添加自选 / 删除自选 / 查看自选 / 监控状态 / 日更状态”这类直接型意图，如果用户已经给出足够参数，应直接调用对应插件工具。
+- 普通“添加自选 / 删除自选 / 查看自选”默认指 TickFlow Assist 本地关注列表；只有用户明确提到“东方财富 / 东财 / 妙想 / MX”时，才调用 `list_eastmoney_watchlist`、`sync_eastmoney_watchlist`、`push_eastmoney_watchlist` 或 `remove_eastmoney_watchlist`。
 - 当用户消息中已经包含足够参数时，不要额外补充假设：
   - “添加自选 601872” -> 直接调用 `add_stock`
   - “添加自选 601872 成本 5.32” -> 直接调用 `add_stock`
   - “删除自选 601872” -> 直接调用 `remove_stock`
   - “自选列表” -> 直接调用 `list_watchlist`
+  - “查看东方财富自选” -> 直接调用 `list_eastmoney_watchlist`
+  - “同步东方财富自选到本地” -> 直接调用 `sync_eastmoney_watchlist`
+  - “把本地自选全部推送到东方财富” -> 直接调用 `push_eastmoney_watchlist`
+  - “从东方财富自选删除 601872” -> 直接调用 `remove_eastmoney_watchlist`
   - “查立讯精密最新研报” -> 直接调用 `mx_search`
   - “找今天涨幅 2% 的股票” -> 直接调用 `mx_select_stock`
 - 如果工具必需参数缺失，只补充缺失项本身。
 - 股票代码按用户原始输入提取，例如 `002261`。
 - 成本价对应 `costPrice`；若用户未提供成本价，可以省略该字段。
 - `add_stock` 默认会在添加成功后自动拉取日K并计算指标。
+- `list_eastmoney_watchlist`、`sync_eastmoney_watchlist`、`push_eastmoney_watchlist`、`remove_eastmoney_watchlist` 使用东方财富妙想自选管理接口，复用 `mxSearchApiKey` / `MX_APIKEY`，每日额度为 200 次。
+- `list_eastmoney_watchlist` 和 `sync_eastmoney_watchlist` 各消耗 1 次妙想自选额度；`remove_eastmoney_watchlist` 每只股票消耗 1 次；`push_eastmoney_watchlist` 每推送 1 只本地关注股消耗 1 次。
+- `sync_eastmoney_watchlist` 默认只把东方财富自选导入本地关注列表，不拉取日K，也不刷新行业/概念；如需要行业/概念，后续调用 `refresh_watchlist_profiles`。
+- `push_eastmoney_watchlist` 只把本地已有关注股添加到东方财富自选；如果用户指定股票但本地关注列表里没有，应先用 `add_stock` 加入本地，再推送。
+- `remove_eastmoney_watchlist` 只删除东方财富自选，不删除 TickFlow Assist 本地关注；如果用户同时要求本地也删除，应再调用 `remove_stock`。
 - `analyze` 会读取本地日K和日线指标，临时补充当日分钟K、分钟指标、实时行情、最新财务数据与资讯检索结果，再走固定流水线综合分析；其中基本面部分在 `Expert` 级别下优先使用 TickFlow 完整财报，在非 `Expert` 级别下回退为 `mx_select_stock` 的 lite 指标拖底模式。
 - `view_analysis` 默认查看最近一次综合分析；如用户明确提到“技术面 / 基本面 / 资讯面 / 全部分析”，应传入 `profile=technical|financial|news|all`；如用户提到“最近 N 次”或“历史”，应同时传入 `limit=N`（或 `count=N`）。
 - `update_all` 除了更新日K和日线指标，也会同步更新当日分钟K；本地分钟K默认仅保留近 30 个交易日。
@@ -81,7 +99,7 @@ metadata: {"openclaw":{"skillKey":"stock_analysis","always":true,"primaryEnv":"T
 - 不要臆造股票代码、成本价、日期、阈值、分析结果或监控状态。
 
 输出规则：
-- 对 `add_stock`、`list_watchlist`、`start_monitor`、`stop_monitor`、`monitor_status`、`start_daily_update`、`stop_daily_update`、`daily_update_status`、`analyze`、`backtest_key_levels`、`view_analysis`、`fetch_klines`、`fetch_intraday_klines`、`mx_search`、`mx_select_stock` 和 `update_all`，调用工具后尽量原样输出返回文本。
+- 对 `add_stock`、`list_watchlist`、`list_eastmoney_watchlist`、`sync_eastmoney_watchlist`、`push_eastmoney_watchlist`、`remove_eastmoney_watchlist`、`start_monitor`、`stop_monitor`、`monitor_status`、`start_daily_update`、`stop_daily_update`、`daily_update_status`、`analyze`、`backtest_key_levels`、`view_analysis`、`fetch_klines`、`fetch_intraday_klines`、`mx_search`、`mx_select_stock` 和 `update_all`，调用工具后尽量原样输出返回文本。
 - 对 `daily_update_status` 必须完整原样输出，尤其不要省略 `状态`、`运行方式`、`配置来源`、`调度`、`执行情况` 与 `最近摘要`。
 - 不要改写、总结、翻译、重排、美化，也不要加表格、额外标题或解释性包装。
 - 除非工具明确返回错误，否则不要在工具结果前后添加追问、评论或推断字段。

@@ -64,7 +64,7 @@ plugins.entries["tickflow-assist"].config
 - 告警投递：`alertChannel`、`alertTarget`、`alertAccount`
 - 能力补充：`mxSearchApiKey`、`jin10ApiToken`
 
-其中，`mxSearchApiKey` 用于 `mx_search`、`mx_select_stock` 以及非 `Expert` 财务链路的 lite 补充；`jin10ApiToken` 用于 24 小时金十数据快讯监控；`jin10FlashNightAlert` 默认 `false`（开启夜间静默），设为 `true` 可恢复 24 小时快讯告警；`alertTarget`、`alertAccount` 建议在准备启用 `test_alert`、实时监控告警、金十数据快讯告警和定时通知前一并配好，避免配置不完整导致功能缺失。
+其中，`mxSearchApiKey` 用于 `mx_search`、`mx_select_stock`、东方财富自选同步以及非 `Expert` 财务链路的 lite 补充；东方财富自选管理接口每日额度 200 次；`jin10ApiToken` 用于 24 小时金十数据快讯监控；`jin10FlashNightAlert` 默认 `false`（开启夜间静默），设为 `true` 可恢复 24 小时快讯告警；`alertTarget`、`alertAccount` 建议在准备启用 `test_alert`、实时监控告警、金十数据快讯告警和定时通知前一并配好，避免配置不完整导致功能缺失。
 如果你使用环境变量，运行时支持以下回退：
 
 - `tickflowApiUrl`：`TICKFLOW_ASSIST_TICKFLOW_API_URL` / `TICKFLOW_API_URL`
@@ -80,7 +80,7 @@ plugins.entries["tickflow-assist"].config
 
 ## 功能
 
-- 自选股管理、日 K / 分钟 K 抓取与指标计算
+- 自选股管理、东方财富自选同步、日 K / 分钟 K 抓取与指标计算
 - 技术面、财务面、资讯面的综合分析
 - 实时监控、定时日更、收盘后复盘
 - 金十数据 24 小时快讯监控与自选关联提醒
@@ -96,7 +96,7 @@ plugins.entries["tickflow-assist"].config
 
 - [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE)：`Free` 可用日线与实时行情；`Starter` 起可用标的池，插件会用来做申万行业映射与申万 3 级同业表现；`Pro` 起可用分钟K；`Expert` 才走 TickFlow 财务数据，非 `Expert` 默认回退妙想 lite。
 - [金十数据 MCP](https://mcp.jin10.com/app/)：可选，用于 24 小时快讯流接入、自选关联筛选与事件驱动告警。独立的金十数据 Skill 详见 [OpenClaw Skill](https://clawhub.ai/robinspt/jin10) / [Hermes Skill](https://github.com/robinspt/hermes-skills)。
-- [东方财富妙想 Skills](https://marketing.dfcfs.com/views/finskillshub/)：可选，用于 `mx_search`、`mx_select_stock` 与非 `Expert` 财务链路的 lite 补充。
+- [东方财富妙想 Skills](https://marketing.dfcfs.com/views/finskillshub/)：可选，用于 `mx_search`、`mx_select_stock`、东方财富自选同步与非 `Expert` 财务链路的 lite 补充。
 
 ## 仓库
 

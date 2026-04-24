@@ -13,6 +13,11 @@ interface GetWatchlistItemOptions {
   refreshConceptBoards?: boolean;
 }
 
+interface AddWatchlistOptions {
+  enrichProfile?: boolean;
+  name?: string;
+}
+
 export interface AddWatchlistResult {
   item: WatchlistItem;
   profileError: string | null;
@@ -50,11 +55,15 @@ export class WatchlistService {
     private readonly watchlistProfileService: WatchlistProfileService | null = null,
   ) {}
 
-  async add(symbolInput: string, costPrice: number | null = null): Promise<AddWatchlistResult> {
+  async add(
+    symbolInput: string,
+    costPrice: number | null = null,
+    options: AddWatchlistOptions = {},
+  ): Promise<AddWatchlistResult> {
     const symbol = normalizeSymbol(symbolInput);
     const existing = await this.getBySymbol(symbol);
     const normalizedCostPrice = normalizeCostPrice(costPrice);
-    const name = await this.instrumentService.resolveName(symbol);
+    const name = normalizeOptionalName(options.name) ?? await this.instrumentService.resolveName(symbol);
     const addedAt = formatChinaDateTime();
     const fallbackProfile = {
       sector: existing?.sector ?? null,
@@ -66,7 +75,8 @@ export class WatchlistService {
     let profile = fallbackProfile;
     let profileError: string | null = null;
 
-    if (this.watchlistProfileService) {
+    const enrichProfile = options.enrichProfile ?? true;
+    if (enrichProfile && this.watchlistProfileService) {
       try {
         const resolved = await this.watchlistProfileService.resolve(symbol, name, addedAt);
         profile = {
@@ -269,6 +279,11 @@ function sanitizeName(name: string, symbol: string): string {
     return symbol;
   }
   return trimmed;
+}
+
+function normalizeOptionalName(value: string | undefined): string | null {
+  const normalized = sanitizeName(String(value ?? ""), "");
+  return normalized || null;
 }
 
 function toErrorMessage(error: unknown): string {

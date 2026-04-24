@@ -1,10 +1,17 @@
 import { formatConfigEnvFallback } from "../config/env.js";
 import type { MxSearchDocument, MxSearchSecurity } from "../types/mx-search.js";
 import type {
+  MxSelfSelectColumn,
+  MxSelfSelectManageResult,
+  MxSelfSelectResult,
+  MxSelfSelectStock,
+} from "../types/mx-self-select.js";
+import type {
   MxSelectStockColumn,
   MxSelectStockCondition,
   MxSelectStockResult,
 } from "../types/mx-select-stock.js";
+import { normalizeSymbol } from "../utils/symbol.js";
 
 interface MxSearchResponseError {
   code?: string;
@@ -28,12 +35,12 @@ export class MxApiService {
     return Boolean(this.apiBaseUrl.trim() && this.apiKey.trim());
   }
 
-  getConfigurationError(): string | null {
+  getConfigurationError(featureName = "mx_search"): string | null {
     if (!this.apiBaseUrl.trim()) {
-      return `mx_search 未配置接口地址，请设置 mxSearchApiUrl 或环境变量 ${formatConfigEnvFallback("mxSearchApiUrl")}`;
+      return `${featureName} 未配置接口地址，请设置 mxSearchApiUrl 或环境变量 ${formatConfigEnvFallback("mxSearchApiUrl")}`;
     }
     if (!this.apiKey.trim()) {
-      return `mx_search 未配置 API Key，请设置插件配置 mxSearchApiKey 或环境变量 ${formatConfigEnvFallback("mxSearchApiKey")}`;
+      return `${featureName} 未配置 API Key，请设置插件配置 mxSearchApiKey 或环境变量 ${formatConfigEnvFallback("mxSearchApiKey")}`;
     }
     return null;
   }
@@ -68,8 +75,37 @@ export class MxApiService {
     return normalizeMxSelectStockResult(json);
   }
 
+  async getSelfSelectWatchlist(): Promise<MxSelfSelectResult> {
+    const json = await this.postJson("self-select/get", {}, "mx_zixuan");
+    const apiError = extractApiError(json);
+    if (apiError) {
+      throw new MxSearchServiceError(
+        `mx_zixuan 返回错误: ${apiError.code ?? "UNKNOWN"} ${apiError.message ?? ""}`.trim(),
+      );
+    }
+
+    return normalizeMxSelfSelectResult(json);
+  }
+
+  async manageSelfSelect(query: string): Promise<MxSelfSelectManageResult> {
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) {
+      throw new MxSearchServiceError("mx_zixuan requires query");
+    }
+
+    const json = await this.postJson("self-select/manage", { query: normalizedQuery }, "mx_zixuan");
+    const apiError = extractApiError(json);
+    if (apiError) {
+      throw new MxSearchServiceError(
+        `mx_zixuan 返回错误: ${apiError.code ?? "UNKNOWN"} ${apiError.message ?? ""}`.trim(),
+      );
+    }
+
+    return normalizeMxSelfSelectManageResult(json, normalizedQuery);
+  }
+
   private async postJson(endpoint: string, body: Record<string, unknown>, toolName: string): Promise<unknown> {
-    const configError = this.getConfigurationError();
+    const configError = this.getConfigurationError(toolName);
     if (configError) {
       throw new MxSearchServiceError(configError);
     }
@@ -99,7 +135,10 @@ export class MxSearchService extends MxApiService {}
 function buildMxEndpointUrl(baseUrl: string, endpoint: string): string {
   const trimmedBase = baseUrl.trim().replace(/\/+$/, "");
   const normalizedEndpoint = endpoint.replace(/^\/+/, "");
-  const normalizedBase = trimmedBase.replace(/\/(news-search|stock-screen)$/i, "");
+  const normalizedBase = trimmedBase.replace(
+    /\/(news-search|stock-screen|self-select\/get|self-select\/manage)$/i,
+    "",
+  );
 
   if (trimmedBase.endsWith(`/${normalizedEndpoint}`)) {
     return trimmedBase;
@@ -286,6 +325,116 @@ function normalizeMxSelectStockResult(value: unknown): MxSelectStockResult {
           }
         : null),
   };
+}
+
+function normalizeMxSelfSelectResult(value: unknown): MxSelfSelectResult {
+  const root = asRecord(value);
+  const data = asRecord(root.data);
+  const nestedData = asRecord(data.data);
+  const allResults = asRecord(data.allResults ?? nestedData.allResults);
+  const result = asRecord(allResults.result ?? data.result ?? nestedData.result);
+  const rows = normalizeDataList(result.dataList ?? allResults.dataList ?? data.dataList ?? nestedData.dataList);
+
+  return {
+    status: toNullableNumber(root.status),
+    code: toNullableString(root.code) ?? toNullableString(allResults.code) ?? toNullableString(nestedData.responseCode),
+    message: toNullableString(root.message) ?? toNullableString(data.message) ?? toNullableString(data.msg),
+    columns: normalizeSelfSelectColumns(result.columns ?? allResults.columns ?? data.columns ?? nestedData.columns),
+    stocks: rows
+      .map((row) => normalizeSelfSelectStock(row))
+      .filter((item): item is MxSelfSelectStock => item != null),
+    raw: value,
+  };
+}
+
+function normalizeMxSelfSelectManageResult(value: unknown, query: string): MxSelfSelectManageResult {
+  const root = asRecord(value);
+  const data = asRecord(root.data);
+  const nestedData = asRecord(data.data);
+  const allResults = asRecord(data.allResults ?? nestedData.allResults);
+
+  return {
+    status: toNullableNumber(root.status),
+    code: toNullableString(root.code) ?? toNullableString(allResults.code) ?? toNullableString(nestedData.responseCode),
+    message:
+      toNullableString(root.message) ??
+      toNullableString(data.message) ??
+      toNullableString(data.msg) ??
+      toNullableString(allResults.message) ??
+      "已完成",
+    query,
+    raw: value,
+  };
+}
+
+function normalizeSelfSelectColumns(value: unknown): MxSelfSelectColumn[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
+    .map((item) => ({
+      title: String(item.title ?? item.name ?? item.key ?? ""),
+      key: String(item.key ?? ""),
+    }))
+    .filter((item) => item.key);
+}
+
+function normalizeSelfSelectStock(value: Record<string, unknown>): MxSelfSelectStock | null {
+  const rawSymbol = pickFirstString(value, [
+    "SECURITY_CODE",
+    "SECUCODE",
+    "SECURITYCODE",
+    "secuCode",
+    "symbol",
+    "code",
+  ]) ?? null;
+  const symbol = normalizeSelfSelectSymbol(rawSymbol);
+  if (!symbol) {
+    return null;
+  }
+
+  return {
+    symbol,
+    rawSymbol,
+    name:
+      pickFirstString(value, [
+        "SECURITY_SHORT_NAME",
+        "SECURITY_NAME_ABBR",
+        "SECURITY_NAME",
+        "secuName",
+        "name",
+      ]) ?? symbol,
+    latestPrice: pickFirstCell(value, ["NEWEST_PRICE", "LATEST_PRICE", "price"]),
+    changePercent: pickFirstCell(value, ["CHG", "CHANGE_PERCENT", "pctChg"]),
+    changeAmount: pickFirstCell(value, ["PCHG", "CHANGE", "change"]),
+    turnoverRate: pickFirstCell(value, ["010000_TURNOVER_RATE", "TURNOVER_RATE", "turnoverRate"]),
+    volumeRatio: pickFirstCell(value, ["010000_LIANGBI", "VOLUME_RATIO", "volumeRatio"]),
+    raw: value,
+  };
+}
+
+function normalizeSelfSelectSymbol(value: string | null): string | null {
+  const text = String(value ?? "").trim().toUpperCase();
+  if (!text) {
+    return null;
+  }
+  const direct = text.match(/^\d{6}\.(SH|SZ|BJ)$/);
+  if (direct) {
+    return text;
+  }
+  const digits = text.match(/\d{6}/)?.[0];
+  return digits ? normalizeSymbol(digits) : null;
+}
+
+function pickFirstCell(value: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const candidate = value[key];
+    if (candidate != null && String(candidate).trim()) {
+      return String(candidate).trim();
+    }
+  }
+  return null;
 }
 
 function normalizeColumns(value: unknown): MxSelectStockColumn[] {

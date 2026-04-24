@@ -168,7 +168,7 @@
       "mxSearchApiKey": {
         "type": "string",
         "default": "",
-        "description": "Configure this during setup if you want mx_search, mx_select_stock, and non-Expert financial fallback. Leave empty to use TICKFLOW_ASSIST_MX_SEARCH_API_KEY, MX_SEARCH_API_KEY, or MX_APIKEY."
+        "description": "Configure this during setup if you want mx_search, mx_select_stock, Eastmoney self-select sync, and non-Expert financial fallback. Leave empty to use TICKFLOW_ASSIST_MX_SEARCH_API_KEY, MX_SEARCH_API_KEY, or MX_APIKEY."
       },
       "jin10McpUrl": {
         "type": "string",
@@ -283,7 +283,7 @@
     },
     "mxSearchApiKey": {
       "label": "MX Search API Key",
-      "help": "Configure this during setup if you want mx_search, mx_select_stock, and lite financial fallback, or use TICKFLOW_ASSIST_MX_SEARCH_API_KEY / MX_SEARCH_API_KEY / MX_APIKEY.",
+      "help": "Configure this during setup if you want mx_search, mx_select_stock, Eastmoney self-select sync, and lite financial fallback, or use TICKFLOW_ASSIST_MX_SEARCH_API_KEY / MX_SEARCH_API_KEY / MX_APIKEY.",
       "sensitive": true
     },
     "jin10McpUrl": {

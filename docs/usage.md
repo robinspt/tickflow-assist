@@ -23,6 +23,10 @@
 | `查看关注列表` | 查看当前自选、名称与成本价 |
 | `删除 002261` | 从关注列表移除股票 |
 | `刷新自选股名称` | 批量刷新关注股票名称 |
+| `查看东方财富自选` | 读取东方财富通行证账户下的自选股 |
+| `同步东方财富自选到本地` | 将东方财富自选导入 TickFlow Assist 本地关注列表 |
+| `把本地自选全部推送到东方财富` | 将本地关注列表添加到东方财富自选 |
+| `从东方财富自选删除 002261` | 只删除东方财富自选，不删除本地关注 |
 
 ### 数据获取与检索
 
@@ -178,6 +182,10 @@ npm run tool -- view_analysis '{"symbol":"002261","profile":"technical","limit":
 npm run tool -- backtest_key_levels '{"symbol":"002261","recentLimit":5}'
 npm run tool -- mx_search '{"query":"立讯精密最新研报","limit":5}'
 npm run tool -- mx_select_stock '{"keyword":"今日涨幅2%的股票","pageNo":1,"pageSize":20}'
+npm run tool -- list_eastmoney_watchlist
+npm run tool -- sync_eastmoney_watchlist
+npm run tool -- push_eastmoney_watchlist '{"symbol":"002261"}'
+npm run tool -- remove_eastmoney_watchlist '{"symbol":"002261"}'
 ```
 
 后台与循环：
@@ -249,4 +257,5 @@ npm run daily-update-loop
 ## 7. 高优先级注意事项
 
 - 正式插件读取 `~/.openclaw/openclaw.json`；CLI 与本地 loop 读取 `local.config.json.plugin`，两者不会自动同步。
-- 未配置 `mxSearchApiKey` 时，`mx_search` / `mx_select_stock` 不可用，非 Expert 财务链路的 lite 回退也会失效。
+- 未配置 `mxSearchApiKey` 时，`mx_search` / `mx_select_stock` / 东方财富自选同步不可用，非 Expert 财务链路的 lite 回退也会失效。
+- 东方财富自选管理接口每日额度 200 次：查看/从东方财富同步各消耗 1 次，推送本地自选按股票数量逐只消耗，删除每只消耗 1 次。

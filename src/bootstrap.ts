@@ -62,6 +62,12 @@ import { fetchFinancialsTool } from "./tools/fetch-financials.tool.js";
 import { flashMonitorStatusTool } from "./tools/flash-monitor-status.tool.js";
 import { mxSearchTool } from "./tools/mx-search.tool.js";
 import { mxSelectStockTool } from "./tools/mx-select-stock.tool.js";
+import {
+  listEastmoneyWatchlistTool,
+  pushEastmoneyWatchlistTool,
+  removeEastmoneyWatchlistTool,
+  syncEastmoneyWatchlistTool,
+} from "./tools/eastmoney-watchlist.tool.js";
 import { listWatchlistTool } from "./tools/list-watchlist.tool.js";
 import { dailyUpdateStatusTool } from "./tools/daily-update-status.tool.js";
 import { monitorStatusTool } from "./tools/monitor-status.tool.js";
@@ -369,15 +375,19 @@ export function createAppContext(
       flashMonitorStatusTool(jin10FlashMonitorService),
       fetchKlinesTool(klineService, klinesRepository, indicatorService, indicatorsRepository),
       listWatchlistTool(watchlistService),
+      listEastmoneyWatchlistTool(mxApiService),
       monitorStatusTool(monitorService),
       mxSearchTool(mxApiService),
       mxSelectStockTool(mxApiService),
+      pushEastmoneyWatchlistTool(mxApiService, watchlistService),
       queryDatabaseTool(database),
       refreshWatchlistNamesTool(watchlistService),
       refreshWatchlistProfilesTool(config.tickflowApiKeyLevel, watchlistService),
+      removeEastmoneyWatchlistTool(mxApiService),
       removeStockTool(watchlistService),
       startDailyUpdateTool(dailyUpdateWorker, config, runtime.configSource, runtime),
       startMonitorTool(monitorService, runtime),
+      syncEastmoneyWatchlistTool(mxApiService, watchlistService),
       stopDailyUpdateTool(dailyUpdateWorker, runtime),
       stopMonitorTool(monitorService, runtime),
       testAlertTool(alertService, alertMediaService, runtime.configSource),

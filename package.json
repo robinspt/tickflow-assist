@@ -37,7 +37,7 @@
     "dev": "tsc -p tsconfig.json --watch",
     "prepack": "npm run build && node ./scripts/prepare-package-assets.mjs",
     "postpack": "node ./scripts/restore-package-assets.mjs",
-    "test": "npm run build && node --test dist/plugin-registration.test.js dist/tools/test-alert.tool.test.js dist/services/jin10-mcp-service.test.js dist/services/jin10-flash-monitor-service.test.js dist/services/pre-market-brief-service.test.js dist/services/monitor-service.test.js",
+    "test": "npm run build && node --test dist/plugin-registration.test.js dist/tools/test-alert.tool.test.js dist/tools/eastmoney-watchlist.tool.test.js dist/services/jin10-mcp-service.test.js dist/services/jin10-flash-monitor-service.test.js dist/services/pre-market-brief-service.test.js dist/services/monitor-service.test.js",
     "community-setup": "node dist/dev/tickflow-assist-cli.js configure-openclaw",
     "tool": "node dist/dev/run-tool.js",
     "monitor-loop": "node dist/dev/run-monitor-loop.js",
