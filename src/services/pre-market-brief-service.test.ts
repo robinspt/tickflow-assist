@@ -197,6 +197,87 @@ test("run falls back to extracted details when llm output only repeats titles", 
   assert.doesNotMatch(result.message, /• \[05:15\] 【金十数据整理：中东局势跟踪（4月15日）】/);
 });
 
+test("fallback separates macro news from watchlist-related cues", async () => {
+  const stored: Jin10FlashRecord[] = [];
+  const localWatchlist: WatchlistItem[] = [
+    {
+      symbol: "601608.SH",
+      name: "中信重工",
+      costPrice: 4.2,
+      addedAt: "2026-04-01 09:30:00",
+      sector: "专用设备",
+      themes: ["大模型", "人工智能"],
+      themeQuery: "中信重工 601608 所属行业 板块 题材 概念",
+      themeUpdatedAt: "2026-04-08 18:00:00",
+    },
+  ];
+
+  const service = new PreMarketBriefService(
+    {
+      async list() {
+        return localWatchlist;
+      },
+    } as never,
+    {
+      getConfigurationError() {
+        return null;
+      },
+      async listFlash(): Promise<Jin10FlashPage> {
+        return {
+          hasMore: false,
+          nextCursor: null,
+          items: [
+            makeFlashItem(
+              "金十数据整理：伊朗就美国利用中东五国领土领空提出抗议；伊朗外长表示美以是海湾不安全的根源。",
+              "2026-04-24T06:18:00+08:00",
+              "https://flash.example/geo",
+            ),
+            makeFlashItem(
+              [
+                "金十数据整理：AI产业要闻",
+                "1. 字节跳动发布3D生成大模型Seed3D 2.0。",
+                "2. 腾讯混元Hy3 preview发布并开源。",
+              ].join("\n"),
+              "2026-04-24T07:31:00+08:00",
+              "https://flash.example/ai",
+            ),
+          ],
+        };
+      },
+    } as never,
+    {
+      async saveAll(entries: Jin10FlashRecord[]) {
+        stored.push(...entries);
+        return {
+          added: entries.length,
+          skipped: 0,
+          addedKeys: entries.map((entry) => entry.flash_key),
+        };
+      },
+      async listByPublishedRange(startTs: number, endTs: number) {
+        return stored
+          .filter((entry) => entry.published_ts >= startTs && entry.published_ts <= endTs)
+          .sort((left, right) => left.published_ts - right.published_ts);
+      },
+    } as never,
+    {
+      isConfigured() {
+        return false;
+      },
+    } as never,
+  );
+
+  const result = await service.run(new Date("2026-04-24T09:21:00+08:00"));
+  const majorSection = result.message.split("**【🎯 自选相关】**")[0] ?? "";
+  const watchlistSection = result.message.split("**【🎯 自选相关】**")[1]?.split("**【💡 潜在机会】**")[0] ?? "";
+
+  assert.match(majorSection, /地缘与能源: 伊朗就美国利用中东五国领土领空提出抗议/);
+  assert.match(majorSection, /科技产业: 字节跳动发布3D生成大模型Seed3D 2\.0/);
+  assert.doesNotMatch(majorSection, /中信重工/);
+  assert.match(watchlistSection, /中信重工（601608\.SH）: 题材大模型: 字节跳动发布3D生成大模型Seed3D 2\.0/);
+  assert.doesNotMatch(watchlistSection, /伊朗就美国利用中东五国领土领空提出抗议/);
+});
+
 function makeFlashItem(content: string, time: string, url: string) {
   return {
     content,

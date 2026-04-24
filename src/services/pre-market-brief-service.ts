@@ -45,6 +45,86 @@ const RISK_KEYWORDS = [
   "制裁",
   "关税",
 ];
+const FALLBACK_MAJOR_NEWS_LIMIT = 5;
+const FALLBACK_TOPIC_KEY_POINT_LIMIT = 6;
+
+interface TopicRule {
+  category: string;
+  keywords: string[];
+  score: number;
+  macroImplication: string;
+  opportunityImplication?: string;
+  riskImplication?: string;
+}
+
+const TOPIC_RULES: TopicRule[] = [
+  {
+    category: "地缘与能源",
+    keywords: [
+      "伊朗",
+      "以色列",
+      "中东",
+      "海湾",
+      "霍尔木兹",
+      "俄乌",
+      "俄罗斯",
+      "乌克兰",
+      "原油",
+      "石油",
+      "油轮",
+      "EIA",
+      "能源",
+      "侵略",
+      "制裁",
+      "开战",
+    ],
+    score: 8,
+    macroImplication: "地缘风险与能源价格预期可能影响开盘风险偏好",
+    riskImplication: "海外扰动容易传导到原油、航运、防务及周期品情绪",
+  },
+  {
+    category: "科技产业",
+    keywords: [
+      "AI",
+      "人工智能",
+      "大模型",
+      "算力",
+      "芯片",
+      "半导体",
+      "台积电",
+      "量子",
+      "机器人",
+      "开源",
+      "3D生成",
+    ],
+    score: 7,
+    macroImplication: "科技成长方向的产业催化可能影响题材活跃度",
+    opportunityImplication: "产业链、算力、应用和设备端是否出现扩散",
+    riskImplication: "高热度题材若只停留在消息刺激，开盘后容易高开分化",
+  },
+  {
+    category: "政策与支付互联",
+    keywords: ["政策", "微信支付", "二维码", "跨境", "互联互通", "试点", "监管", "关税"],
+    score: 6,
+    macroImplication: "政策或跨境互联线索可能改变相关行业预期",
+    opportunityImplication: "支付、出海、消费场景和平台生态是否获得资金确认",
+    riskImplication: "监管或外部政策变化可能压制相关板块估值与情绪",
+  },
+  {
+    category: "产业与订单",
+    keywords: ["订单", "中标", "业绩", "回购", "增持", "涨价", "并购", "并购重组", "发布", "恢复"],
+    score: 5,
+    macroImplication: "产业事件或公司行为可能提供结构性交易线索",
+    opportunityImplication: "订单、业绩、价格和资本运作线索是否带来板块联动",
+  },
+  {
+    category: "资金与宏观",
+    keywords: ["美联储", "利率", "美元", "人民币", "股市", "出口", "进口", "产量", "库存"],
+    score: 5,
+    macroImplication: "宏观和资金面变化可能影响开盘定价与风险偏好",
+    riskImplication: "宏观数据变化若与市场预期背离，可能造成高开低走或避险交易",
+  },
+];
 
 export interface PreMarketBriefRunResult {
   resultType: DailyUpdateResultType;
@@ -66,6 +146,15 @@ interface FlashMatchContext {
   headline: string;
   summary: string;
   keyPoints: string[];
+}
+
+interface FlashTopic {
+  context: FlashMatchContext;
+  text: string;
+  time: string;
+  rule: TopicRule;
+  score: number;
+  matchedItems: WatchlistItem[];
 }
 
 export class PreMarketBriefService {
@@ -250,13 +339,8 @@ function matchesPreMarketBrief(record: Jin10FlashRecord): boolean {
 function findMatchedItems(flash: Jin10FlashRecord, watchlist: WatchlistItem[]): WatchlistItem[] {
   const normalizedContent = normalizeText(flash.content);
   return watchlist.filter((item) => {
-    const directKeywords = [item.symbol, item.symbol.slice(0, 6), item.name];
-    const boardKeywords = [...extractSectorKeywords(item.sector), ...item.themes]
-      .map((keyword) => keyword.replace(/\s+/g, "").trim())
-      .filter((keyword) => keyword.length >= 2);
-    return [...directKeywords, ...boardKeywords]
-      .map((keyword) => normalizeText(keyword))
-      .some((keyword) => keyword && normalizedContent.includes(keyword));
+    return buildWatchlistKeywordEntries(item)
+      .some((entry) => normalizedContent.includes(entry.normalized));
   });
 }
 
@@ -272,73 +356,353 @@ function buildFlashMatchContext(flash: Jin10FlashRecord, watchlist: WatchlistIte
 }
 
 function buildFallbackSummary(matchContexts: FlashMatchContext[]): string {
-  const opportunityContexts = matchContexts.filter((context) => containsAnyKeyword(context.flash.content, OPPORTUNITY_KEYWORDS));
-  const riskContexts = matchContexts.filter((context) => containsAnyKeyword(context.flash.content, RISK_KEYWORDS));
+  const topics = buildFlashTopics(matchContexts);
+  const opportunityTopics = topics.filter(isOpportunityTopic);
+  const riskTopics = topics.filter(isRiskTopic);
 
   return [
     formatSectionTitle("🧭", "重大要闻"),
-    formatFlashBullets(matchContexts, 5),
+    formatMajorNewsBullets(topics),
     "",
     formatSectionTitle("🎯", "自选相关"),
-    formatMatchedBullets(matchContexts, 5),
+    formatMatchedBullets(matchContexts, topics, 5),
     "",
     formatSectionTitle("💡", "潜在机会"),
-    opportunityContexts.length > 0
-      ? formatFlashBullets(opportunityContexts, 4)
+    opportunityTopics.length > 0
+      ? formatOpportunityBullets(opportunityTopics, 4)
       : "• 未发现基于当前整理快讯可直接确认的新增机会方向。",
     "",
     formatSectionTitle("⚠️", "风险提示"),
-    riskContexts.length > 0
-      ? formatFlashBullets(riskContexts, 4)
+    riskTopics.length > 0
+      ? formatRiskBullets(riskTopics, 4)
       : "• 当前整理快讯中未发现特别突出的新增风险，但仍需留意开盘后的情绪变化。",
     "",
     formatSectionTitle("📌", "开盘前关注清单"),
-    buildFocusBullets(matchContexts),
+    buildFocusBullets(topics, matchContexts),
   ].join("\n");
 }
 
-function formatFlashBullets(contexts: FlashMatchContext[], limit: number): string {
-  return contexts
-    .slice(0, limit)
-    .map((context) => {
-      const time = context.flash.published_at.slice(11, 16);
-      return `• [${time}] ${formatContextSummary(context)}`;
+function buildFlashTopics(contexts: FlashMatchContext[]): FlashTopic[] {
+  const seen = new Set<string>();
+  const topics: FlashTopic[] = [];
+
+  for (const context of contexts) {
+    const texts = context.keyPoints.length > 0
+      ? context.keyPoints
+      : [formatContextSummary(context)];
+    const limitedTexts = texts.slice(0, FALLBACK_TOPIC_KEY_POINT_LIMIT);
+
+    for (const text of limitedTexts) {
+      const normalizedText = normalizeDigestText(text);
+      if (!normalizedText || seen.has(normalizedText)) {
+        continue;
+      }
+      seen.add(normalizedText);
+
+      const rule = inferTopicRule(`${context.headline} ${text}`);
+      topics.push({
+        context,
+        text,
+        time: context.flash.published_at.slice(11, 16),
+        rule,
+        score: scoreTopic(text, context, rule),
+        matchedItems: context.matchedItems.filter((item) => topicMatchesWatchlistItem(text, item)),
+      });
+    }
+  }
+
+  if (topics.length > 0) {
+    return topics;
+  }
+
+  return contexts.map((context) => {
+    const text = formatContextSummary(context);
+    const rule = inferTopicRule(`${context.headline} ${text}`);
+    return {
+      context,
+      text,
+      time: context.flash.published_at.slice(11, 16),
+      rule,
+      score: scoreTopic(text, context, rule),
+      matchedItems: context.matchedItems,
+    };
+  });
+}
+
+function formatMajorNewsBullets(topics: FlashTopic[]): string {
+  const selected = selectDiverseTopics(topics, FALLBACK_MAJOR_NEWS_LIMIT);
+  if (selected.length === 0) {
+    return "• 未提取到足够正文细节，今日重大要闻暂只能按标题级线索观察。";
+  }
+
+  return selected
+    .map((topic) => `• [${topic.time}] ${topic.rule.category}: ${topic.text}；${topic.rule.macroImplication}。`)
+    .join("\n");
+}
+
+function formatOpportunityBullets(topics: FlashTopic[], limit: number): string {
+  return selectDiverseTopics(topics, limit)
+    .map((topic) => {
+      const implication = topic.rule.opportunityImplication ?? "相关方向是否获得资金确认";
+      return `• [${topic.time}] ${topic.rule.category}: ${topic.text}；观察${implication}。`;
     })
     .join("\n");
 }
 
-function formatMatchedBullets(contexts: FlashMatchContext[], limit: number): string {
-  const matched = contexts.filter((context) => context.matchedItems.length > 0).slice(0, limit);
-  if (matched.length === 0) {
+function formatRiskBullets(topics: FlashTopic[], limit: number): string {
+  return selectDiverseTopics(topics, limit)
+    .map((topic) => {
+      const implication = topic.rule.riskImplication ?? "消息不确定性对开盘情绪的扰动";
+      return `• [${topic.time}] ${topic.rule.category}: ${topic.text}；风险点在于${implication}。`;
+    })
+    .join("\n");
+}
+
+function formatMatchedBullets(
+  contexts: FlashMatchContext[],
+  topics: FlashTopic[],
+  limit: number,
+): string {
+  const matchedBySymbol = new Map<string, { item: WatchlistItem; cues: Array<{ text: string; reason: string }> }>();
+
+  for (const topic of topics) {
+    for (const item of topic.matchedItems) {
+      addWatchlistCue(matchedBySymbol, item, {
+        text: topic.text,
+        reason: describeWatchlistMatch(item, topic.text),
+      });
+    }
+  }
+
+  for (const context of contexts) {
+    for (const item of context.matchedItems) {
+      if (matchedBySymbol.has(item.symbol)) {
+        continue;
+      }
+      const cue = findBestWatchlistCue(context, item);
+      addWatchlistCue(matchedBySymbol, item, {
+        text: cue,
+        reason: describeWatchlistMatch(item, cue),
+      });
+    }
+  }
+
+  const entries = [...matchedBySymbol.values()].slice(0, limit);
+  if (entries.length === 0) {
     return "• 未发现直接命中自选股、行业或题材的盘前整理快讯。";
   }
 
-  return matched.map((context) => {
-    const labels = context.matchedItems.map((item) => `${item.name}（${item.symbol}）`).join("、");
-    return `• ${labels}: ${formatContextSummary(context)}`;
+  return entries.map(({ item, cues }) => {
+    const text = cues
+      .slice(0, 2)
+      .map((cue) => `${cue.reason}: ${cue.text}`)
+      .join("；");
+    return `• ${item.name}（${item.symbol}）: ${text}`;
   }).join("\n");
 }
 
-function buildFocusBullets(contexts: FlashMatchContext[]): string {
+function buildFocusBullets(topics: FlashTopic[], contexts: FlashMatchContext[]): string {
   const bullets: string[] = [];
-  const matchedContexts = contexts.filter((context) => context.matchedItems.length > 0);
+  const matchedTopics = topics.filter((topic) => topic.matchedItems.length > 0);
 
-  for (const context of matchedContexts.slice(0, 3)) {
-    const labels = context.matchedItems.map((item) => item.name).join("、");
-    bullets.push(`• 关注 ${labels} 开盘后的量价反馈，重点核实“${formatFocusCue(context)}”是否继续发酵。`);
+  for (const topic of selectDiverseTopics(matchedTopics, 2)) {
+    const labels = topic.matchedItems.map((item) => item.name).join("、");
+    addUniqueBullet(
+      bullets,
+      `• 关注 ${labels} 与“${formatFocusCueText(topic.text)}”的联动强度，开盘看竞价、放量承接和回落后的资金回流。`,
+    );
+  }
+
+  for (const topic of selectDiverseTopics(topics.filter(isRiskTopic), 2)) {
+    addUniqueBullet(
+      bullets,
+      `• 观察 ${topic.rule.category} 是否压制风险偏好，重点看“${formatFocusCueText(topic.text)}”有无后续快讯确认。`,
+    );
+  }
+
+  for (const topic of selectDiverseTopics(topics.filter(isOpportunityTopic), 2)) {
+    addUniqueBullet(
+      bullets,
+      `• 观察 ${topic.rule.category} 主题是否扩散，重点看“${formatFocusCueText(topic.text)}”对应方向高开后的承接而非单点冲高。`,
+    );
   }
 
   if (bullets.length < 3) {
-    for (const context of contexts.slice(0, 3 - bullets.length)) {
-      bullets.push(`• 关注“${formatFocusCue(context)}”对应板块是否出现竞价强化或高开分歧。`);
+    for (const context of contexts) {
+      addUniqueBullet(
+        bullets,
+        `• 复核“${formatFocusCue(context)}”是否有后续消息或竞价强化，避免仅按标题级线索追高。`,
+      );
+      if (bullets.length >= 3) {
+        break;
+      }
     }
   }
 
   return bullets.slice(0, 5).join("\n");
 }
 
+function selectDiverseTopics(topics: FlashTopic[], limit: number): FlashTopic[] {
+  const sorted = [...topics].sort(compareTopicsByImportance);
+  const selected: FlashTopic[] = [];
+  const selectedCategories = new Set<string>();
+  const selectedTexts = new Set<string>();
+
+  for (const topic of sorted) {
+    if (selected.length >= limit) {
+      break;
+    }
+    const normalizedText = normalizeDigestText(topic.text);
+    if (selectedTexts.has(normalizedText) || selectedCategories.has(topic.rule.category)) {
+      continue;
+    }
+    selected.push(topic);
+    selectedTexts.add(normalizedText);
+    selectedCategories.add(topic.rule.category);
+  }
+
+  for (const topic of sorted) {
+    if (selected.length >= limit) {
+      break;
+    }
+    const normalizedText = normalizeDigestText(topic.text);
+    if (selectedTexts.has(normalizedText)) {
+      continue;
+    }
+    selected.push(topic);
+    selectedTexts.add(normalizedText);
+  }
+
+  return selected.sort((left, right) => left.context.flash.published_ts - right.context.flash.published_ts);
+}
+
+function compareTopicsByImportance(left: FlashTopic, right: FlashTopic): number {
+  return right.score - left.score || left.context.flash.published_ts - right.context.flash.published_ts;
+}
+
+function inferTopicRule(text: string): TopicRule {
+  return TOPIC_RULES
+    .filter((rule) => containsAnyKeyword(text, rule.keywords))
+    .sort((left, right) => right.score - left.score)[0]
+    ?? {
+      category: "市场情绪",
+      keywords: [],
+      score: 3,
+      macroImplication: "该线索可能影响局部题材情绪，需结合竞价强弱确认",
+    };
+}
+
+function scoreTopic(text: string, context: FlashMatchContext, rule: TopicRule): number {
+  let score = rule.score;
+  if (containsAnyKeyword(text, OPPORTUNITY_KEYWORDS)) {
+    score += 2;
+  }
+  if (containsAnyKeyword(text, RISK_KEYWORDS)) {
+    score += 2;
+  }
+  if (context.matchedItems.length > 0) {
+    score += 1;
+  }
+  if (text.length >= 18) {
+    score += 1;
+  }
+  return score;
+}
+
+function isOpportunityTopic(topic: FlashTopic): boolean {
+  return Boolean(topic.rule.opportunityImplication) || containsAnyKeyword(topic.text, OPPORTUNITY_KEYWORDS);
+}
+
+function isRiskTopic(topic: FlashTopic): boolean {
+  return Boolean(topic.rule.riskImplication) || containsAnyKeyword(topic.text, RISK_KEYWORDS);
+}
+
+function addWatchlistCue(
+  matchedBySymbol: Map<string, { item: WatchlistItem; cues: Array<{ text: string; reason: string }> }>,
+  item: WatchlistItem,
+  cue: { text: string; reason: string },
+): void {
+  const entry = matchedBySymbol.get(item.symbol) ?? { item, cues: [] };
+  const normalizedCue = normalizeDigestText(cue.text);
+  if (!entry.cues.some((existing) => normalizeDigestText(existing.text) === normalizedCue)) {
+    entry.cues.push(cue);
+  }
+  matchedBySymbol.set(item.symbol, entry);
+}
+
+function findBestWatchlistCue(context: FlashMatchContext, item: WatchlistItem): string {
+  const exactCue = context.keyPoints.find((point) => topicMatchesWatchlistItem(point, item));
+  return exactCue ?? formatContextSummary(context);
+}
+
+function topicMatchesWatchlistItem(text: string, item: WatchlistItem): boolean {
+  const normalizedText = normalizeText(text);
+  return buildWatchlistKeywordEntries(item)
+    .some((entry) => normalizedText.includes(entry.normalized));
+}
+
+function describeWatchlistMatch(item: WatchlistItem, text: string): string {
+  const normalizedText = normalizeText(text);
+  const entries = buildWatchlistKeywordEntries(item);
+  const directMatch = entries
+    .find((entry) => entry.kind === "direct" && normalizedText.includes(entry.normalized));
+  if (directMatch) {
+    return "直接命中";
+  }
+
+  const themeMatch = entries
+    .find((entry) => entry.kind === "theme" && normalizedText.includes(entry.normalized));
+  if (themeMatch) {
+    return `题材${themeMatch.keyword}`;
+  }
+
+  const sectorMatch = entries
+    .find((entry) => entry.kind === "sector" && normalizedText.includes(entry.normalized));
+  if (sectorMatch) {
+    return `行业${sectorMatch.keyword}`;
+  }
+
+  return "规则命中";
+}
+
+function buildWatchlistKeywordEntries(item: WatchlistItem): Array<{ keyword: string; normalized: string; kind: "direct" | "sector" | "theme" }> {
+  const entries = [
+    ...[item.symbol, item.symbol.slice(0, 6), item.name].map((keyword) => ({ keyword, kind: "direct" as const })),
+    ...extractSectorKeywords(item.sector).map((keyword) => ({ keyword, kind: "sector" as const })),
+    ...item.themes.map((keyword) => ({ keyword, kind: "theme" as const })),
+  ];
+
+  const seen = new Set<string>();
+  return entries
+    .map((entry) => ({
+      ...entry,
+      keyword: entry.keyword.replace(/\s+/g, "").trim(),
+      normalized: normalizeText(entry.keyword),
+    }))
+    .filter((entry) => entry.normalized.length >= 2)
+    .filter((entry) => {
+      if (seen.has(entry.normalized)) {
+        return false;
+      }
+      seen.add(entry.normalized);
+      return true;
+    });
+}
+
+function addUniqueBullet(bullets: string[], bullet: string): void {
+  const normalizedBullet = normalizeDigestText(bullet);
+  if (!bullets.some((existing) => normalizeDigestText(existing) === normalizedBullet)) {
+    bullets.push(bullet);
+  }
+}
+
+function formatFocusCueText(text: string): string {
+  return truncateText(text, 34);
+}
+
 function containsAnyKeyword(content: string, keywords: string[]): boolean {
-  return keywords.some((keyword) => content.includes(keyword));
+  const normalizedContent = normalizeText(content);
+  return keywords.some((keyword) => normalizedContent.includes(normalizeText(keyword)));
 }
 
 function normalizeText(value: string): string {
@@ -417,7 +781,7 @@ function extractFlashKeyPoints(content: string, headline: string): string[] {
     }
     deduped.add(normalizedSegment);
     keyPoints.push(truncateText(segment, 88));
-    if (keyPoints.length >= 3) {
+    if (keyPoints.length >= FALLBACK_TOPIC_KEY_POINT_LIMIT) {
       break;
     }
   }
@@ -430,15 +794,31 @@ function stripHeadline(content: string, headline: string): string {
   if (!headline) {
     return trimmed;
   }
-  if (!trimmed.startsWith(headline)) {
+  const isTruncatedHeadline = headline.endsWith("...");
+  if (!isTruncatedHeadline && trimmed.startsWith(headline)) {
+    return trimmed.slice(headline.length).replace(/^[：:。；，、\s-]+/, "").trim();
+  }
+
+  const withoutDigestPrefix = trimmed
+    .replace(/^【?金十数据整理[:：]\s*/, "")
+    .replace(/^】\s*/, "")
+    .trim();
+  if (withoutDigestPrefix !== trimmed) {
+    return withoutDigestPrefix;
+  }
+
+  if (isTruncatedHeadline) {
     return trimmed;
   }
-  return trimmed.slice(headline.length).replace(/^[：:。；，、\s-]+/, "").trim();
+
+  return trimmed;
 }
 
 function cleanFlashSegment(segment: string): string {
   return segment
     .trim()
+    .replace(/^【?金十数据整理[:：]\s*/, "")
+    .replace(/^([^】]{2,40})】\s*/, "")
     .replace(/^[-•●▪◦]\s*/, "")
     .replace(/^\d+\s*[、.．)）]\s*/, "")
     .replace(/^[（(]?\d+[)）]\s*/, "")
