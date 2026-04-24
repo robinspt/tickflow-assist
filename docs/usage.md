@@ -181,6 +181,7 @@ npm run tool -- view_analysis '{"symbol":"002261","limit":3}'
 npm run tool -- view_analysis '{"symbol":"002261","profile":"technical","limit":3}'
 npm run tool -- backtest_key_levels '{"symbol":"002261","recentLimit":5}'
 npm run tool -- mx_search '{"query":"立讯精密最新研报","limit":5}'
+npm run tool -- mx_data '{"query":"东方财富最新价 涨跌幅","limit":20}'
 npm run tool -- mx_select_stock '{"keyword":"今日涨幅2%的股票","pageNo":1,"pageSize":20}'
 npm run tool -- list_eastmoney_watchlist
 npm run tool -- sync_eastmoney_watchlist
@@ -224,7 +225,7 @@ npm run daily-update-loop
 |---|---|
 | `analyze` | 读取本地日 K、日线指标，并临时补充分钟 K、分钟指标、实时行情和历史复盘摘要 |
 | 财务面（Expert） | 优先使用 TickFlow 完整财务快照 |
-| 财务面（非 Expert / TickFlow 完整财务失败） | 回退到 `mx_select_stock` 的 lite 指标链路 |
+| 财务面（非 Expert / TickFlow 完整财务失败） | 回退到 `mx_select_stock` 的 lite 指标链路；可用 `mx_data` 单独查询官方行情、财务、资金流等数据 |
 | 财务面仍不可用 | 财务子任务返回降级结果，但综合分析继续执行 |
 | 资讯面不可用 | 资讯子任务返回降级结果，但综合分析继续执行 |
 | 分钟 K 保留策略 | `analyze` / `update_all` 会保留近 30 个交易日；单独执行 `fetch_intraday_klines` 会保留近 10 个交易日 |
@@ -257,5 +258,5 @@ npm run daily-update-loop
 ## 7. 高优先级注意事项
 
 - 正式插件读取 `~/.openclaw/openclaw.json`；CLI 与本地 loop 读取 `local.config.json.plugin`，两者不会自动同步。
-- 未配置 `mxSearchApiKey` 时，`mx_search` / `mx_select_stock` / 东方财富自选同步不可用，非 Expert 财务链路的 lite 回退也会失效。
+- 未配置 `mxSearchApiKey` 时，`mx_search` / `mx_data` / `mx_select_stock` / 东方财富自选同步不可用，非 Expert 财务链路的 lite 回退也会失效。
 - 东方财富自选管理接口每日额度 200 次：查看/从东方财富同步各消耗 1 次，推送本地自选按股票数量逐只消耗，删除每只消耗 1 次。

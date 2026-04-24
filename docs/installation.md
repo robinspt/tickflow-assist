@@ -206,7 +206,7 @@ plugins.entries["tickflow-assist"].config
 | `tickflowApiKey` | 是 | TickFlow API Key |
 | `tickflowApiKeyLevel` | 否 | `Free` / `Starter` / `Pro` / `Expert`；`Pro` 与 `Expert` 会尝试分钟 K |
 | `mxSearchApiUrl` | 否 | 妙想 Skills 接口地址 |
-| `mxSearchApiKey` | 否 | 启用 `mx_search` / `mx_select_stock` / 东方财富自选同步，也用于非 Expert 财务链路的 lite 回退 |
+| `mxSearchApiKey` | 否 | 启用 `mx_search` / `mx_data` / `mx_select_stock` / 东方财富自选同步，也用于非 Expert 财务链路的 lite 回退 |
 | `jin10McpUrl` | 否 | Jin10 MCP 地址，默认 `https://mcp.jin10.com/mcp` |
 | `jin10ApiToken` | 否 | 启用 24 小时 Jin10 快讯监控 |
 | `jin10FlashPollInterval` | 否 | Jin10 快讯轮询间隔，默认 `300` 秒 |

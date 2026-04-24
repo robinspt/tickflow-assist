@@ -170,7 +170,7 @@ tickflow-assist/
 - [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE)：`Free` 可用日线与实时行情；`Starter` 起可用标的池，插件会用来做申万行业映射与申万 3 级同业表现；`Pro` 起可用分钟K；`Expert` 才走 TickFlow 财务数据，非 `Expert` 默认回退妙想 lite。
 - OpenClaw：负责插件运行、工具注册、对话入口与消息投递。
 - [金十数据 MCP](https://mcp.jin10.com/app/)：可选，用于 24 小时快讯流接入、自选关联筛选与事件驱动告警。独立的金十数据 Skill 详见 [OpenClaw Skill](https://clawhub.ai/robinspt/jin10) / [Hermes Skill](https://github.com/robinspt/hermes-skills)。
-- [东方财富妙想 Skills](https://marketing.dfcfs.com/views/finskillshub/)：可选，用于 `mx_search`、`mx_select_stock`、东方财富自选同步，以及非 Expert 财务链路的 lite 补充；自选管理接口每日额度 200 次。
+- [东方财富妙想 Skills](https://marketing.dfcfs.com/views/finskillshub/)：可选，用于 `mx_search`、`mx_data`、`mx_select_stock`、东方财富自选同步，以及非 Expert 财务链路的 lite 补充；自选管理接口每日额度 200 次。
 
 ## ⚠️ 风险提示
 

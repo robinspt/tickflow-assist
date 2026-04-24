@@ -57,11 +57,12 @@ export function mxSelectStockTool(mxApiService: MxApiService) {
 }
 
 function renderMxSelectStockResult(input: MxSelectStockInput, result: MxSelectStockResult): string {
+  const visibleRows = result.dataList.slice(0, input.pageSize);
   const lines = [
     `🧠 妙想选股: ${input.keyword}`,
     `状态: ${result.status ?? "-"} | 业务码: ${result.code ?? "-"} | 消息: ${result.msg ?? result.message ?? "-"}`,
     `结果类型: ${result.resultType ?? "-"} | 总数: ${result.total} | 总记录: ${result.totalRecordCount}`,
-    `页码: ${input.pageNo} | 页大小: ${input.pageSize} | 本页返回: ${result.dataList.length}`,
+    `页码: ${input.pageNo} | 页大小: ${input.pageSize} | 接口返回: ${result.dataList.length} | 展示: ${visibleRows.length} | 数据来源: ${result.dataSource}`,
   ];
 
   if (result.parserText) {
@@ -91,7 +92,10 @@ function renderMxSelectStockResult(input: MxSelectStockInput, result: MxSelectSt
 
   lines.push("");
   lines.push("CSV:");
-  lines.push(renderCsv(result.columns, result.dataList));
+  lines.push(renderCsv(result.columns, visibleRows));
+  if (result.dataList.length > visibleRows.length) {
+    lines.push(`... 仅展示前 ${visibleRows.length} 行，接口本次返回 ${result.dataList.length} 行`);
+  }
   return lines.join("\n");
 }
 

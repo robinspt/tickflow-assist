@@ -23,6 +23,7 @@ metadata: {"openclaw":{"skillKey":"stock_analysis","always":true,"primaryEnv":"T
 - 拉取单只股票的 K 线数据
 - 拉取单只股票的分钟 K 线数据
 - 搜索个股 / 板块 / 宏观相关资讯、公告、研报、政策、事件解读
+- 查询官方行情、财务、资金流、股东、高管、主营业务、板块 / 指数数据
 - 按自然语言条件做智能选股
 - 执行全部日更
 - 分析单只股票
@@ -44,6 +45,7 @@ metadata: {"openclaw":{"skillKey":"stock_analysis","always":true,"primaryEnv":"T
 - “拉 K 线”、“更新 K 线”、“获取日线” -> `fetch_klines`
 - “获取分钟K”、“拉取分钟线”、“抓分时K” -> `fetch_intraday_klines`
 - “搜资讯”、“查公告”、“看研报”、“政策解读”、“事件解读” -> `mx_search`
+- “查行情”、“查财务指标”、“查主力资金”、“查股东”、“查高管”、“查公司信息”、“查板块指数数据” -> `mx_data`
 - “选股”、“筛股票”、“找满足条件的股票”、“推荐板块成分股” -> `mx_select_stock`
 - “全部更新”、“执行日更”、“更新全部股票” -> `update_all`
 - “启动定时日更”、“开始定时日更”、“开启 TickFlow 日更计划” -> `start_daily_update`
@@ -72,6 +74,7 @@ metadata: {"openclaw":{"skillKey":"stock_analysis","always":true,"primaryEnv":"T
   - “把本地自选全部推送到东方财富” -> 直接调用 `push_eastmoney_watchlist`
   - “从东方财富自选删除 601872” -> 直接调用 `remove_eastmoney_watchlist`
   - “查立讯精密最新研报” -> 直接调用 `mx_search`
+  - “查东方财富最新价 涨跌幅” -> 直接调用 `mx_data`
   - “找今天涨幅 2% 的股票” -> 直接调用 `mx_select_stock`
 - 如果工具必需参数缺失，只补充缺失项本身。
 - 股票代码按用户原始输入提取，例如 `002261`。
@@ -89,6 +92,7 @@ metadata: {"openclaw":{"skillKey":"stock_analysis","always":true,"primaryEnv":"T
 - `backtest_key_levels` 默认回测全部关注股的活动价位；如果用户提到股票代码，应传入 `symbol`；如果用户提到“最近 N 次”，应传入 `recentLimit=N`。
 - 若配置中的 `tickflowApiKeyLevel` 为 `Free` 或 `Starter`，则应自动跳过分钟K获取；若分钟K接口失败，也不要让 `analyze` 或 `update_all` 因此整体失败。
 - 对新闻、公告、研报、政策、交易规则、具体事件、时效性影响分析等外部检索类问题，优先使用 `mx_search`，不要直接凭常识回答，也不要先读仓库文件再决定是否搜索。
+- 对官方数据查询类问题，包括实时行情、历史行情、财务指标、主力资金、估值、公司简介、主营业务、股东、高管、板块 / 指数数据，优先使用 `mx_data`；如果问题是在问“发生了什么 / 有什么新闻 / 如何解读事件”，才使用 `mx_search`。
 - 对自然语言选股、板块成分股、条件筛选、候选池推荐等任务，优先使用 `mx_select_stock`；若问题本质是“找哪些标的符合条件”，不要误用 `mx_search`。
 - 用户在“添加自选”意图中提到的“`N`天”对应 `add_stock.count`（或 `klineCount`），例如“添加 002261 成本 34.15 并获取 120 天日K”应调用 `add_stock`，其中 `count=120`。若用户未提供成本价但明确要求拉取 `N` 天日K，可只传 `symbol` 与 `count`。
 - 用户询问 TickFlow / 自选股 的日更状态时，必须调用 `daily_update_status`，不要把它解释成其他 crontab、系统任务或无关插件的定时更新。
@@ -99,7 +103,7 @@ metadata: {"openclaw":{"skillKey":"stock_analysis","always":true,"primaryEnv":"T
 - 不要臆造股票代码、成本价、日期、阈值、分析结果或监控状态。
 
 输出规则：
-- 对 `add_stock`、`list_watchlist`、`list_eastmoney_watchlist`、`sync_eastmoney_watchlist`、`push_eastmoney_watchlist`、`remove_eastmoney_watchlist`、`start_monitor`、`stop_monitor`、`monitor_status`、`start_daily_update`、`stop_daily_update`、`daily_update_status`、`analyze`、`backtest_key_levels`、`view_analysis`、`fetch_klines`、`fetch_intraday_klines`、`mx_search`、`mx_select_stock` 和 `update_all`，调用工具后尽量原样输出返回文本。
+- 对 `add_stock`、`list_watchlist`、`list_eastmoney_watchlist`、`sync_eastmoney_watchlist`、`push_eastmoney_watchlist`、`remove_eastmoney_watchlist`、`start_monitor`、`stop_monitor`、`monitor_status`、`start_daily_update`、`stop_daily_update`、`daily_update_status`、`analyze`、`backtest_key_levels`、`view_analysis`、`fetch_klines`、`fetch_intraday_klines`、`mx_search`、`mx_data`、`mx_select_stock` 和 `update_all`，调用工具后尽量原样输出返回文本。
 - 对 `daily_update_status` 必须完整原样输出，尤其不要省略 `状态`、`运行方式`、`配置来源`、`调度`、`执行情况` 与 `最近摘要`。
 - 不要改写、总结、翻译、重排、美化，也不要加表格、额外标题或解释性包装。
 - 除非工具明确返回错误，否则不要在工具结果前后添加追问、评论或推断字段。

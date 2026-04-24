@@ -23,6 +23,7 @@ export interface MxSelectStockResult {
   total: number;
   totalRecordCount: number;
   parserText: string | null;
+  dataSource: "dataList" | "partialResults" | "none";
   columns: MxSelectStockColumn[];
   dataList: Array<Record<string, unknown>>;
   responseConditionList: MxSelectStockCondition[];

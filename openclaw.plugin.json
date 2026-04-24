@@ -61,14 +61,14 @@
       "provider": "mx-search",
       "method": "api-key",
       "choiceId": "mx-search-api-key",
-      "choiceLabel": "MX Search API key",
+      "choiceLabel": "MX Skills API key",
       "groupId": "tickflow-assist",
       "groupLabel": "TickFlow Assist",
       "groupHint": "TickFlow, analysis LLM, and optional data-service credentials.",
       "optionKey": "mxSearchApiKey",
       "cliFlag": "--mx-search-api-key",
       "cliOption": "--mx-search-api-key <key>",
-      "cliDescription": "MX Search API key",
+      "cliDescription": "MX Skills API key",
       "assistantVisibility": "manual-only"
     },
     {
@@ -163,12 +163,12 @@
       "mxSearchApiUrl": {
         "type": "string",
         "default": "https://mkapi2.dfcfs.com/finskillshub/api/claw",
-        "description": "MX Search API base URL. Leave empty to use TICKFLOW_ASSIST_MX_SEARCH_API_URL or MX_SEARCH_API_URL."
+        "description": "MX Skills API base URL. Leave empty to use TICKFLOW_ASSIST_MX_SEARCH_API_URL or MX_SEARCH_API_URL."
       },
       "mxSearchApiKey": {
         "type": "string",
         "default": "",
-        "description": "Configure this during setup if you want mx_search, mx_select_stock, Eastmoney self-select sync, and non-Expert financial fallback. Leave empty to use TICKFLOW_ASSIST_MX_SEARCH_API_KEY, MX_SEARCH_API_KEY, or MX_APIKEY."
+        "description": "Configure this during setup if you want mx_search, mx_data, mx_select_stock, Eastmoney self-select sync, and non-Expert financial fallback. Leave empty to use TICKFLOW_ASSIST_MX_SEARCH_API_KEY, MX_SEARCH_API_KEY, or MX_APIKEY."
       },
       "jin10McpUrl": {
         "type": "string",
@@ -282,8 +282,8 @@
       "help": "Set this to your actual TickFlow subscription level, or provide it via TICKFLOW_ASSIST_TICKFLOW_API_KEY_LEVEL / TICKFLOW_API_KEY_LEVEL."
     },
     "mxSearchApiKey": {
-      "label": "MX Search API Key",
-      "help": "Configure this during setup if you want mx_search, mx_select_stock, Eastmoney self-select sync, and lite financial fallback, or use TICKFLOW_ASSIST_MX_SEARCH_API_KEY / MX_SEARCH_API_KEY / MX_APIKEY.",
+      "label": "MX Skills API Key",
+      "help": "Configure this during setup if you want mx_search, mx_data, mx_select_stock, Eastmoney self-select sync, and lite financial fallback, or use TICKFLOW_ASSIST_MX_SEARCH_API_KEY / MX_SEARCH_API_KEY / MX_APIKEY.",
       "sensitive": true
     },
     "jin10McpUrl": {

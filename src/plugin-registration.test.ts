@@ -196,6 +196,7 @@ test("plugin registration marks state-changing tools as optional", () => {
     "list_eastmoney_watchlist",
     "list_watchlist",
     "monitor_status",
+    "mx_data",
     "mx_search",
     "mx_select_stock",
     "query_database",

@@ -1,5 +1,6 @@
 import { formatConfigEnvFallback } from "../config/env.js";
 import type { MxSearchDocument, MxSearchSecurity } from "../types/mx-search.js";
+import type { MxDataEntityTag, MxDataResult, MxDataTable } from "../types/mx-data.js";
 import type {
   MxSelfSelectColumn,
   MxSelfSelectManageResult,
@@ -75,6 +76,23 @@ export class MxApiService {
     return normalizeMxSelectStockResult(json);
   }
 
+  async queryData(toolQuery: string): Promise<MxDataResult> {
+    const normalizedQuery = toolQuery.trim();
+    if (!normalizedQuery) {
+      throw new MxSearchServiceError("mx_data requires query");
+    }
+
+    const json = await this.postJson("query", { toolQuery: normalizedQuery }, "mx_data");
+    const apiError = extractApiError(json);
+    if (apiError) {
+      throw new MxSearchServiceError(
+        `mx_data 返回错误: ${apiError.code ?? "UNKNOWN"} ${apiError.message ?? ""}`.trim(),
+      );
+    }
+
+    return normalizeMxDataResult(json);
+  }
+
   async getSelfSelectWatchlist(): Promise<MxSelfSelectResult> {
     const json = await this.postJson("self-select/get", {}, "mx_zixuan");
     const apiError = extractApiError(json);
@@ -136,7 +154,7 @@ function buildMxEndpointUrl(baseUrl: string, endpoint: string): string {
   const trimmedBase = baseUrl.trim().replace(/\/+$/, "");
   const normalizedEndpoint = endpoint.replace(/^\/+/, "");
   const normalizedBase = trimmedBase.replace(
-    /\/(news-search|stock-screen|self-select\/get|self-select\/manage)$/i,
+    /\/(news-search|stock-screen|query|self-select\/get|self-select\/manage)$/i,
     "",
   );
 
@@ -294,7 +312,7 @@ function toNullableString(value: unknown): string | null {
   return text || null;
 }
 
-function normalizeMxSelectStockResult(value: unknown): MxSelectStockResult {
+export function normalizeMxSelectStockResult(value: unknown): MxSelectStockResult {
   const root = asRecord(value);
   const data = asRecord(root.data);
   const nestedData = asRecord(data.data);
@@ -304,17 +322,43 @@ function normalizeMxSelectStockResult(value: unknown): MxSelectStockResult {
   const rawTotalCondition = normalizeCondition(allResults.totalCondition);
   const flatTotalCondition = toNullableString(nestedData.totalCondition);
 
+  const structuredColumns = normalizeColumns(result.columns);
+  const structuredRows = normalizeDataList(result.dataList);
+  const partialTable = structuredRows.length === 0
+    ? parseMarkdownTable(toNullableString(nestedData.partialResults) ?? toNullableString(allResults.partialResults))
+    : null;
+  const fallbackColumns = partialTable
+    ? partialTable.fieldnames.map((fieldname) => ({
+        title: fieldname,
+        key: fieldname,
+        dateMsg: null,
+        sortable: false,
+        sortWay: null,
+        redGreenAble: false,
+        unit: null,
+        dataType: "String",
+      }))
+    : [];
+  const dataList = structuredRows.length > 0 ? structuredRows : (partialTable?.rows ?? []);
+  const columns = structuredColumns.length > 0 ? structuredColumns : fallbackColumns;
+  const dataSource = structuredRows.length > 0
+    ? "dataList"
+    : partialTable && partialTable.rows.length > 0
+      ? "partialResults"
+      : "none";
+
   return {
     status: toNullableNumber(root.status),
     message: toNullableString(root.message),
     code: businessCode,
     msg: toNullableString(data.message) ?? toNullableString(data.msg),
     resultType: toNullableNumber(result.resultType) ?? toNullableNumber(nestedData.resultType),
-    total: toSafeNumber(result.total),
-    totalRecordCount: toSafeNumber(result.totalRecordCount),
+    total: toSafeNumber(result.total) || dataList.length,
+    totalRecordCount: toSafeNumber(result.totalRecordCount) || dataList.length,
     parserText: toNullableString(nestedData.parserText),
-    columns: normalizeColumns(result.columns),
-    dataList: normalizeDataList(result.dataList),
+    dataSource,
+    columns,
+    dataList,
     responseConditionList: normalizeConditions(allResults.responseConditionList ?? nestedData.responseConditionList),
     totalCondition:
       rawTotalCondition ??
@@ -325,6 +369,286 @@ function normalizeMxSelectStockResult(value: unknown): MxSelectStockResult {
           }
         : null),
   };
+}
+
+export function normalizeMxDataResult(value: unknown): MxDataResult {
+  const root = asRecord(value);
+  const data = asRecord(root.data);
+  const nestedData = asRecord(data.data);
+  const searchResult = asRecord(nestedData.searchDataResultDTO ?? data.searchDataResultDTO);
+  const dtoList = Array.isArray(searchResult.dataTableDTOList)
+    ? searchResult.dataTableDTOList
+    : Array.isArray(searchResult.rawDataTableDTOList)
+      ? searchResult.rawDataTableDTOList
+      : [];
+  const tables: MxDataTable[] = [];
+  const conditionParts: string[] = [];
+
+  for (const [index, item] of dtoList.entries()) {
+    if (typeof item !== "object" || item === null) {
+      continue;
+    }
+    const dto = item as Record<string, unknown>;
+    const condition = toNullableString(dto.condition);
+    const entityName = toNullableString(dto.entityName);
+    if (condition) {
+      conditionParts.push(`[${entityName ?? `表${index + 1}`}]\n${condition}`);
+    }
+
+    const table = normalizeMxDataTable(dto, index);
+    if (table.rows.length === 0) {
+      continue;
+    }
+    tables.push(table);
+  }
+
+  return {
+    status: toNullableNumber(root.status),
+    message: toNullableString(root.message),
+    questionId: toNullableString(searchResult.questionId),
+    entityTags: normalizeMxDataEntityTags(searchResult.entityTagDTOList ?? data.entityTagDTOList),
+    conditionParts,
+    tables,
+    totalRows: tables.reduce((sum, table) => sum + table.rows.length, 0),
+  };
+}
+
+function normalizeMxDataTable(dto: Record<string, unknown>, index: number): MxDataTable {
+  const title =
+    toNullableString(dto.title) ??
+    toNullableString(dto.inputTitle) ??
+    toNullableString(dto.entityName) ??
+    `表${index + 1}`;
+  const tableValue = dto.table ?? dto.rawTable;
+  const { rows, fieldnames } = mxDataTableToRows(
+    tableValue,
+    dto.nameMap,
+    dto.indicatorOrder,
+    toNullableString(dto.entityName) ?? "指标",
+    dto,
+  );
+
+  return {
+    title,
+    code: toNullableString(dto.code),
+    entityName: toNullableString(dto.entityName),
+    rows,
+    fieldnames,
+  };
+}
+
+function mxDataTableToRows(
+  tableValue: unknown,
+  nameMapValue: unknown,
+  indicatorOrderValue: unknown,
+  entityName: string,
+  block: Record<string, unknown>,
+): { rows: Array<Record<string, string>>; fieldnames: string[] } {
+  if (Array.isArray(tableValue)) {
+    return genericRowsToNamedRows(tableValue, nameMapValue);
+  }
+  if (typeof tableValue !== "object" || tableValue === null) {
+    return { rows: [], fieldnames: [] };
+  }
+
+  const table = tableValue as Record<string, unknown>;
+  const nameMap = normalizeStringMap(nameMapValue);
+  const headers = Array.isArray(table.headName) ? table.headName : [];
+  const order = orderedMxDataKeys(table, indicatorOrderValue);
+  const codeMap = normalizeStringMap(
+    block.returnCodeMap ?? block.returnCodeNameMap ?? block.codeMap,
+  );
+
+  if (headers.length > 0) {
+    const dateColumn = nameMap.get("headNameSub") || nameMap.get("headName") || "date";
+    const fieldnames = [
+      dateColumn,
+      ...order
+        .map((key) => formatMxDataIndicatorLabel(key, nameMap, codeMap))
+        .filter(Boolean),
+    ];
+    const rows = headers.map((header, rowIndex) => {
+      const row: Record<string, string> = {
+        [dateColumn]: flattenMxValue(header),
+      };
+      for (const key of order) {
+        const label = formatMxDataIndicatorLabel(key, nameMap, codeMap);
+        if (!label) {
+          continue;
+        }
+        const values = table[key];
+        const cell = Array.isArray(values) ? values[rowIndex] : rowIndex === 0 ? values : "";
+        row[label] = flattenMxValue(cell);
+      }
+      return row;
+    });
+    return { rows, fieldnames };
+  }
+
+  const fieldnames = [entityName, "value"];
+  const rows = order
+    .map((key) => {
+      const label = formatMxDataIndicatorLabel(key, nameMap, codeMap);
+      if (!label) {
+        return null;
+      }
+      return {
+        [fieldnames[0]!]: label,
+        [fieldnames[1]!]: flattenMxValue(table[key]),
+      };
+    })
+    .filter((row): row is Record<string, string> => row != null);
+  return { rows, fieldnames };
+}
+
+function genericRowsToNamedRows(
+  value: unknown[],
+  nameMapValue: unknown,
+): { rows: Array<Record<string, string>>; fieldnames: string[] } {
+  const records = value.filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null);
+  if (records.length === 0) {
+    return { rows: [], fieldnames: [] };
+  }
+
+  const nameMap = normalizeStringMap(nameMapValue);
+  const keys = Object.keys(records[0] ?? {});
+  const fieldnames = keys.map((key) => nameMap.get(key) || key);
+  const rows = records.map((record) => {
+    const row: Record<string, string> = {};
+    for (const key of keys) {
+      row[nameMap.get(key) || key] = flattenMxValue(record[key]);
+    }
+    return row;
+  });
+  return { rows, fieldnames };
+}
+
+function orderedMxDataKeys(table: Record<string, unknown>, indicatorOrderValue: unknown): string[] {
+  const dataKeys = Object.keys(table).filter((key) => key !== "headName");
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+  const indicatorOrder = Array.isArray(indicatorOrderValue) ? indicatorOrderValue.map((item) => String(item)) : [];
+
+  for (const key of indicatorOrder) {
+    if (dataKeys.includes(key) && !seen.has(key)) {
+      ordered.push(key);
+      seen.add(key);
+    }
+  }
+  for (const key of dataKeys) {
+    if (!seen.has(key)) {
+      ordered.push(key);
+      seen.add(key);
+    }
+  }
+  return ordered;
+}
+
+function formatMxDataIndicatorLabel(
+  key: string,
+  nameMap: Map<string, string>,
+  codeMap: Map<string, string>,
+): string {
+  const mapped = nameMap.get(key) ?? codeMap.get(key);
+  if (mapped) {
+    return mapped;
+  }
+  return /^\d+$/.test(key) ? "" : key;
+}
+
+function normalizeMxDataEntityTags(value: unknown): MxDataEntityTag[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
+    .map((item) => ({
+      fullName: toNullableString(item.fullName),
+      secuCode: toNullableString(item.secuCode),
+      marketChar: toNullableString(item.marketChar),
+      entityTypeName: toNullableString(item.entityTypeName),
+      className: toNullableString(item.className),
+    }));
+}
+
+function parseMarkdownTable(value: string | null | undefined): {
+  rows: Array<Record<string, string>>;
+  fieldnames: string[];
+} | null {
+  const text = String(value ?? "").trim();
+  if (!text) {
+    return null;
+  }
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length === 0) {
+    return null;
+  }
+
+  const header = splitMarkdownCells(lines[0] ?? "");
+  if (header.length === 0) {
+    return null;
+  }
+  const dataStart = lines[1] && /^[\s|:-]+$/.test(lines[1]) ? 2 : 1;
+  const rows: Array<Record<string, string>> = [];
+  for (const line of lines.slice(dataStart)) {
+    const cells = splitMarkdownCells(line);
+    if (cells.length === 0) {
+      continue;
+    }
+    const row: Record<string, string> = {};
+    for (const [index, fieldname] of header.entries()) {
+      row[fieldname] = cells[index] ?? "";
+    }
+    rows.push(row);
+  }
+
+  return rows.length > 0 ? { rows, fieldnames: header } : null;
+}
+
+function splitMarkdownCells(line: string): string[] {
+  return line
+    .split("|")
+    .map((cell) => cell.trim())
+    .filter((cell, index, cells) => {
+      const isEdge = (index === 0 || index === cells.length - 1) && cell === "";
+      return !isEdge;
+    });
+}
+
+function normalizeStringMap(value: unknown): Map<string, string> {
+  const map = new Map<string, string>();
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => {
+      const text = flattenMxValue(item);
+      if (text) {
+        map.set(String(index), text);
+      }
+    });
+    return map;
+  }
+  if (typeof value !== "object" || value === null) {
+    return map;
+  }
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    const text = flattenMxValue(raw);
+    if (text) {
+      map.set(key, text);
+    }
+  }
+  return map;
+}
+
+function flattenMxValue(value: unknown): string {
+  if (value == null) {
+    return "";
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
 }
 
 function normalizeMxSelfSelectResult(value: unknown): MxSelfSelectResult {

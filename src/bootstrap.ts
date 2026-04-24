@@ -60,6 +60,7 @@ import { fetchKlinesTool } from "./tools/fetch-klines.tool.js";
 import { fetchIntradayKlinesTool } from "./tools/fetch-intraday-klines.tool.js";
 import { fetchFinancialsTool } from "./tools/fetch-financials.tool.js";
 import { flashMonitorStatusTool } from "./tools/flash-monitor-status.tool.js";
+import { mxDataTool } from "./tools/mx-data.tool.js";
 import { mxSearchTool } from "./tools/mx-search.tool.js";
 import { mxSelectStockTool } from "./tools/mx-select-stock.tool.js";
 import {
@@ -377,6 +378,7 @@ export function createAppContext(
       listWatchlistTool(watchlistService),
       listEastmoneyWatchlistTool(mxApiService),
       monitorStatusTool(monitorService),
+      mxDataTool(mxApiService),
       mxSearchTool(mxApiService),
       mxSelectStockTool(mxApiService),
       pushEastmoneyWatchlistTool(mxApiService, watchlistService),
