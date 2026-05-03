@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.9 - 2026-05-03
+
+- 对齐 OpenClaw `v2026.5.2+`：提高最低宿主版本要求，补齐新版插件清单字段，移除弃用的 `providerAuthEnvVars`，并同步安装脚本与 README 兼容性说明。
+- 修复 Telegram 原生命令菜单在新版 OpenClaw 下可能看不到 `/ta_` 命令的问题：补充 manifest command 激活元数据与 runtime slash command aliases。
+- 修复 PNG 媒体发送异常处理：当宿主 OpenClaw 缺少 `sharp` 导致图片优化失败时，不再误判为“疑似已送达”，而是按发送前失败处理并回退纯文本。
+- 修复文本回退投递的状态判断：当回退文本实际送达但 CLI 超时或无退出码时，`/ta_testalert` 不再把整体链路误报为失败。
+- 一键安装 / 升级脚本新增 best-effort `npm install -g sharp`，并补充 OpenClaw 宿主全局 `sharp` 对 PNG 媒体投递的说明。
+
 ## v0.3.8 - 2026-04-25
 
 - 新增东方财富自选同步能力：支持读取东方财富自选、同步到本地关注列表、将本地关注股推送到东方财富，以及从东方财富自选删除指定股票，并同步 200 次/日额度说明与内置 skill 意图映射。
