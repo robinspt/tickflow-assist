@@ -146,6 +146,23 @@ export class AlertService {
         return result;
       }
 
+      if (
+        isDefiniteCommandMediaPreSendFailure(primaryFailure.error)
+        && isPossiblyDeliveredTextCommandFailure(textFallbackFailure.error)
+      ) {
+        const result = {
+          ok: true,
+          mediaAttempted: true,
+          mediaDelivered: false,
+          error: this.combineErrors(
+            primaryFailure.error,
+            `text fallback command returned an uncertain status: ${textFallbackFailure.error}`,
+          ),
+        };
+        await this.logCompletion(sendId, messageHash, payload, result);
+        return result;
+      }
+
       const result = {
         ok: false,
         mediaAttempted: true,
@@ -597,6 +614,15 @@ function isDefiniteCommandMediaPreSendFailure(detail: string): boolean {
     /\bENOENT\b/i,
     /no such file or directory/i,
     /media file missing/i,
+  ].some((pattern) => pattern.test(detail));
+}
+
+function isPossiblyDeliveredTextCommandFailure(detail: string): boolean {
+  return [
+    /command exited with unknown/i,
+    /message send timed out/i,
+    /\btimeout\b/i,
+    /no-output-timeout/i,
   ].some((pattern) => pattern.test(detail));
 }
 

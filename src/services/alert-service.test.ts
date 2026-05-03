@@ -292,6 +292,63 @@ test("sendWithResult falls back to text-only when openclaw image optimization la
   });
 });
 
+test("sendWithResult treats uncertain text fallback status after sharp failure as non-fatal", async () => {
+  const commandCalls: Array<{ argv: string[] }> = [];
+  const service = new AlertService({
+    openclawCliBin: "openclaw",
+    channel: "telegram",
+    account: "default",
+    target: "telegram:@mychat",
+    runtime: {
+      config: {} as never,
+      runtime: {
+        system: {
+          runCommandWithTimeout: async (argv: string[]) => {
+            commandCalls.push({ argv });
+            const hasMedia = argv.includes("--media");
+            return hasMedia
+              ? {
+                  stdout: "",
+                  stderr:
+                    "Error: Failed to optimize image: Optional dependency sharp is required for image attachment processing | Cannot find package 'sharp'",
+                  code: 1,
+                  signal: null,
+                  killed: false,
+                  termination: "exit" as const,
+                }
+              : {
+                  stdout: "",
+                  stderr: "",
+                  code: null,
+                  signal: null,
+                  killed: true,
+                  termination: "timeout" as const,
+                };
+          },
+        },
+        channel: {},
+      } as never,
+    },
+  });
+
+  const result = await service.sendWithResult({
+    message: "caption",
+    mediaPath: "/tmp/alert-card.png",
+    mediaLocalRoots: ["/tmp"],
+  });
+
+  assert.equal(commandCalls.length, 2);
+  assert.equal(commandCalls[0]?.argv.includes("--media"), true);
+  assert.equal(commandCalls[1]?.argv.includes("--media"), false);
+  assert.deepEqual(result, {
+    ok: true,
+    mediaAttempted: true,
+    mediaDelivered: false,
+    error:
+      "Error: Failed to optimize image: Optional dependency sharp is required for image attachment processing | Cannot find package 'sharp'; text fallback command returned an uncertain status: command exited with unknown",
+  });
+});
+
 test("sendWithResult uses CLI for telegram media alerts even when runtime is available", async () => {
   let cliCalled = false;
   let runtimeCalled = false;
