@@ -440,12 +440,12 @@ export class AlertService {
         return null;
       }
 
+      const detail = result.stderr.trim()
+        || result.stdout.trim()
+        || `command exited with ${result.code ?? "unknown"}`;
       const failure = {
-        error:
-          result.stderr.trim()
-          || result.stdout.trim()
-          || `command exited with ${result.code ?? "unknown"}`,
-        ambiguous: true,
+        error: detail,
+        ambiguous: Boolean(payload.mediaPath) && !isDefiniteCommandMediaPreSendFailure(detail),
       };
       await this.logTransportFailure("command_failed", context, payload, failure, {
         code: result.code,
@@ -587,6 +587,17 @@ function formatErrorMessage(error: unknown): string {
 
 function isRuntimeCapabilityUnavailableError(detail: string): boolean {
   return /runtime channel .* unavailable/i.test(detail);
+}
+
+function isDefiniteCommandMediaPreSendFailure(detail: string): boolean {
+  return [
+    /Failed to optimize image/i,
+    /Optional dependency sharp is required/i,
+    /Cannot find package ['"]sharp['"]/i,
+    /\bENOENT\b/i,
+    /no such file or directory/i,
+    /media file missing/i,
+  ].some((pattern) => pattern.test(detail));
 }
 
 function normalizeSendInput(input: string | AlertSendInput): AlertSendInput {
