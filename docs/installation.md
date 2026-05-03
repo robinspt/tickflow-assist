@@ -34,6 +34,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/robinspt/tickflow-assist
 
 - 拉取或更新源码
 - 安装 Node 与 Python 依赖
+- 尝试安装 OpenClaw `message send --media` 图片优化所需的全局 `sharp`
 - 在 Linux 上尝试安装 PNG 告警卡所需的中文字体
 - 生成或复用 `local.config.json`
 - 写入 `~/.openclaw/openclaw.json` 中的插件配置
@@ -64,7 +65,7 @@ openclaw gateway restart
 - 给顶层 `tools.allow` 或推断出的目标 Agent 补 `tickflow-assist` allowlist
 - 打印后续需要手动执行的命令
 
-它不再自动执行 `uv sync`、`openclaw plugins enable`、`openclaw config validate`、`openclaw gateway restart` 或 Linux 字体安装命令。
+它不再自动执行 `uv sync`、`npm install -g sharp`、`openclaw plugins enable`、`openclaw config validate`、`openclaw gateway restart` 或 Linux 字体安装命令。
 如果你已经手动启用插件，或暂时不想重启 Gateway，可追加 `--no-enable` 或 `--no-restart`，让向导不再打印对应步骤。
 如果 Python 已经装好，或你暂时不想看到 Python / 字体提示，可追加 `--no-python-setup` 或 `--no-font-setup`。
 如果检测到 `plugins.installs["tickflow-assist"]` 的安装来源是 `clawhub`，向导还会把被旧版本钉死的 `spec` 归一化为 `clawhub:tickflow-assist`，避免后续升级继续锁在旧版本。
@@ -72,6 +73,13 @@ openclaw gateway restart
 如需临时从 npm registry 拉取 CLI，也可以改用 `npx -y tickflow-assist configure-openclaw`；但对已安装的社区插件，默认更建议直接运行扩展目录里的本地 CLI，避免额外下载。
 
 如果你在 Linux 或 macOS 上需要 PNG 告警卡正常显示中文，请额外安装 `fontconfig` 与 Noto CJK 一类中文字体，例如：
+
+如果 OpenClaw 发送 PNG 图片时报 `Optional dependency sharp is required` 或 `Cannot find package 'sharp'`，需要让宿主 OpenClaw 的全局 npm 环境能解析 `sharp`：
+
+```bash
+npm install -g sharp
+openclaw gateway restart
+```
 
 ```bash
 # Debian / Ubuntu
@@ -404,6 +412,7 @@ npm run tool -- test_alert
 cd /path/to/tickflow-assist
 git pull
 npm install --include=dev --loglevel=error --no-fund --no-audit
+npm install -g sharp
 cd python
 uv sync
 cd ..

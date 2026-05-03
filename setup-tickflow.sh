@@ -878,6 +878,48 @@ print_manual_font_help() {
   esac
 }
 
+has_global_sharp() {
+  local npm_root=""
+
+  command_installed npm || return 1
+  npm_root=$(npm root -g 2>/dev/null || true)
+  [[ -n "$npm_root" && -f "$npm_root/sharp/package.json" ]]
+}
+
+print_manual_sharp_help() {
+  warn "自动安装 OpenClaw 媒体优化依赖 sharp 失败，PNG 图片投递可能回退为纯文本。"
+  echo "  可手动执行："
+  echo "    npm install -g sharp"
+  echo "    openclaw gateway restart"
+}
+
+ensure_openclaw_media_sharp() {
+  if has_global_sharp; then
+    success "已检测到全局 sharp，OpenClaw PNG 媒体投递依赖已就绪"
+    return 0
+  fi
+
+  warn "未检测到全局 sharp，开始尝试安装（用于 OpenClaw message send --media 图片优化）..."
+
+  if $DRY_RUN; then
+    dry "npm install -g sharp --loglevel=error --no-fund --no-audit"
+    return 0
+  fi
+
+  if npm install -g sharp --loglevel=error --no-fund --no-audit; then
+    if has_global_sharp; then
+      success "全局 sharp 安装完成"
+    else
+      warn "npm install -g sharp 已执行，但未能在 npm 全局目录检测到 sharp。"
+      print_manual_sharp_help
+    fi
+    return 0
+  fi
+
+  print_manual_sharp_help
+  return 0
+}
+
 ensure_alert_fonts() {
   local distro="unknown"
   local attempted="no"
@@ -1006,6 +1048,7 @@ install_dependencies_and_build() {
   info "安装依赖并构建..."
   if $DRY_RUN; then
     dry "cd \"$PLUGIN_DIR\" && npm install --include=dev --loglevel=error --no-fund --no-audit"
+    dry "npm install -g sharp --loglevel=error --no-fund --no-audit"
     dry "cd \"$PLUGIN_DIR/python\" && uv sync"
     dry "install Chinese fonts for PNG alerts if missing"
     dry "cd \"$PLUGIN_DIR\" && npm run build"
@@ -1016,13 +1059,15 @@ install_dependencies_and_build() {
     cd "$PLUGIN_DIR"
     info "1) npm install (仅安装源码构建所需依赖，不会安装系统 openclaw CLI)..."
     npm install --include=dev --loglevel=error --no-fund --no-audit
-    info "2) uv sync (python)..."
+    info "2) ensure OpenClaw media dependency sharp..."
+    ensure_openclaw_media_sharp
+    info "3) uv sync (python)..."
     cd python
     uv sync
     cd ..
-    info "3) ensure Chinese fonts for PNG alerts..."
+    info "4) ensure Chinese fonts for PNG alerts..."
     ensure_alert_fonts
-    info "4) npm run build..."
+    info "5) npm run build..."
     npm run build
   )
   success "依赖安装与构建完成"
