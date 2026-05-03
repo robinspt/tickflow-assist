@@ -4,7 +4,7 @@
 
 最近更新：`v0.3.8` 接入东方财富自选同步、妙想官方数据/智能选股兼容与小规模候选池联动，新增 `/ta_screenstocks` / `/ta_screenstocks_llm`，并优化盘前简报提炼和监控阶段提醒去重。完整发布记录见 <https://github.com/robinspt/tickflow-assist/blob/main/CHANGELOG.md>。
 
-当前主线按 OpenClaw `v2026.3.31+` 对齐，并已验证社区安装在 `v2026.4.22` 上兼容。
+当前主线按 OpenClaw `v2026.5.2+` 对齐，并使用 `contracts.tools` 与 `setup.providers[].envVars` 等新版插件清单字段。
 
 ## 安装前准备
 

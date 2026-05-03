@@ -16,7 +16,7 @@ PLUGIN_ID="tickflow-assist"
 REPO_URL="https://github.com/robinspt/tickflow-assist.git"
 OPENCLAW_JSON="$HOME/.openclaw/openclaw.json"
 MIN_NODE_VERSION="22.16.0"
-MIN_OPENCLAW_VERSION="2026.3.22"
+MIN_OPENCLAW_VERSION="2026.5.2"
 OPENCLAW_INSTALL_SCAN_MAX_DIRECTORIES_OVERRIDE="50000"
 
 DRY_RUN=false
@@ -684,11 +684,11 @@ show_status_panel() {
   print_status_row "插件已启用" "$OPENCLAW_PLUGIN_ENABLED" "$PLUGIN_ID"
   echo ""
   if [[ "$NODE_VERSION_OK" == "no" ]]; then
-    warn "检测到 Node ${NODE_VERSION_VALUE}。TickFlow Assist 0.2.0 面向 OpenClaw v${MIN_OPENCLAW_VERSION}+，建议 Node >= ${MIN_NODE_VERSION}。"
+    warn "检测到 Node ${NODE_VERSION_VALUE}。TickFlow Assist 当前版本面向 OpenClaw v${MIN_OPENCLAW_VERSION}+，建议 Node >= ${MIN_NODE_VERSION}。"
     echo ""
   fi
   if [[ "$OPENCLAW_VERSION_OK" == "no" ]]; then
-    warn "检测到 OpenClaw ${OPENCLAW_VERSION_VALUE}。TickFlow Assist 0.2.0 仅支持 OpenClaw >= v${MIN_OPENCLAW_VERSION}。"
+    warn "检测到 OpenClaw ${OPENCLAW_VERSION_VALUE}。TickFlow Assist 当前版本仅支持 OpenClaw >= v${MIN_OPENCLAW_VERSION}。"
     echo ""
   fi
   if [[ "$OPENCLAW_PATH_WARNING" == "yes" ]]; then
@@ -763,11 +763,11 @@ ensure_supported_runtime_versions() {
   refresh_state
 
   if [[ "$NODE_VERSION_OK" == "no" ]]; then
-    fail "当前 Node 版本 ${NODE_VERSION_VALUE} 过低。请升级到 >= ${MIN_NODE_VERSION} 后再安装/升级 TickFlow Assist 0.2.0。"
+    fail "当前 Node 版本 ${NODE_VERSION_VALUE} 过低。请升级到 >= ${MIN_NODE_VERSION} 后再安装/升级 TickFlow Assist。"
   fi
 
   if [[ "$OPENCLAW_VERSION_OK" == "no" ]]; then
-    fail "当前 OpenClaw 版本 ${OPENCLAW_VERSION_VALUE:-unknown} 过低。TickFlow Assist 0.2.0 需要 OpenClaw >= v${MIN_OPENCLAW_VERSION}。请先升级 OpenClaw。"
+    fail "当前 OpenClaw 版本 ${OPENCLAW_VERSION_VALUE:-unknown} 过低。TickFlow Assist 需要 OpenClaw >= v${MIN_OPENCLAW_VERSION}。请先升级 OpenClaw。"
   fi
 }
 

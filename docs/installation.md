@@ -10,7 +10,7 @@
 - `node` 与 `npm`
 - `uv`
 - `openclaw`
-- OpenClaw 版本建议 `v2026.3.31` 或更高
+- OpenClaw 版本需要 `v2026.5.2` 或更高
 - Node 版本建议 `>=22.14.0`，并以目标 OpenClaw 版本上游要求为准
 - 可用的 `TickFlow API Key`：[获取地址](https://tickflow.org/auth/register?ref=BUJ54JEDGE)
 - 可用的 OpenAI 兼容 `LLM API Key`
@@ -321,7 +321,7 @@ TickFlow Assist 当前通过 `openclaw message send` 投递告警，因此前提
 |---|---|---|---|---|
 | `telegram` | `openclaw channels add --channel telegram` | 通常留空 | `-1001234567890` | 直接使用群组 / 会话 ID |
 | `discord` | `openclaw channels add --channel discord` | 通常留空 | `user:1234567890` | 优先在目标会话发送 `/whoami`，读取 `User id`，拼装成 `user:User id` |
-| `qqbot`（QQ机器人） | `openclaw channels add --channel qqbot`（OpenClaw `v2026.3.31+` 已内置） | 推荐 `default` | `qqbot:c2c:YOUR_OPENID` | 优先在目标会话发送 `/whoami`，读取 `User id` |
+| `qqbot`（QQ机器人） | `openclaw channels add --channel qqbot`（OpenClaw `v2026.5.2+` 已内置） | 推荐 `default` | `qqbot:c2c:YOUR_OPENID` | 优先在目标会话发送 `/whoami`，读取 `User id` |
 | `wecom`（企业微信） | [@wecom/wecom-openclaw-plugin](https://www.npmjs.com/package/@wecom/wecom-openclaw-plugin) | 常见为 `default` | `YOUR_USER_ID_OR_CHAT_ID` | 优先在目标会话发送 `/whoami`，再区分单聊 `userId` / 群聊 `chatId` |
 | `weixin`（微信） | [@tencent-weixin/openclaw-weixin](https://www.npmjs.com/package/@tencent-weixin/openclaw-weixin) | 视插件配置 | `YOUR_TARGET` | 预留通道，当前 TickFlow Assist 尚未做专门适配，建议先用 `test_alert` 验证 |
 
@@ -340,7 +340,7 @@ TickFlow Assist 当前通过 `openclaw message send` 投递告警，因此前提
 <details>
 <summary>QQBot 补充</summary>
 
-- 在 OpenClaw `v2026.3.31+` 中，QQ Bot 已作为 bundled channel 内置；可直接执行 `openclaw channels add --channel qqbot` 完成接入。
+- 在 OpenClaw `v2026.5.2+` 中，QQ Bot 已作为 bundled channel 内置；可直接执行 `openclaw channels add --channel qqbot` 完成接入。
 - 完成通道接入后，再回到 TickFlow Assist 填写 `alertChannel: "qqbot"`、`alertAccount: "default"`、`alertTarget: "qqbot:c2c:YOUR_OPENID"`。
 - 私聊场景常用 target 格式为 `qqbot:c2c:YOUR_OPENID`。
 - target 获取方式沿用上面的通用 `/whoami` 说明；如果当前版本没有该命令，再查看官方说明或插件日志。

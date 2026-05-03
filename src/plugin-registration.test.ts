@@ -236,7 +236,6 @@ test("community install manifest does not require secrets before setup", () => {
   const manifestPath = path.resolve(process.cwd(), "openclaw.plugin.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as {
     activation?: { onCapabilities?: string[] };
-    providerAuthEnvVars?: Record<string, string[]>;
     providerAuthChoices?: Array<{
       provider?: string;
       choiceId?: string;
@@ -245,6 +244,9 @@ test("community install manifest does not require secrets before setup", () => {
     setup?: {
       requiresRuntime?: boolean;
       providers?: Array<{ id?: string; envVars?: string[] }>;
+    };
+    contracts?: {
+      tools?: string[];
     };
     configContracts?: {
       secretInputs?: {
@@ -255,16 +257,38 @@ test("community install manifest does not require secrets before setup", () => {
   };
 
   assert.deepEqual(manifest.activation?.onCapabilities, ["tool", "hook"]);
-  assert.deepEqual(manifest.providerAuthEnvVars, {
-    tickflow: ["TICKFLOW_ASSIST_TICKFLOW_API_KEY", "TICKFLOW_API_KEY"],
-    llm: ["TICKFLOW_ASSIST_LLM_API_KEY", "LLM_API_KEY"],
-    "mx-search": [
-      "TICKFLOW_ASSIST_MX_SEARCH_API_KEY",
-      "MX_SEARCH_API_KEY",
-      "MX_APIKEY",
-    ],
-    jin10: ["TICKFLOW_ASSIST_JIN10_API_TOKEN", "JIN10_API_TOKEN"],
-  });
+  assert.deepEqual(manifest.contracts?.tools, [
+    "add_stock",
+    "analyze",
+    "backtest_key_levels",
+    "daily_update_status",
+    "fetch_intraday_klines",
+    "fetch_financials",
+    "flash_monitor_status",
+    "fetch_klines",
+    "list_watchlist",
+    "list_eastmoney_watchlist",
+    "monitor_status",
+    "mx_data",
+    "mx_search",
+    "mx_select_stock",
+    "push_eastmoney_watchlist",
+    "query_database",
+    "refresh_watchlist_names",
+    "refresh_watchlist_profiles",
+    "remove_eastmoney_watchlist",
+    "remove_stock",
+    "screen_stock_candidates",
+    "start_daily_update",
+    "start_monitor",
+    "sync_eastmoney_watchlist",
+    "stop_daily_update",
+    "stop_monitor",
+    "test_alert",
+    "update_all",
+    "view_analysis",
+  ]);
+  assert.equal("providerAuthEnvVars" in manifest, false);
   assert.deepEqual(
     (manifest.providerAuthChoices ?? []).map((choice) => [
       choice.provider,
@@ -334,7 +358,7 @@ test("package metadata advertises npm install details for community distribution
   assert.deepEqual(packageJson.openclaw?.install, {
     npmSpec: "tickflow-assist",
     defaultChoice: "npm",
-    minHostVersion: ">=2026.3.31",
+    minHostVersion: ">=2026.5.2",
   });
 });
 

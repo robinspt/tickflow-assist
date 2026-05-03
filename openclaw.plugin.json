@@ -9,23 +9,37 @@
   "activation": {
     "onCapabilities": ["tool", "hook"]
   },
-  "providerAuthEnvVars": {
-    "tickflow": [
-      "TICKFLOW_ASSIST_TICKFLOW_API_KEY",
-      "TICKFLOW_API_KEY"
-    ],
-    "llm": [
-      "TICKFLOW_ASSIST_LLM_API_KEY",
-      "LLM_API_KEY"
-    ],
-    "mx-search": [
-      "TICKFLOW_ASSIST_MX_SEARCH_API_KEY",
-      "MX_SEARCH_API_KEY",
-      "MX_APIKEY"
-    ],
-    "jin10": [
-      "TICKFLOW_ASSIST_JIN10_API_TOKEN",
-      "JIN10_API_TOKEN"
+  "contracts": {
+    "tools": [
+      "add_stock",
+      "analyze",
+      "backtest_key_levels",
+      "daily_update_status",
+      "fetch_intraday_klines",
+      "fetch_financials",
+      "flash_monitor_status",
+      "fetch_klines",
+      "list_watchlist",
+      "list_eastmoney_watchlist",
+      "monitor_status",
+      "mx_data",
+      "mx_search",
+      "mx_select_stock",
+      "push_eastmoney_watchlist",
+      "query_database",
+      "refresh_watchlist_names",
+      "refresh_watchlist_profiles",
+      "remove_eastmoney_watchlist",
+      "remove_stock",
+      "screen_stock_candidates",
+      "start_daily_update",
+      "start_monitor",
+      "sync_eastmoney_watchlist",
+      "stop_daily_update",
+      "stop_monitor",
+      "test_alert",
+      "update_all",
+      "view_analysis"
     ]
   },
   "providerAuthChoices": [
