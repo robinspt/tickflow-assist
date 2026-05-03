@@ -7,8 +7,113 @@
     "skills"
   ],
   "activation": {
+    "onStartup": true,
+    "onCommands": [
+      "ta_addstock",
+      "ta_rmstock",
+      "ta_analyze",
+      "ta_backtest",
+      "ta_viewanalysis",
+      "ta_watchlist",
+      "ta_refreshnames",
+      "ta_refreshprofiles",
+      "ta_startmonitor",
+      "ta_stopmonitor",
+      "ta_monitorstatus",
+      "ta_flashstatus",
+      "ta_startdailyupdate",
+      "ta_stopdailyupdate",
+      "ta_updateall",
+      "ta_dailyupdatestatus",
+      "ta_testalert",
+      "ta_screenstocks",
+      "ta_screenstocks_llm",
+      "ta_debug"
+    ],
     "onCapabilities": ["tool", "hook"]
   },
+  "commandAliases": [
+    {
+      "name": "ta_addstock",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_rmstock",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_analyze",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_backtest",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_viewanalysis",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_watchlist",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_refreshnames",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_refreshprofiles",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_startmonitor",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_stopmonitor",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_monitorstatus",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_flashstatus",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_startdailyupdate",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_stopdailyupdate",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_updateall",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_dailyupdatestatus",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_testalert",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_screenstocks",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_screenstocks_llm",
+      "kind": "runtime-slash"
+    },
+    {
+      "name": "ta_debug",
+      "kind": "runtime-slash"
+    }
+  ],
   "contracts": {
     "tools": [
       "add_stock",

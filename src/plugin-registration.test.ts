@@ -121,6 +121,29 @@ function createAppConfig() {
 
 const CONFIG_ENV_NAMES = [...new Set(Object.values(CONFIG_ENV_FALLBACKS).flat())];
 
+const EXPECTED_PLUGIN_COMMAND_NAMES = [
+  "ta_addstock",
+  "ta_rmstock",
+  "ta_analyze",
+  "ta_backtest",
+  "ta_viewanalysis",
+  "ta_watchlist",
+  "ta_refreshnames",
+  "ta_refreshprofiles",
+  "ta_startmonitor",
+  "ta_stopmonitor",
+  "ta_monitorstatus",
+  "ta_flashstatus",
+  "ta_startdailyupdate",
+  "ta_stopdailyupdate",
+  "ta_updateall",
+  "ta_dailyupdatestatus",
+  "ta_testalert",
+  "ta_screenstocks",
+  "ta_screenstocks_llm",
+  "ta_debug",
+];
+
 async function withTemporaryEnv(
   values: Record<string, string | undefined>,
   callback: () => Promise<void> | void,
@@ -210,6 +233,10 @@ test("plugin registration marks state-changing tools as optional", () => {
     registeredServices.some((service) => service.id === "tickflow-assist.managed-loop"),
     "managed loop service should be registered in full mode",
   );
+  assert.deepEqual(
+    registeredCommands.map((command) => command.name),
+    EXPECTED_PLUGIN_COMMAND_NAMES,
+  );
   assert.ok(
     registeredCommands.some((command) => command.name === "ta_addstock"),
     "slash commands should still be registered",
@@ -235,7 +262,11 @@ test("plugin registration marks state-changing tools as optional", () => {
 test("community install manifest does not require secrets before setup", () => {
   const manifestPath = path.resolve(process.cwd(), "openclaw.plugin.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as {
-    activation?: { onCapabilities?: string[] };
+    activation?: { onStartup?: boolean; onCommands?: string[]; onCapabilities?: string[] };
+    commandAliases?: Array<{
+      name?: string;
+      kind?: string;
+    }>;
     providerAuthChoices?: Array<{
       provider?: string;
       choiceId?: string;
@@ -256,7 +287,13 @@ test("community install manifest does not require secrets before setup", () => {
     configSchema?: { required?: string[] };
   };
 
+  assert.equal(manifest.activation?.onStartup, true);
+  assert.deepEqual(manifest.activation?.onCommands, EXPECTED_PLUGIN_COMMAND_NAMES);
   assert.deepEqual(manifest.activation?.onCapabilities, ["tool", "hook"]);
+  assert.deepEqual(
+    (manifest.commandAliases ?? []).map((alias) => [alias.name, alias.kind]),
+    EXPECTED_PLUGIN_COMMAND_NAMES.map((name) => [name, "runtime-slash"]),
+  );
   assert.deepEqual(manifest.contracts?.tools, [
     "add_stock",
     "analyze",
