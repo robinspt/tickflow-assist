@@ -19,6 +19,8 @@
 
 TickFlow Assist 面向一条完整的“自选管理 -> 数据抓取 -> 综合分析 -> 后台监控 -> 结果留痕”链路，适合在 OpenClaw 中做 A 股日常盯盘、收盘后复盘和分析结果沉淀。
 
+本插件的 Hermes 版，详见 [tickflow-assist-hermes](https://github.com/robinspt/tickflow-assist-hermes)。
+
 ## ✨ 核心特性
 
 - 数据抓取：支持日 K、分钟 K、实时行情、财务数据与金十数据快讯接入，收盘后可批量更新。
