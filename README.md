@@ -2,7 +2,7 @@
 
 基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件。它使用 [TickFlow API](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 获取行情与财务数据，并可选接入 [金十数据 MCP](https://mcp.jin10.com/app/) 快讯流，结合 LLM 生成技术面、基本面、资讯面的综合判断，并把结果持久化到本地 LanceDB。
 
-最近更新：`v0.3.9` 对齐 OpenClaw `v2026.5.2+`，恢复新版 Telegram 原生命令菜单中的 `/ta_` 命令可见性，并增强 PNG 媒体投递失败后的文本回退与一键安装依赖处理。完整发布记录见 [CHANGELOG.md](CHANGELOG.md)。
+最近更新：`v0.3.9` 最低兼容 OpenClaw `v2026.5.2+`，本次按 OpenClaw `v2026.5.12` SDK / 插件清单口径跟进；恢复新版 Telegram 原生命令菜单中的 `/ta_` 命令可见性，并增强 PNG 媒体投递失败后的文本回退与一键安装依赖处理。完整发布记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 当前主线架构：
 
@@ -12,8 +12,8 @@
 
 兼容性要求：
 
-- TickFlow Assist 当前主线按 OpenClaw `v2026.5.2+` 对齐，并使用 `contracts.tools` 与 `setup.providers[].envVars` 等新版插件清单字段
-- 建议 Node `>=22.14.0`，并以目标 OpenClaw 版本上游要求为准
+- TickFlow Assist 当前主线最低兼容 OpenClaw `v2026.5.2+`，本次按 OpenClaw `v2026.5.12` SDK / 插件清单口径跟进，并使用 `contracts.tools` 与 `setup.providers[].envVars` 等新版插件清单字段
+- 建议 Node `>=22.16.0`，并以目标 OpenClaw 版本上游要求为准
 
 ## 🧭 项目简介
 

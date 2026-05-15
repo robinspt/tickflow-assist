@@ -509,6 +509,58 @@ test("sendWithResult uses CLI for qqbot alerts even when runtime is available", 
   });
 });
 
+test("sendWithResult uses CLI for non-telegram alert channels", async () => {
+  let cliCalled = false;
+  let runtimeCalled = false;
+  const service = new AlertService({
+    openclawCliBin: "openclaw",
+    channel: "discord",
+    account: "",
+    target: "discord:channel:123",
+    runtime: {
+      config: {} as never,
+      runtime: {
+        system: {
+          runCommandWithTimeout: async () => {
+            cliCalled = true;
+            return {
+              stdout: "",
+              stderr: "",
+              code: 0,
+              signal: null,
+              killed: false,
+              termination: "exit" as const,
+            };
+          },
+        },
+        channel: {
+          discord: {
+            async sendMessageDiscord() {
+              runtimeCalled = true;
+              throw new Error("discord runtime should not be used");
+            },
+          },
+        },
+      } as never,
+    },
+  });
+
+  const result = await service.sendWithResult({
+    message: "caption",
+    mediaPath: "/tmp/alert-card.png",
+    filename: "alert-card.png",
+  });
+
+  assert.equal(cliCalled, true);
+  assert.equal(runtimeCalled, false);
+  assert.deepEqual(result, {
+    ok: true,
+    mediaAttempted: true,
+    mediaDelivered: true,
+    error: null,
+  });
+});
+
 test("sendWithResult treats qqbot command JSON error as a definite failure", async () => {
   const tempHome = await mkdtemp(path.join(os.tmpdir(), "tickflow-alert-home-"));
   const originalHome = process.env.HOME;

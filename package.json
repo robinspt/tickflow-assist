@@ -46,12 +46,12 @@
   },
   "openclaw": {
     "build": {
-      "openclawVersion": "2026.5.2"
+      "openclawVersion": "2026.5.12"
     },
     "compat": {
       "pluginApi": ">=2026.5.2",
       "minGatewayVersion": "2026.5.2",
-      "builtWithOpenClawVersion": "2026.5.2"
+      "builtWithOpenClawVersion": "2026.5.12"
     },
     "install": {
       "npmSpec": "tickflow-assist",
@@ -74,7 +74,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.13.11",
-    "openclaw": "^2026.5.2",
+    "openclaw": "^2026.5.12",
     "typescript": "^5.8.2"
   }
 }
