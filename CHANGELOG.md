@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.10 - 2026-05-15
+
+- 跟进 OpenClaw `v2026.5.12`：构建元数据、`builtWithOpenClawVersion` 与开发依赖升级到 `2026.5.12`，最低兼容仍保持 OpenClaw `v2026.5.2+`。
+- 同步新版 Node 要求：README 与 ClawHub 发布页建议 Node `>=22.16.0`，与当前安装脚本保持一致。
+- 告警投递统一走 `openclaw message send --json`：不再优先调用 channel-specific runtime send helper，降低 OpenClaw 新版通道 runtime surface 变化带来的兼容风险。
+- 为运行时已标记 optional 的插件工具补充 manifest `toolMetadata.optional`，便于 OpenClaw 在加载 runtime 前识别可选工具。
+- 针对 ClawHub 上一版 `clawscan` 的 `system-prompt-override` 提示，移除发布包中注入清洗器的完整触发词字面量，保留运行时清洗行为并补充单测。
+
 ## v0.3.9 - 2026-05-03
 
 - 对齐 OpenClaw `v2026.5.2+`：提高最低宿主版本要求，补齐新版插件清单字段，移除弃用的 `providerAuthEnvVars`，并同步安装脚本与 README 兼容性说明。
