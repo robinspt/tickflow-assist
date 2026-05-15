@@ -144,6 +144,22 @@ const EXPECTED_PLUGIN_COMMAND_NAMES = [
   "ta_debug",
 ];
 
+const EXPECTED_OPTIONAL_TOOL_NAMES = [
+  "add_stock",
+  "push_eastmoney_watchlist",
+  "refresh_watchlist_names",
+  "refresh_watchlist_profiles",
+  "remove_eastmoney_watchlist",
+  "remove_stock",
+  "start_daily_update",
+  "start_monitor",
+  "stop_daily_update",
+  "stop_monitor",
+  "sync_eastmoney_watchlist",
+  "test_alert",
+  "update_all",
+];
+
 async function withTemporaryEnv(
   values: Record<string, string | undefined>,
   callback: () => Promise<void> | void,
@@ -190,21 +206,7 @@ test("plugin registration marks state-changing tools as optional", () => {
 
   const optionality = mapToolOptionality(registeredTools);
 
-  for (const toolName of [
-    "add_stock",
-    "remove_stock",
-    "refresh_watchlist_names",
-    "refresh_watchlist_profiles",
-    "push_eastmoney_watchlist",
-    "remove_eastmoney_watchlist",
-    "start_monitor",
-    "stop_monitor",
-    "start_daily_update",
-    "stop_daily_update",
-    "sync_eastmoney_watchlist",
-    "update_all",
-    "test_alert",
-  ]) {
+  for (const toolName of EXPECTED_OPTIONAL_TOOL_NAMES) {
     assert.equal(optionality.get(toolName), true, `${toolName} should be optional`);
   }
 
@@ -279,6 +281,7 @@ test("community install manifest does not require secrets before setup", () => {
     contracts?: {
       tools?: string[];
     };
+    toolMetadata?: Record<string, { optional?: boolean }>;
     configContracts?: {
       secretInputs?: {
         paths?: Array<{ path?: string }>;
@@ -325,6 +328,17 @@ test("community install manifest does not require secrets before setup", () => {
     "update_all",
     "view_analysis",
   ]);
+  assert.deepEqual(
+    Object.keys(manifest.toolMetadata ?? {}).sort(),
+    [...EXPECTED_OPTIONAL_TOOL_NAMES].sort(),
+  );
+  for (const toolName of EXPECTED_OPTIONAL_TOOL_NAMES) {
+    assert.equal(
+      manifest.toolMetadata?.[toolName]?.optional,
+      true,
+      `${toolName} should advertise optional manifest metadata`,
+    );
+  }
   assert.equal("providerAuthEnvVars" in manifest, false);
   assert.deepEqual(
     (manifest.providerAuthChoices ?? []).map((choice) => [

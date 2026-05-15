@@ -147,6 +147,47 @@
       "view_analysis"
     ]
   },
+  "toolMetadata": {
+    "add_stock": {
+      "optional": true
+    },
+    "push_eastmoney_watchlist": {
+      "optional": true
+    },
+    "refresh_watchlist_names": {
+      "optional": true
+    },
+    "refresh_watchlist_profiles": {
+      "optional": true
+    },
+    "remove_eastmoney_watchlist": {
+      "optional": true
+    },
+    "remove_stock": {
+      "optional": true
+    },
+    "start_daily_update": {
+      "optional": true
+    },
+    "start_monitor": {
+      "optional": true
+    },
+    "stop_daily_update": {
+      "optional": true
+    },
+    "stop_monitor": {
+      "optional": true
+    },
+    "sync_eastmoney_watchlist": {
+      "optional": true
+    },
+    "test_alert": {
+      "optional": true
+    },
+    "update_all": {
+      "optional": true
+    }
+  },
   "providerAuthChoices": [
     {
       "provider": "tickflow",
