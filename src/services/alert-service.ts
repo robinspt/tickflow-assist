@@ -283,7 +283,7 @@ export class AlertService {
     payload: AlertSendInput,
     context: AlertSendDiagnosticContext,
   ): Promise<AlertDeliveryFailure | null> {
-    // OpenClaw 2026.5.12 keeps channel-specific runtime send helpers outside the
+    // OpenClaw keeps channel-specific runtime send helpers outside the
     // stable surface for regular tool/service plugins. Use the shared CLI
     // delivery path for every alert channel so behavior matches user-facing
     // `openclaw message send`.

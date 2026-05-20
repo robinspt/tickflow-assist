@@ -2,9 +2,9 @@
 
 基于 [OpenClaw](https://openclaw.ai) 的 A 股监控与分析插件。它使用 [TickFlow](https://tickflow.org/auth/register?ref=BUJ54JEDGE) 获取行情与财务数据，并可选接入 [金十数据 MCP](https://mcp.jin10.com/app/) 快讯流，结合 LLM 生成技术面、基本面、资讯面的综合判断，并把结果持久化到本地 LanceDB。
 
-最近更新：`v0.3.10` 跟进 OpenClaw `v2026.5.12`：构建口径与 Node 要求同步到新版，告警投递统一走 `openclaw message send --json`，可选工具补充 `toolMetadata.optional`，并降低 ClawHub 扫描误报风险。完整发布记录见 <https://github.com/robinspt/tickflow-assist/blob/main/CHANGELOG.md>。
+最近更新：`v0.3.10` 跟进 OpenClaw `v2026.5.12`：构建口径与 Node 要求同步到新版，告警投递统一走 `openclaw message send --json`，可选工具补充 `toolMetadata.optional`，并降低 ClawHub 扫描误报风险。当前开发主线已复核 OpenClaw `v2026.5.18`。完整发布记录见 <https://github.com/robinspt/tickflow-assist/blob/main/CHANGELOG.md>。
 
-当前主线最低兼容 OpenClaw `v2026.5.2+`，本次按 OpenClaw `v2026.5.12` SDK / 插件清单口径跟进，并使用 `contracts.tools` 与 `setup.providers[].envVars` 等新版插件清单字段。建议 Node `>=22.16.0`，并以目标 OpenClaw 版本上游要求为准。
+当前主线最低兼容 OpenClaw `v2026.5.2+`，当前开发主线已按 OpenClaw `v2026.5.18` SDK / 插件清单口径复核，并使用 `contracts.tools` 与 `setup.providers[].envVars` 等新版插件清单字段。建议 Node `>=22.19.0`，并以目标 OpenClaw 版本上游要求为准。
 
 ## 安装前准备
 

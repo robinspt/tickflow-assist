@@ -98,6 +98,9 @@ import { DailyUpdateWorker } from "./background/daily-update.worker.js";
 import { Jin10FlashWorker } from "./background/jin10-flash.worker.js";
 import type { WatchlistItem } from "./types/domain.js";
 import { createAlertDiagnosticLogger } from "./utils/alert-diagnostic-log.js";
+import { sleepWithAbort } from "./utils/abortable-sleep.js";
+
+const MANAGED_LOOP_STARTUP_GRACE_MS = 10_000;
 
 export interface AppContext {
   config: PluginConfig;
@@ -420,17 +423,26 @@ export function createAppContext(
           await dailyUpdateWorker.bindManagedServiceRuntime(runtime.configSource);
           await monitorService.bindManagedServiceRuntime();
 
-          managedLoopPromise = Promise.all([
-            dailyUpdateWorker
-              .runLoop(abortController.signal, "plugin_service", runtime.configSource)
-              .catch(() => {}),
-            jin10FlashWorker
-              .runLoop(abortController.signal, "plugin_service")
-              .catch(() => {}),
-            realtimeMonitorWorker
-              .runLoop(abortController.signal, "plugin_service")
-              .catch(() => {}),
-          ]).then(() => undefined);
+          managedLoopPromise = (async () => {
+            // OpenClaw may overlap plugin service startup with channel sidecars;
+            // defer the first poll so proactive alerts do not race channel readiness.
+            await sleepWithAbort(MANAGED_LOOP_STARTUP_GRACE_MS, abortController.signal);
+            if (abortController.signal.aborted) {
+              return;
+            }
+
+            await Promise.all([
+              dailyUpdateWorker
+                .runLoop(abortController.signal, "plugin_service", runtime.configSource)
+                .catch(() => {}),
+              jin10FlashWorker
+                .runLoop(abortController.signal, "plugin_service")
+                .catch(() => {}),
+              realtimeMonitorWorker
+                .runLoop(abortController.signal, "plugin_service")
+                .catch(() => {}),
+            ]);
+          })();
         },
         stop: async () => {
           const abortController = managedLoopAbortController;
