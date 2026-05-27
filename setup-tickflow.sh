@@ -1094,6 +1094,7 @@ load_existing_config_defaults() {
   EXISTING_LOCAL_LLM_MODEL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.llmModel')
   EXISTING_LOCAL_REQUEST_INTERVAL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.requestInterval')
   EXISTING_LOCAL_DAILY_UPDATE_NOTIFY=$(read_json_compact "$LOCAL_CONFIG_PATH" 'if (.plugin? | type) == "object" and (.plugin | has("dailyUpdateNotify")) then .plugin.dailyUpdateNotify else empty end')
+  EXISTING_LOCAL_UPDATE_CHECK_ENABLED=$(read_json_compact "$LOCAL_CONFIG_PATH" 'if (.plugin? | type) == "object" and (.plugin | has("updateCheckEnabled")) then .plugin.updateCheckEnabled else empty end')
   EXISTING_LOCAL_ALERT_CHANNEL=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.alertChannel')
   EXISTING_LOCAL_ALERT_ACCOUNT=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.alertAccount')
   EXISTING_LOCAL_ALERT_TARGET=$(read_json_value "$LOCAL_CONFIG_PATH" '.plugin.alertTarget')
@@ -1119,6 +1120,7 @@ load_existing_config_defaults() {
   EXISTING_OPENCLAW_LLM_MODEL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.llmModel')
   EXISTING_OPENCLAW_REQUEST_INTERVAL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.requestInterval')
   EXISTING_OPENCLAW_DAILY_UPDATE_NOTIFY=$(read_json_compact "$OPENCLAW_JSON" 'if (.plugins.entries["tickflow-assist"].config? | type) == "object" and (.plugins.entries["tickflow-assist"].config | has("dailyUpdateNotify")) then .plugins.entries["tickflow-assist"].config.dailyUpdateNotify else empty end')
+  EXISTING_OPENCLAW_UPDATE_CHECK_ENABLED=$(read_json_compact "$OPENCLAW_JSON" 'if (.plugins.entries["tickflow-assist"].config? | type) == "object" and (.plugins.entries["tickflow-assist"].config | has("updateCheckEnabled")) then .plugins.entries["tickflow-assist"].config.updateCheckEnabled else empty end')
   EXISTING_OPENCLAW_ALERT_CHANNEL=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.alertChannel')
   EXISTING_OPENCLAW_ALERT_ACCOUNT=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.alertAccount')
   EXISTING_OPENCLAW_ALERT_TARGET=$(read_json_value "$OPENCLAW_JSON" '.plugins.entries["tickflow-assist"].config.alertTarget')
@@ -1141,6 +1143,7 @@ load_existing_config_defaults() {
   DEFAULT_LLM_MODEL=${EXISTING_LOCAL_LLM_MODEL:-${EXISTING_OPENCLAW_LLM_MODEL:-gpt-4o}}
   DEFAULT_REQUEST_INTERVAL=${EXISTING_LOCAL_REQUEST_INTERVAL:-${EXISTING_OPENCLAW_REQUEST_INTERVAL:-30}}
   DEFAULT_DAILY_UPDATE_NOTIFY=${EXISTING_LOCAL_DAILY_UPDATE_NOTIFY:-${EXISTING_OPENCLAW_DAILY_UPDATE_NOTIFY:-true}}
+  DEFAULT_UPDATE_CHECK_ENABLED=${EXISTING_LOCAL_UPDATE_CHECK_ENABLED:-${EXISTING_OPENCLAW_UPDATE_CHECK_ENABLED:-true}}
   DEFAULT_ALERT_CHANNEL=${EXISTING_LOCAL_ALERT_CHANNEL:-${EXISTING_OPENCLAW_ALERT_CHANNEL:-telegram}}
   DEFAULT_ALERT_ACCOUNT=${EXISTING_LOCAL_ALERT_ACCOUNT:-$EXISTING_OPENCLAW_ALERT_ACCOUNT}
   DEFAULT_ALERT_TARGET=${EXISTING_LOCAL_ALERT_TARGET:-$EXISTING_OPENCLAW_ALERT_TARGET}
@@ -1165,6 +1168,7 @@ apply_default_config_values() {
   LLM_BASE_URL="$DEFAULT_LLM_BASE_URL"
   LLM_API_KEY="$DEFAULT_LLM_KEY"
   LLM_MODEL="$DEFAULT_LLM_MODEL"
+  UPDATE_CHECK_ENABLED="$DEFAULT_UPDATE_CHECK_ENABLED"
   ALERT_CHANNEL="$DEFAULT_ALERT_CHANNEL"
   ALERT_ACCOUNT="$DEFAULT_ALERT_ACCOUNT"
   ALERT_TARGET="$DEFAULT_ALERT_TARGET"
@@ -1301,6 +1305,25 @@ collect_configuration() {
     read -r -p "  告警投递目标 (${TARGET_HINT}): " ALERT_TARGET
     ALERT_TARGET=${ALERT_TARGET:-"YOUR_TARGET"}
   fi
+
+  echo ""
+  echo -e "  ${BOLD}自动检查插件更新${NC}"
+  echo "  1) 开启（默认，北京时间 21:00 检查 npm / GitHub Release，有更新则推送一次）"
+  echo "  2) 关闭"
+  if [[ "$DEFAULT_UPDATE_CHECK_ENABLED" == "false" ]]; then
+    DEFAULT_UPDATE_CHECK_CHOICE=2
+  else
+    DEFAULT_UPDATE_CHECK_CHOICE=1
+  fi
+  while true; do
+    read -r -p "  请选择 (1-2) [默认 ${DEFAULT_UPDATE_CHECK_CHOICE}]: " UPDATE_CHECK_CHOICE
+    UPDATE_CHECK_CHOICE=${UPDATE_CHECK_CHOICE:-$DEFAULT_UPDATE_CHECK_CHOICE}
+    case "$UPDATE_CHECK_CHOICE" in
+      1) UPDATE_CHECK_ENABLED="true"; break ;;
+      2) UPDATE_CHECK_ENABLED="false"; break ;;
+      *) warn "无效选择，请输入 1-2。" ;;
+    esac
+  done
 }
 
 write_local_config() {
@@ -1322,6 +1345,7 @@ write_local_config() {
     --arg calFile "$DEFAULT_LOCAL_CALENDAR_FILE" \
     --argjson reqInt "$DEFAULT_REQUEST_INTERVAL" \
     --argjson daily "$DEFAULT_DAILY_UPDATE_NOTIFY" \
+    --argjson updateCheck "$UPDATE_CHECK_ENABLED" \
     --arg channel "$ALERT_CHANNEL" \
     --arg bin "$DEFAULT_OPENCLAW_BIN" \
     --arg acc "$ALERT_ACCOUNT" \
@@ -1348,6 +1372,7 @@ write_local_config() {
         calendarFile: $calFile,
         requestInterval: $reqInt,
         dailyUpdateNotify: $daily,
+        updateCheckEnabled: $updateCheck,
         alertChannel: $channel,
         openclawCliBin: $bin,
         alertAccount: $acc,
@@ -1468,6 +1493,7 @@ write_openclaw_config() {
     --arg calFile "$PLUGIN_DIR/day_future.txt" \
     --argjson reqInt "$DEFAULT_REQUEST_INTERVAL" \
     --argjson daily "$DEFAULT_DAILY_UPDATE_NOTIFY" \
+    --argjson updateCheck "$UPDATE_CHECK_ENABLED" \
     --arg channel "$ALERT_CHANNEL" \
     --arg bin "$DEFAULT_OPENCLAW_BIN" \
     --arg acc "$ALERT_ACCOUNT" \
@@ -1495,6 +1521,7 @@ write_openclaw_config() {
         calendarFile: $calFile,
         requestInterval: $reqInt,
         dailyUpdateNotify: $daily,
+        updateCheckEnabled: $updateCheck,
         alertChannel: $channel,
         openclawCliBin: $bin,
         alertAccount: $acc,

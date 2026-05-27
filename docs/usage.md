@@ -160,6 +160,7 @@
     "databasePath": "./data/lancedb",
     "calendarFile": "./day_future.txt",
     "requestInterval": 30,
+    "updateCheckEnabled": true,
     "alertChannel": "telegram",
     "openclawCliBin": "openclaw",
     "alertAccount": "",
@@ -253,6 +254,7 @@ npm run daily-update-loop
 | `update_all` | 面向收盘后手动补跑流程，会先执行日更，再立即执行一次复盘 |
 | 定时日更轮询 | 按 15 分钟对齐轮询，交易日 `15:25` 后最多执行一次 |
 | 定时收盘复盘轮询 | 按 15 分钟对齐轮询，交易日 `20:00` 后最多执行一次 |
+| 自动版本检查 | 默认开启，北京时间 `21:00` 检查 npm / GitHub Release；同一新版本只推送一次 |
 | `monitor_status` | 显示运行方式、最近心跳、最新行情与关键位覆盖情况 |
 | `daily_update_status` | 显示运行方式、配置来源、最近心跳，以及日更/复盘两类最近执行结果 |
 

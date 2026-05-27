@@ -12,6 +12,7 @@
 
 - 核心必需：`tickflowApiKey`、`llmApiKey`、`llmBaseUrl`、`llmModel`
 - 告警投递：`alertChannel`、`alertTarget`、`alertAccount`
+- 更新提醒：`updateCheckEnabled`（默认 `true`，北京时间 `21:00` 检查 npm / GitHub Release）
 - 可选增强：`mxSearchApiKey`、`jin10ApiToken`
 
 其中，`configure-openclaw` 会把上述配置写入 `~/.openclaw/openclaw.json` 的 `plugins.entries["tickflow-assist"].config`，插件启用后会在本地 `databasePath` 下持久化 LanceDB 数据，并运行监控 / 日更等后台服务。
@@ -64,7 +65,7 @@ plugins.entries["tickflow-assist"].config
 - 告警投递：`alertChannel`、`alertTarget`、`alertAccount`
 - 能力补充：`mxSearchApiKey`、`jin10ApiToken`
 
-其中，`mxSearchApiKey` 用于 `mx_search`、`mx_data`、`mx_select_stock`、东方财富自选同步以及非 `Expert` 财务链路的 lite 补充；东方财富自选管理接口每日额度 200 次；`jin10ApiToken` 用于 24 小时金十数据快讯监控；`jin10FlashNightAlert` 默认 `false`（开启夜间静默），设为 `true` 可恢复 24 小时快讯告警；`alertTarget`、`alertAccount` 建议在准备启用 `test_alert`、实时监控告警、金十数据快讯告警和定时通知前一并配好，避免配置不完整导致功能缺失。
+其中，`mxSearchApiKey` 用于 `mx_search`、`mx_data`、`mx_select_stock`、东方财富自选同步以及非 `Expert` 财务链路的 lite 补充；东方财富自选管理接口每日额度 200 次；`jin10ApiToken` 用于 24 小时金十数据快讯监控；`jin10FlashNightAlert` 默认 `false`（开启夜间静默），设为 `true` 可恢复 24 小时快讯告警；`updateCheckEnabled` 默认 `true`，会在北京时间 `21:00` 检查 npm / GitHub Release 并在发现新版本时推送一次；`alertTarget`、`alertAccount` 建议在准备启用 `test_alert`、实时监控告警、金十数据快讯告警、版本更新提醒和定时通知前一并配好，避免配置不完整导致功能缺失。
 如果你使用环境变量，运行时支持以下回退：
 
 - `tickflowApiUrl`：`TICKFLOW_ASSIST_TICKFLOW_API_URL` / `TICKFLOW_API_URL`
@@ -83,14 +84,14 @@ plugins.entries["tickflow-assist"].config
 - 自选股管理、东方财富自选同步、日 K / 分钟 K 抓取与指标计算
 - 妙想资讯搜索、官方金融数据查询、智能选股，以及限量候选池 + TickFlow 补数据联动
 - 技术面、财务面、资讯面的综合分析
-- 实时监控、定时日更、收盘后复盘
+- 实时监控、定时日更、收盘后复盘、自动版本更新提醒
 - 金十数据 24 小时快讯监控与自选关联提醒
 - 本地 LanceDB 数据留痕与分析结果查看
 
 ## 运行说明
 
 - 插件会在本地 `databasePath` 下持久化 LanceDB 数据。
-- 后台服务会按配置执行定时日更、实时监控与金十数据快讯监控。
+- 后台服务会按配置执行定时日更、实时监控、金十数据快讯监控与自动版本检查。
 - Python 子模块仅用于技术指标计算，不承担主业务流程。
 
 ## 依赖与可选能力

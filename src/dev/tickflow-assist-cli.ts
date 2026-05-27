@@ -48,6 +48,7 @@ type PluginConfigInput = {
   llmModel: string;
   requestInterval: number;
   dailyUpdateNotify: boolean;
+  updateCheckEnabled: boolean;
   alertChannel: string;
   openclawCliBin: string;
   alertAccount: string;
@@ -74,6 +75,7 @@ const DEFAULTS = {
   llmModel: "gpt-4o",
   requestInterval: 30,
   dailyUpdateNotify: true,
+  updateCheckEnabled: true,
   alertChannel: "telegram",
   openclawCliBin: "openclaw",
   alertAccount: "default",
@@ -106,6 +108,7 @@ Options:
   --jin10-flash-poll-interval <seconds>
   --jin10-flash-retention-days <days>
   --jin10-flash-night-alert <true|false>
+  --update-check-enabled <true|false>
   --llm-base-url <url>
   --llm-api-key <key>
   --llm-model <name>
@@ -222,6 +225,9 @@ function parseArgs(argv: string[]): CliOptions {
         break;
       case "--jin10-flash-night-alert":
         options.overrides.jin10FlashNightAlert = requireValue(token).toLowerCase() === "true";
+        break;
+      case "--update-check-enabled":
+        options.overrides.updateCheckEnabled = requireValue(token).toLowerCase() === "true";
         break;
       case "--llm-base-url":
         options.overrides.llmBaseUrl = requireValue(token);
@@ -346,6 +352,10 @@ function getExistingPluginConfig(root: JsonObject): Partial<PluginConfigInput> {
     typeof config.dailyUpdateNotify === "boolean"
       ? config.dailyUpdateNotify
       : DEFAULTS.dailyUpdateNotify;
+  const updateCheckEnabled =
+    typeof config.updateCheckEnabled === "boolean"
+      ? config.updateCheckEnabled
+      : DEFAULTS.updateCheckEnabled;
 
   return {
     tickflowApiUrl: stringValue(config.tickflowApiUrl, DEFAULTS.tickflowApiUrl),
@@ -370,6 +380,7 @@ function getExistingPluginConfig(root: JsonObject): Partial<PluginConfigInput> {
     llmModel: stringValue(config.llmModel, DEFAULTS.llmModel),
     requestInterval: Number.isFinite(requestInterval) ? Math.max(5, Math.trunc(requestInterval)) : DEFAULTS.requestInterval,
     dailyUpdateNotify,
+    updateCheckEnabled,
     alertChannel: stringValue(config.alertChannel, DEFAULTS.alertChannel),
     openclawCliBin: stringValue(config.openclawCliBin, DEFAULTS.openclawCliBin),
     alertAccount: stringValue(config.alertAccount, DEFAULTS.alertAccount),
@@ -542,6 +553,7 @@ async function promptForConfig(
     llmModel: DEFAULTS.llmModel,
     requestInterval: DEFAULTS.requestInterval,
     dailyUpdateNotify: DEFAULTS.dailyUpdateNotify,
+    updateCheckEnabled: DEFAULTS.updateCheckEnabled,
     alertChannel: DEFAULTS.alertChannel,
     openclawCliBin: options.openclawBin || DEFAULTS.openclawCliBin,
     alertAccount: DEFAULTS.alertAccount,
@@ -683,6 +695,11 @@ async function promptForConfig(
     seed.alertTarget = await promptString(rl, targetLabel, seed.alertTarget, { required: false });
     seed.requestInterval = await promptInteger(rl, "Request Interval (seconds)", seed.requestInterval, 5);
     seed.dailyUpdateNotify = await promptBoolean(rl, "Daily Update Notify", seed.dailyUpdateNotify);
+    seed.updateCheckEnabled = await promptBoolean(
+      rl,
+      "Auto Update Check at 21:00 Beijing Time",
+      seed.updateCheckEnabled,
+    );
   } finally {
     rl.close();
   }
@@ -811,7 +828,7 @@ function applyPluginConfig(root: JsonObject, config: PluginConfigInput, target: 
   const entries = getObject(plugins, "entries");
   const pluginEntry = getObject(entries, PLUGIN_ID);
   pluginEntry.enabled = true;
-    pluginEntry.config = {
+  pluginEntry.config = {
     tickflowApiUrl: config.tickflowApiUrl,
     tickflowApiKey: config.tickflowApiKey,
     tickflowApiKeyLevel: config.tickflowApiKeyLevel,
@@ -829,6 +846,7 @@ function applyPluginConfig(root: JsonObject, config: PluginConfigInput, target: 
     calendarFile: config.calendarFile,
     requestInterval: config.requestInterval,
     dailyUpdateNotify: config.dailyUpdateNotify,
+    updateCheckEnabled: config.updateCheckEnabled,
     alertChannel: config.alertChannel,
     openclawCliBin: config.openclawCliBin,
     alertAccount: config.alertAccount,

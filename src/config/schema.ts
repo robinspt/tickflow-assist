@@ -18,6 +18,7 @@ export interface PluginConfig {
   calendarFile: string;
   requestInterval: number;
   dailyUpdateNotify: boolean;
+  updateCheckEnabled: boolean;
   alertChannel: string;
   openclawCliBin: string;
   alertAccount: string;
@@ -45,6 +46,7 @@ export const DEFAULT_PLUGIN_CONFIG: Omit<
   calendarFile: "./day_future.txt",
   requestInterval: 30,
   dailyUpdateNotify: true,
+  updateCheckEnabled: true,
   alertChannel: "telegram",
   openclawCliBin: "openclaw",
   alertAccount: "",

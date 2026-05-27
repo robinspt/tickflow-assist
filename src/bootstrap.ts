@@ -42,6 +42,7 @@ import { KeyLevelsBacktestService } from "./services/key-levels-backtest-service
 import { PostCloseReviewService } from "./services/post-close-review-service.js";
 import { PreMarketBriefService } from "./services/pre-market-brief-service.js";
 import { ReviewMemoryService } from "./services/review-memory-service.js";
+import { UpdateCheckService } from "./services/update-check-service.js";
 import { TickFlowUniverseService } from "./services/tickflow-universe-service.js";
 import { IndustryPeerService } from "./services/industry-peer-service.js";
 import { CompositeAnalysisOrchestrator } from "./analysis/orchestrators/composite-analysis.orchestrator.js";
@@ -96,6 +97,7 @@ import { resolvePreferredOpenClawTmpDir } from "./runtime/openclaw-temp-dir.js";
 import { RealtimeMonitorWorker } from "./background/realtime-monitor.worker.js";
 import { DailyUpdateWorker } from "./background/daily-update.worker.js";
 import { Jin10FlashWorker } from "./background/jin10-flash.worker.js";
+import { UpdateCheckWorker } from "./background/update-check.worker.js";
 import type { WatchlistItem } from "./types/domain.js";
 import { createAlertDiagnosticLogger } from "./utils/alert-diagnostic-log.js";
 import { sleepWithAbort } from "./utils/abortable-sleep.js";
@@ -117,8 +119,10 @@ export interface AppContext {
     alertMediaService: AlertMediaService;
     monitorService: MonitorService;
     jin10FlashMonitorService: Jin10FlashMonitorService;
+    updateCheckService: UpdateCheckService;
     realtimeMonitorWorker: RealtimeMonitorWorker;
     jin10FlashWorker: Jin10FlashWorker;
+    updateCheckWorker: UpdateCheckWorker;
     dailyUpdateWorker: DailyUpdateWorker;
     watchlistService: WatchlistService;
     database: Database;
@@ -302,6 +306,11 @@ export function createAppContext(
     jin10FlashRepository,
     jin10FlashDeliveryRepository,
   );
+  const updateCheckService = new UpdateCheckService(
+    config.databasePath,
+    config.updateCheckEnabled,
+    alertService,
+  );
   const updateService = new UpdateService(
     klineService,
     config.tickflowApiKeyLevel,
@@ -343,6 +352,7 @@ export function createAppContext(
     jin10FlashMonitorService,
     config.jin10FlashPollInterval * 1000,
   );
+  const updateCheckWorker = new UpdateCheckWorker(updateCheckService);
   const dailyUpdateWorker = new DailyUpdateWorker(
     updateService,
     preMarketBriefService,
@@ -438,6 +448,13 @@ export function createAppContext(
               jin10FlashWorker
                 .runLoop(abortController.signal, "plugin_service")
                 .catch(() => {}),
+              ...(config.updateCheckEnabled
+                ? [
+                    updateCheckWorker
+                      .runLoop(abortController.signal)
+                      .catch(() => {}),
+                  ]
+                : []),
               realtimeMonitorWorker
                 .runLoop(abortController.signal, "plugin_service")
                 .catch(() => {}),
@@ -465,8 +482,10 @@ export function createAppContext(
       alertMediaService,
       monitorService,
       jin10FlashMonitorService,
+      updateCheckService,
       realtimeMonitorWorker,
       jin10FlashWorker,
+      updateCheckWorker,
       dailyUpdateWorker,
       watchlistService,
       database,

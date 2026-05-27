@@ -104,6 +104,7 @@ export function normalizePluginConfig(input: unknown): PluginConfig {
     calendarFile: normalizeString(raw.calendarFile, DEFAULT_PLUGIN_CONFIG.calendarFile),
     requestInterval: normalizeInteger(raw.requestInterval, DEFAULT_PLUGIN_CONFIG.requestInterval),
     dailyUpdateNotify: normalizeBoolean(raw.dailyUpdateNotify, DEFAULT_PLUGIN_CONFIG.dailyUpdateNotify),
+    updateCheckEnabled: normalizeBoolean(raw.updateCheckEnabled, DEFAULT_PLUGIN_CONFIG.updateCheckEnabled),
     alertChannel: normalizeString(raw.alertChannel, DEFAULT_PLUGIN_CONFIG.alertChannel),
     openclawCliBin: normalizeString(raw.openclawCliBin, DEFAULT_PLUGIN_CONFIG.openclawCliBin),
     alertAccount: normalizeString(raw.alertAccount, DEFAULT_PLUGIN_CONFIG.alertAccount),

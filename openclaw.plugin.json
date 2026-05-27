@@ -393,6 +393,11 @@
         "default": true,
         "description": "Whether scheduled daily update and post-close review send notifications."
       },
+      "updateCheckEnabled": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether to check npm and GitHub Release for new TickFlow Assist versions at 21:00 Beijing time and send an alert when a newer version is found."
+      },
       "alertChannel": {
         "type": "string",
         "description": "Configure this during setup for alert delivery, e.g. telegram, qqbot, wecom.",
@@ -469,6 +474,11 @@
     "jin10FlashNightAlert": {
       "label": "Jin10 Night Alert",
       "help": "Set to false to suppress flash alerts between 22:00-06:00 Beijing time.",
+      "advanced": true
+    },
+    "updateCheckEnabled": {
+      "label": "Auto Update Check",
+      "help": "Check npm and GitHub Release at 21:00 Beijing time and notify once when a newer TickFlow Assist version is available.",
       "advanced": true
     },
     "llmBaseUrl": {

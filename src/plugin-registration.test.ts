@@ -109,6 +109,7 @@ function createAppConfig() {
     calendarFile: path.resolve(process.cwd(), "day_future.txt"),
     requestInterval: 30,
     dailyUpdateNotify: true,
+    updateCheckEnabled: true,
     alertChannel: "telegram",
     openclawCliBin: "openclaw",
     alertAccount: "",
