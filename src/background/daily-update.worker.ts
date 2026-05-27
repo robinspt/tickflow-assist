@@ -308,7 +308,11 @@ export class DailyUpdateWorker {
     }
 
     const readiness = await this.tradingCalendarService.canRunDailyUpdate();
-    if (!readiness.ok && readiness.reason.includes("须等到") && state.lastSuccessDate === today) {
+    if (!readiness.ok) {
+      if (readiness.reason.includes("须等到") && state.lastSuccessDate === today) {
+        return;
+      }
+      await this.recordDailyUpdateSkip(state, today, readiness.reason);
       return;
     }
 
@@ -398,6 +402,21 @@ export class DailyUpdateWorker {
       lastPreMarketResultType: "skipped",
       lastPreMarketResultSummary: reason,
       preMarketConsecutiveFailures: 0,
+    });
+  }
+
+  private async recordDailyUpdateSkip(
+    state: DailyUpdateState,
+    today: string,
+    reason: string,
+  ): Promise<void> {
+    await this.writeState({
+      ...state,
+      lastAttemptAt: formatChinaDateTime(),
+      lastAttemptDate: today,
+      lastResultType: "skipped",
+      lastResultSummary: reason,
+      consecutiveFailures: 0,
     });
   }
 

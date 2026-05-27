@@ -99,41 +99,151 @@ test("runScheduledPreMarketBriefPass still executes once when only a pre-ready s
   }
 });
 
+test("runScheduledUpdatePass records a waiting-time skip without updating or notifying", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "tickflow-daily-update-test-"));
+  let readinessCalls = 0;
+  let updateCalls = 0;
+  let alertCalls = 0;
+
+  try {
+    const today = chinaToday();
+    const reason = "当前 13:55，须等到 15:25 后执行";
+    const worker = createWorker(tempRoot, {
+      notifyEnabled: true,
+      async canRunDailyUpdate() {
+        readinessCalls += 1;
+        return { ok: false, reason };
+      },
+      async updateAll() {
+        updateCalls += 1;
+        return `🚫 ${reason}`;
+      },
+      async sendAlert() {
+        alertCalls += 1;
+      },
+    });
+
+    await (worker as unknown as {
+      runScheduledUpdatePass: () => Promise<void>;
+    }).runScheduledUpdatePass();
+
+    const state = JSON.parse(
+      await readFile(path.join(tempRoot, "daily-update-state.json"), "utf-8"),
+    ) as {
+      lastAttemptDate?: string;
+      lastResultType?: string | null;
+      lastResultSummary?: string | null;
+      consecutiveFailures?: number;
+    };
+
+    assert.equal(readinessCalls, 1);
+    assert.equal(updateCalls, 0);
+    assert.equal(alertCalls, 0);
+    assert.equal(state.lastAttemptDate, today);
+    assert.equal(state.lastResultType, "skipped");
+    assert.equal(state.lastResultSummary, reason);
+    assert.equal(state.consecutiveFailures, 0);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runScheduledUpdatePass records a non-trading-day skip without updating or notifying", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "tickflow-daily-update-test-"));
+  let updateCalls = 0;
+  let alertCalls = 0;
+
+  try {
+    const today = chinaToday();
+    const reason = `${today} 非交易日`;
+    const worker = createWorker(tempRoot, {
+      notifyEnabled: true,
+      async canRunDailyUpdate() {
+        return { ok: false, reason };
+      },
+      async updateAll() {
+        updateCalls += 1;
+        return `🚫 ${reason}`;
+      },
+      async sendAlert() {
+        alertCalls += 1;
+      },
+    });
+
+    await (worker as unknown as {
+      runScheduledUpdatePass: () => Promise<void>;
+    }).runScheduledUpdatePass();
+
+    const state = JSON.parse(
+      await readFile(path.join(tempRoot, "daily-update-state.json"), "utf-8"),
+    ) as {
+      lastResultType?: string | null;
+      lastResultSummary?: string | null;
+      consecutiveFailures?: number;
+    };
+
+    assert.equal(updateCalls, 0);
+    assert.equal(alertCalls, 0);
+    assert.equal(state.lastResultType, "skipped");
+    assert.equal(state.lastResultSummary, reason);
+    assert.equal(state.consecutiveFailures, 0);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 function createWorker(
   baseDir: string,
   overrides: {
-    canRunPreMarketBrief: () => Promise<{ ok: boolean; reason: string }>;
-    runPreMarketBrief: () => Promise<{
+    canRunPreMarketBrief?: () => Promise<{ ok: boolean; reason: string }>;
+    runPreMarketBrief?: () => Promise<{
       resultType: "success" | "skipped" | "failed";
       message: string;
       sourceCount: number;
       matchedWatchlistCount: number;
     }>;
+    canRunDailyUpdate?: () => Promise<{ ok: boolean; reason: string }>;
+    updateAll?: (force?: boolean) => Promise<string>;
+    sendAlert?: (message: string) => Promise<void>;
+    notifyEnabled?: boolean;
   },
 ): DailyUpdateWorker {
   return new DailyUpdateWorker(
     {
-      async updateAll() {
-        return "unused";
+      async updateAll(force?: boolean) {
+        return overrides.updateAll?.(force) ?? "unused";
       },
     } as never,
     {
-      run: overrides.runPreMarketBrief,
+      async run() {
+        return overrides.runPreMarketBrief?.() ?? {
+          resultType: "skipped" as const,
+          message: "unused",
+          sourceCount: 0,
+          matchedWatchlistCount: 0,
+        };
+      },
     } as never,
     null,
     {
-      canRunPreMarketBrief: overrides.canRunPreMarketBrief,
+      async canRunPreMarketBrief() {
+        return overrides.canRunPreMarketBrief?.() ?? { ok: true, reason: "ready" };
+      },
+      async canRunDailyUpdate() {
+        return overrides.canRunDailyUpdate?.() ?? { ok: true, reason: "ready" };
+      },
     } as never,
     baseDir,
     {
-      async send() {
+      async send(message: string) {
+        await overrides.sendAlert?.(message);
         return true;
       },
       formatSystemNotification(title: string, lines: string[]) {
         return [title, ...lines].join("\n");
       },
     } as never,
-    false,
+    overrides.notifyEnabled ?? false,
     "openclaw_plugin",
     60_000,
   );
