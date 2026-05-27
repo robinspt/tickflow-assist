@@ -5,8 +5,7 @@ export function chinaNow(): Date {
 }
 
 export function formatChinaDateTime(date: Date = chinaNow()): string {
-  const utcMs = date.getTime() + date.getTimezoneOffset() * 60_000;
-  const chinaDate = new Date(utcMs + CHINA_OFFSET_HOURS * 60 * 60 * 1000);
+  const chinaDate = new Date(date.getTime() + CHINA_OFFSET_HOURS * 60 * 60 * 1000);
   const year = chinaDate.getUTCFullYear();
   const month = String(chinaDate.getUTCMonth() + 1).padStart(2, "0");
   const day = String(chinaDate.getUTCDate()).padStart(2, "0");
@@ -21,7 +20,6 @@ export function chinaToday(date: Date = chinaNow()): string {
 }
 
 export function chinaHour(date: Date = chinaNow()): number {
-  const utcMs = date.getTime() + date.getTimezoneOffset() * 60_000;
-  const chinaDate = new Date(utcMs + CHINA_OFFSET_HOURS * 60 * 60 * 1000);
+  const chinaDate = new Date(date.getTime() + CHINA_OFFSET_HOURS * 60 * 60 * 1000);
   return chinaDate.getUTCHours();
 }
