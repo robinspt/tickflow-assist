@@ -2,6 +2,8 @@
 
 ## v0.3.10 - 2026-05-15
 
+- 复核 OpenClaw `v2026.6.10`：prompt context 边界、Gateway trusted plugin tool policy、provider / plugin onboarding、session transcript SDK 与消息进度等更新未要求 TickFlow Assist 调整运行逻辑；开发期 OpenClaw SDK、构建元数据和 README 兼容性说明同步到 `2026.6.10`。
+- 复核 OpenClaw `v2026.6.6`：安全边界、`config.patch` 数组替换确认、插件/ClawHub 发布链路、QQBot 群提及开关等更新未要求 TickFlow Assist 调整运行逻辑；开发期 OpenClaw SDK、构建元数据和 README 兼容性说明同步到 `2026.6.6`。
 - 跟进 OpenClaw `v2026.5.12`：构建元数据、`builtWithOpenClawVersion` 与开发依赖升级到 `2026.5.12`，最低兼容仍保持 OpenClaw `v2026.5.2+`。
 - 同步新版 Node 要求：README 与 ClawHub 发布页建议 Node `>=22.16.0`，与当前安装脚本保持一致。
 - 告警投递统一走 `openclaw message send --json`：不再优先调用 channel-specific runtime send helper，降低 OpenClaw 新版通道 runtime surface 变化带来的兼容风险。
